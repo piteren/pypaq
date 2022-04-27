@@ -231,7 +231,7 @@ class Trainer(ABC):
                 for o,a,d,r,n,t in zip(observations, actions, dreturns, rewards, next_observations, terminals):
                     self.remember(observation=o, action=a, dreturn=d, reward=r, next_observation=n, game_over=t)
 
-                n_terminals += np.sum(np.array(terminals).astype(dtype=np.int))
+                n_terminals += np.sum(np.array(terminals).astype(dtype=np.int32))
 
                 if upd_on_episode: break
 
