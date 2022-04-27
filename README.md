@@ -1,5 +1,5 @@
 
-## pypaq - python tools package (NLP, RL, ML, NN, TF, MP)
+# pypaq - python tools package (NLP, RL, ML, NN, TF, MP)
 
 -----------------
 
