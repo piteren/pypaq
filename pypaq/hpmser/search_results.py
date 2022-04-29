@@ -2,11 +2,11 @@ import random
 from typing import Sized, List, Tuple, Optional, Iterable
 import warnings
 
+from pypaq.hpmser.helpers import _str_weights
 from pypaq.lipytools.little_methods import r_pickle, w_pickle
 from pypaq.lipytools.plots import three_dim
 from pypaq.pms.paspa import PaSpa
 from pypaq.pms.base_types import POINT, point_str
-from pypaq.pms.hpmser.helpers import _str_weights
 
 
 # Search Results List [SeRes] with some methods
