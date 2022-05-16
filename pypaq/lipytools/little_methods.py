@@ -16,7 +16,7 @@ import random
 import shutil
 import string
 import time
-from typing import List, Callable, Any, Optional
+from typing import Dict, List, Callable, Any, Optional, Union
 
 
 # prepares function parameters dictionary
@@ -92,7 +92,7 @@ def r_json( # json reader
         return json.load(file)
 
 def w_json( # json writer
-        data: dict,
+        data: Union[Dict,List],
         file_path):
     with open(file_path, 'w', encoding='utf-8') as file:
         json.dump(data, file, indent=4, ensure_ascii=False)
