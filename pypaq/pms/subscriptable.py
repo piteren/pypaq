@@ -102,7 +102,7 @@ class Subscriptable:
         return found_any
 
     def __str__(self):
-        s = f'\n(Subscriptable):'
+        s = f'\n(Subscriptable):\n'
         pms = self.get_point()
         for k in sorted(pms.keys()):
             p = f'param: {k}'
