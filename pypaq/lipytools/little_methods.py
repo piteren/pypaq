@@ -36,6 +36,16 @@ def get_params(function: Callable):
 
     return params_dict
 
+# prepares func sub-DNA given full DNA (wider)
+def get_func_dna(
+        func: Optional[Callable],
+        dna: Dict) -> Dict:
+    if func is None: return {}
+    pms = get_params(func)
+    valid_keys = pms['without_defaults'] + list(pms['with_defaults'].keys())
+    func_dna = {k: dna[k] for k in dna if k in valid_keys} # filter to get only params accepted by func
+    return func_dna
+
 # short(compressed) scientific notation for floats
 def short_scin(
         fl: float,
