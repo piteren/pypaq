@@ -11,7 +11,7 @@
 
 import os
 import shutil
-from typing import Optional
+from typing import Optional, List
 import warnings
 
 from pypaq.lipytools.little_methods import prep_folder, w_pickle, r_pickle, stamp
@@ -32,6 +32,7 @@ class ParaSave(SubGX):
             save_fn_pfx: str=           SAVE_FN_PFX, # default ParaSave filename (DNA) prefix
             gxable: bool or None=       None,        # None sets to default - True, it may override default and save by setting it to True/False
             assert_saved=               False,       # for True asserts that ParaSave has been already saved in save_topdir
+            lock_managed_params=        False,       # locks _managed_params to only those known while init
             verb=                       0,
             **kwargs):
 
@@ -47,7 +48,7 @@ class ParaSave(SubGX):
         self.save_topdir = save_topdir
         self.save_fn_pfx = save_fn_pfx
         self.gxable = True
-        self.parents = [] # list of parents names
+        self.parents = [] # list of parents names TODO: what is this for?
 
         dna_folder = ParaSave.load_dna(
             name=           self.name,
@@ -58,7 +59,16 @@ class ParaSave(SubGX):
         self.update(kwargs)     # 3. update with params given by user
         if gxable is not None: self.gxable = gxable  # if user forces it to be True/False
 
+        # _managed_params allows to lock managed params only to those given here
+        self._managed_params: Optional[List[str]] = None
+        if lock_managed_params: self._managed_params = self.get_managed_params()
+
         SubGX.__init__(self, **self.get_point())
+
+
+    def get_managed_params(self) -> List[str]:
+        if self._managed_params is not None: return self._managed_params
+        return SubGX.get_managed_params(self)
 
     # ************************************************************************************************ folder management
 

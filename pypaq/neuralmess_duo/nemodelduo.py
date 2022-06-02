@@ -2,20 +2,16 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+import numpy as np
 import tensorflow as tf
 from typing import List, Callable, Dict, Optional
 
-from pypaq.lipytools.little_methods import short_scin, stamp, get_params
+from pypaq.lipytools.little_methods import stamp, get_params, get_func_dna
 from pypaq.pms.parasave import ParaSave
-from pypaq.neuralmess_duo.base_elements import grad_clipper_AVT
+from pypaq.neuralmess_duo.base_elements import lr_scaler, grad_clipper_AVT
 
 # restricted keys for fwd_func DNA and return DNA (if they appear in kwargs, should be named exactly like below)
 SPEC_KEYS = [
-    'name',                                             # model name
-    'seed',                                             # seed for TF and numpy
-    'iLR',                                              # initial learning rate (base)
-    'warm_up','ann_base','ann_step','n_wup_off',        # LR management (parameters of LR warmup and annealing)
-    'avt_SVal','avt_window','avt_max_upd','do_clip',    # gradients clipping parameters
     'train_vars',                                       # list of variables to train (may be returned, otherwise all trainable are taken)
     'opt_vars',                                         # list of variables returned by opt_func
     'loss',                                             # loss
@@ -27,7 +23,19 @@ SPEC_KEYS = [
 NEMODELDUO_DEFAULTS = {
     'save_topdir':      '_models',                      # top folder of model save
     'save_fn_pfx':      'nemodelduo_dna',
+    'seed':             123,                            # seed for TF and numpy
     'opt_class':        tf.keras.optimizers.Adam,       # default optimizer of train()
+    'iLR':              3e-4,                           # initial learning rate (base)
+    #iLR management (parameters of LR warmup and annealing)
+    'warm_up':          None,
+    'ann_base':         None,
+    'ann_step':         1.0,
+    'n_wup_off':        1.0,
+    # gradients clipping parameters
+    'avt_SVal':         0.1,
+    'avt_window':       100,
+    'avt_max_upd':      1.5,
+    'do_clip':          False,
 }
 
 
@@ -36,12 +44,14 @@ def fwd_graph(
         in_width=           10,
         hidden_layers=      (128,),
         out_width=          3,
-        iLR=                0.0003,
+        iLR=                0.0005,     # defaults of fwd_graph will override NEMODELDUO_DEFAULTS
         verb=               0):
+
+    if verb>0: print(f'\nBuilding fwd_graph (exemplary NEModelDUO)')
 
     in_vec =  tf.keras.Input(shape=(in_width,), name="in_vec")
     in_true = tf.keras.Input(shape=(1,),        name="in_true")
-    if verb>0: print('in_vec', in_vec)
+    if verb>0: print(' > in_vec', in_vec)
 
     lay = in_vec
     for i in range(len(hidden_layers)):
@@ -54,7 +64,7 @@ def fwd_graph(
         name=       'value',
         units=      out_width,
         activation= None)(lay)
-    if verb>0: print('logits', logits)
+    if verb>0: print(' > logits', logits)
 
     probs = tf.nn.softmax(logits)
 
@@ -63,7 +73,7 @@ def fwd_graph(
         y_pred=         logits,
         from_logits=    True)
     loss = tf.reduce_mean(loss)
-    if verb > 0: print('loss', loss)
+    if verb > 0: print(' > loss', loss)
 
     return {
         'in_vec':   in_vec,
@@ -84,67 +94,47 @@ class NEModelDUO(ParaSave):
     def __init__(
             self,
             name: str,
+            fwd_func: Callable,                                 # function building graph (from inputs to loss)
             name_timestamp=             False,                  # adds timestamp to model name
-            fwd_func: Callable=         fwd_graph,              # function building forward (FWD) graph (from inputs to loss)
-            save_topdir=                '_models',              # top folder of model save
-            save_fn_pfx=                'nemodelduo_dna',
             verb=                       0,
             **kwargs):
 
-        self.verb = verb
-        self.name = name
-        if name_timestamp: self.name += f'.{stamp()}'
+        if name_timestamp: name += f'.{stamp()}'
+
+        # *************************************************************************** collect DNA from different sources
+        dna = {}
+        dna.update(NEMODELDUO_DEFAULTS)                     # update with NEMODELDUO_DEFAULTS
+        dna['fwd_func'] = fwd_func                          # save fwd_func
+        dna.update(get_params(fwd_func)['with_defaults'])   # update with fwd_func defaults
+        dna['verb'] = verb                                  # update verb
+        dna.update(kwargs)                                  # update with kwargs given by user
+
+        if verb>0:
+            print(f'\n > NEModelDUO DNA sources:')
+            print(f' >> NEMODELDUO_DEFAULTS:  {NEMODELDUO_DEFAULTS}')
+            print(f' >> fwd_func defaults:    {get_params(fwd_func)["with_defaults"]}')
+            print(f' >> DNA saved will be loaded soon by ParaSave..')
+            print(f' >> given kwargs:         {kwargs}')
+
+        ParaSave.__init__(
+            self,
+            name=                   name,
+            lock_managed_params=    True,
+            **dna)
+
         if self.verb>0: print(f'\n *** NEModelDUO {self.name} (type: {type(self).__name__}) *** initializes...')
 
-        self.save_topdir = save_topdir
-        self.save_fn_pfx = save_fn_pfx
-
-        # ******************************************************* collect DNA from different sources and build final DNA
-
-        dna_def = NEMODELDUO_DEFAULTS
-        self.__managed_params = self.get_all_fields()  # save managed params (temporary)
-        dna_self = self.get_point()
-        dna_saved = ParaSave.load_dna(name=self.name, save_topdir=self.save_topdir, save_fn_pfx=self.save_fn_pfx)
-
-        self.fwd_func = dna_saved.get('fwd_func', fwd_func) # get fwd_func if saved
-
-        dna_fwd_func = get_params(self.fwd_func)['with_defaults']
-
-        if self.verb>0:
-            print(f'\n > NEModelDUO DNA sources:')
-            print(f' >> NEModelDUO defaults:    {dna_def}')
-            print(f' >> FWD func defaults:      {dna_fwd_func}')
-            print(f' >> DNA saved:              {dna_saved}')
-            print(f' >> NEModel DNA:            {dna_self}')
-            print(f' >> given kwargs:           {kwargs}')
-
-        self.update(dna_def)        # update with NEModelBase defaults
-        self.update(dna_fwd_func)   # update with FWD func defaults
-        self.update(dna_saved)      # update with saved DNA
-        self.update(dna_self)       # update with early self DNA (should not be updated by any of above)
-        self.update(kwargs)         # update with given kwargs
-
-        self.__managed_params = self.get_all_fields()   # save managed params here, graph will add many params that we do not want to be managed
-
         # TODO: it should check (already in self + SPEC)^2
-        self.check_params_sim(SPEC_KEYS)                # safety check
+        self.check_params_sim(SPEC_KEYS)  # safety check
 
         dna = self.get_point()
         if self.verb>0: print(f'\n > NEModel complete DNA: {dna}')
 
-        ParaSave.__init__(self, **dna)
+        np.random.seed(self['seed'])
+        tf.random.set_seed(self['seed'])
 
-
-        self.dir = f'{self.save_topdir}/{self.name}'
-
-
-        # TODO: do we load weights or load whole model? Do we need build graph then - probably yes -> then just load weights
-        # TODO: put here fwd_func params from self
-        self.update(fwd_func())
-
-        # TODO: update self with defaults of graph
-        # TODO: optimizer with iLR will be managed by agn function
-        self.optimizer = self['opt_class']()
+        fwd_func_dna = get_func_dna(fwd_func, dna)
+        self.update(fwd_func(**fwd_func_dna))
 
         assert 'loss' in self, 'ERR: You need to return loss with fwd_func!'
         assert 'train_model_IO' in self, 'ERR: You need to return train_model_IO specs with fwd_func!'
@@ -161,22 +151,42 @@ class NEModelDUO(ParaSave):
             outputs=    self['train_model_IO']['outputs'])
 
         # variable for time averaged global norm of gradients
-        # TODO: is this variable properly kept by Model while saving??
         self.ggnorm_avt = self.train_model.add_weight(
             name=       'gg_avt_norm',
             trainable=  False,
             dtype=      tf.float32)
-        avt_SVal = 0.1  # start value for AVT (smaller value makes warmup)
-        self.ggnorm_avt.assign(avt_SVal)
+        self.ggnorm_avt.assign(self['avt_SVal'])
 
+        # global step variable
         self.iterations = self.train_model.add_weight(
             name=       'iterations',
             trainable=  False,
             dtype=      tf.int64)
+        self.iterations.assign(0)
 
-        self.train_model = tf.keras.models.load_model(filepath=self.dir)
+        self.dir = f'{self.save_topdir}/{self.name}'
 
-        print(self.train_model.get_weights()[-2:])
+        try:
+            self.train_model.load_weights(filepath=f'{self.dir}/weights')
+            if self.verb>0: print(f'NEModelDUO {self.name} weights loaded..')
+        except:
+            if self.verb>0: print(f'NEModelDUO {self.name} weights NOT loaded..')
+
+        #print(self.train_model.get_weights()[-2:])
+        #print(self.train_model.weights)
+        print(self.train_model.name)
+        for w in self.train_model.weights: print(w.name)
+
+        scaled_LR = lr_scaler(
+            iLR=        self['iLR'],
+            g_step=     self.iterations,
+            warm_up=    self['warm_up'],
+            ann_base=   self['ann_base'],
+            ann_step=   self['ann_step'],
+            n_wup_off=  self['n_wup_off'],
+            verb=       self.verb)
+        print('scaled_LR', scaled_LR)
+        self.optimizer = self['opt_class'](learning_rate=scaled_LR)
         self.optimizer.iterations = self.iterations
 
         self.submodels: Dict[str, tf.keras.Model] = {}
@@ -217,7 +227,8 @@ class NEModelDUO(ParaSave):
             name: Optional[str]=    None,
             training=               False):
 
-        if name is None: model = self.train_model
+        if name is None:
+            model = self.train_model
         else:
             assert name in self.submodels
             model = self.submodels[name]
@@ -227,6 +238,7 @@ class NEModelDUO(ParaSave):
         print(model.inputs[0].name)
         print(model.outputs)
         print(model.outputs[0].name)
+
         return model(data, training=training)
 
     @tf.function
@@ -245,10 +257,14 @@ class NEModelDUO(ParaSave):
             sources=    variables)
 
         gclr_out = grad_clipper_AVT(
-            variables=  variables,
-            gradients=  gradients,
-            ggnorm_avt= self.ggnorm_avt,
-            optimizer=  self['optimizer'])
+            variables=      variables,
+            gradients=      gradients,
+            ggnorm_avt=     self.ggnorm_avt,
+            optimizer=      self['optimizer'],
+            avt_window=     self['avt_window'],
+            avt_max_upd=    self['avt_max_upd'],
+            do_clip=        self['do_clip'],
+            verb=           self.verb)
 
         with self.writer.as_default():
             tf.summary.write('loss', out['loss'], step=self['optimizer'].iterations)
@@ -262,10 +278,9 @@ class NEModelDUO(ParaSave):
             'iterations':   self['optimizer'].iterations} # TODO: is iterations saved and kept properly with checkpoint
 
     def save(self):
+        ParaSave.save_dna(self)
         self.iterations.assign(self['optimizer'].iterations)
-        tf.keras.models.save_model(
-            model=      self.train_model,
-            filepath=   self.dir)
+        self.train_model.save_weights(filepath=f'{self.dir}/weights')
 
     # mixes: weights_a * (1-ratio) + weights_a * ratio + noise
     @staticmethod
