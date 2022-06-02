@@ -59,11 +59,10 @@ import warnings
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 from pypaq.lipytools.logger import set_logger
-from pypaq.lipytools.little_methods import short_scin, stamp, get_params
+from pypaq.lipytools.little_methods import short_scin, stamp, get_params, get_func_dna
 from pypaq.lipytools.moving_average import MovAvg
 from pypaq.mpython.mptools import DevicesParam
 from pypaq.mpython.mpdecor import proc_wait
-from pypaq.pms.base_types import POINT
 from pypaq.pms.subscriptable import Subscriptable
 from pypaq.pms.parasave import ParaSave
 from pypaq.neuralmess.get_tf import tf
@@ -286,8 +285,8 @@ class NEModelBase(Subscriptable):
 
         # prepare OPT & FWD func dna
         dna = self.get_point()
-        self.__opt_func_dna = NEModelBase.__get_func_dna(self.opt_func, dna)
-        self.__fwd_func_dna = NEModelBase.__get_func_dna(self.fwd_func, dna)
+        self.__opt_func_dna = get_func_dna(self.opt_func, dna)
+        self.__fwd_func_dna = get_func_dna(self.fwd_func, dna)
 
         # check for kwargs not valid for fwd_func nor opt_func
         not_used_kwargs = {}
@@ -311,17 +310,6 @@ class NEModelBase(Subscriptable):
 
         self._model_data = None
         self._batcher = None
-
-    # prepares func sub-DNA given full DNA (wider)
-    @staticmethod
-    def __get_func_dna(
-            func: Optional[Callable],
-            dna: POINT) -> POINT:
-        if func is None: return {}
-        pms = get_params(func)
-        valid_keys = pms['without_defaults'] + list(pms['with_defaults'].keys())
-        func_dna = {k: dna[k] for k in dna if k in valid_keys} # filter to get only params accepted by func
-        return func_dna
 
     # builds graph and surroundings
     def build_graph(self) -> dict:
