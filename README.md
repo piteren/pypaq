@@ -4,7 +4,7 @@
 -----------------
 
 ## pypaq
-Package with different python tools.
+Package with some python tools.
 Tools are mainly related to Machine Learning tasks like Neural Networks, Reinforcement, Optimization, Hyperparameters Search.
 Package created by Piotr Niewinski while working on different projects.
 
