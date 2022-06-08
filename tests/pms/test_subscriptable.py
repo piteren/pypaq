@@ -32,6 +32,24 @@ class TestSubscriptable(unittest.TestCase):
         sa.update({'a':2})
         self.assertTrue(sa['a']==2)
 
+    def test_check_params_sim(self):
+        init_dict = {
+            'alpha':    1,
+            'beta':     2,
+            'alpha_0':  3}
+        sa = Subscriptable()
+        sa.update(init_dict)
+        #print(sa)
+
+        self.assertTrue(not sa.check_params_sim())
+
+        more_dict = {
+            'alpha1':   2,
+            'bet':      8}
+        self.assertTrue(sa.check_params_sim(params=more_dict))
+        self.assertTrue(sa.check_params_sim(params=list(more_dict.keys())))
+
+
 
 class TestSubGX(unittest.TestCase):
 

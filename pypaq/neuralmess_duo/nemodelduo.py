@@ -21,8 +21,6 @@ SPEC_KEYS = [
     'n_batches']                                        # number of batches for train
 
 NEMODELDUO_DEFAULTS = {
-    'save_topdir':      '_models',                      # top folder of model save
-    'save_fn_pfx':      'nemodelduo_dna',
     'seed':             123,                            # seed for TF and numpy
     'opt_class':        tf.keras.optimizers.Adam,       # default optimizer of train()
     'iLR':              3e-4,                           # initial learning rate (base)
@@ -46,8 +44,6 @@ def fwd_graph(
         out_width=          3,
         iLR=                0.0005,     # defaults of fwd_graph will override NEMODELDUO_DEFAULTS
         verb=               0):
-
-    if verb>0: print(f'\nBuilding fwd_graph (exemplary NEModelDUO)')
 
     in_vec =  tf.keras.Input(shape=(in_width,), name="in_vec")
     in_true = tf.keras.Input(shape=(1,),        name="in_true")
@@ -96,35 +92,39 @@ class NEModelDUO(ParaSave):
             name: str,
             fwd_func: Callable,                                 # function building graph (from inputs to loss)
             name_timestamp=             False,                  # adds timestamp to model name
+            save_topdir=                '_models',              # top folder of model save
+            save_fn_pfx=                'nemodelduo_dna',       # dna filename prefix
             verb=                       0,
             **kwargs):
 
         if name_timestamp: name += f'.{stamp()}'
+        if verb>0: print(f'\n *** NEModelDUO {name} (type: {type(self).__name__}) *** initializes..')
 
         # *************************************************************************** collect DNA from different sources
-        dna = {}
+
+        dna = {
+            'name': name,
+            'save_topdir': save_topdir,
+            'save_fn_pfx': save_fn_pfx}
+
+        dna_saved = ParaSave.load_dna(**dna)                # load dna from folder
+
+        dna['fwd_func'] = fwd_func                          # update fwd_func
         dna.update(NEMODELDUO_DEFAULTS)                     # update with NEMODELDUO_DEFAULTS
-        dna['fwd_func'] = fwd_func                          # save fwd_func
         dna.update(get_params(fwd_func)['with_defaults'])   # update with fwd_func defaults
+        dna.update(dna_saved)                               # update with already saved dna
         dna['verb'] = verb                                  # update verb
-        dna.update(kwargs)                                  # update with kwargs given by user
+        dna.update(kwargs)                                  # update with kwargs given NOW by user
 
         if verb>0:
             print(f'\n > NEModelDUO DNA sources:')
             print(f' >> NEMODELDUO_DEFAULTS:  {NEMODELDUO_DEFAULTS}')
             print(f' >> fwd_func defaults:    {get_params(fwd_func)["with_defaults"]}')
-            print(f' >> DNA saved will be loaded soon by ParaSave..')
+            print(f' >> DNA saved:            {dna_saved}')
             print(f' >> given kwargs:         {kwargs}')
 
-        ParaSave.__init__(
-            self,
-            name=                   name,
-            lock_managed_params=    True,
-            **dna)
+        ParaSave.__init__(self, lock_managed_params=True, **dna)
 
-        if self.verb>0: print(f'\n *** NEModelDUO {self.name} (type: {type(self).__name__}) *** initializes...')
-
-        # TODO: it should check (already in self + SPEC)^2
         self.check_params_sim(SPEC_KEYS)  # safety check
 
         dna = self.get_point()
@@ -133,6 +133,7 @@ class NEModelDUO(ParaSave):
         np.random.seed(self['seed'])
         tf.random.set_seed(self['seed'])
 
+        if self.verb>0: print(f'\n > building graph ({fwd_func})..')
         fwd_func_dna = get_func_dna(fwd_func, dna)
         self.update(fwd_func(**fwd_func_dna))
 
@@ -168,14 +169,13 @@ class NEModelDUO(ParaSave):
 
         try:
             self.train_model.load_weights(filepath=f'{self.dir}/weights')
-            if self.verb>0: print(f'NEModelDUO {self.name} weights loaded..')
+            if self.verb>0: print(f'\n > NEModelDUO ({self.name}) weights loaded..')
         except:
-            if self.verb>0: print(f'NEModelDUO {self.name} weights NOT loaded..')
+            if self.verb>0: print(f'\n > NEModelDUO ({self.name}) weights NOT loaded..')
 
-        #print(self.train_model.get_weights()[-2:])
-        #print(self.train_model.weights)
-        print(self.train_model.name)
-        for w in self.train_model.weights: print(w.name)
+        if self.verb>0:
+            print(f'\ntrain.model ({self.train_model.name}) weights:')
+            for w in self.train_model.weights: print(w.name)
 
         scaled_LR = lr_scaler(
             iLR=        self['iLR'],
@@ -185,13 +185,13 @@ class NEModelDUO(ParaSave):
             ann_step=   self['ann_step'],
             n_wup_off=  self['n_wup_off'],
             verb=       self.verb)
-        print('scaled_LR', scaled_LR)
+        if self.verb>0: print('scaled_LR', scaled_LR)
         self.optimizer = self['opt_class'](learning_rate=scaled_LR)
         self.optimizer.iterations = self.iterations
 
         self.submodels: Dict[str, tf.keras.Model] = {}
 
-        self.writer = tf.summary.create_file_writer(self.dir)
+        #self.writer = tf.summary.create_file_writer(self.dir)
 
 
     def __get_model(

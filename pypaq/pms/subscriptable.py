@@ -19,7 +19,7 @@
 
 from copy import deepcopy
 import itertools
-from typing import List, Optional
+from typing import List, Optional, Union, Dict
 
 from pypaq.textools.text_metrics import lev_dist
 from pypaq.pms.base_types import POINT, PSDD
@@ -60,46 +60,34 @@ class Subscriptable:
         for key in dct:
             self.__setitem__(key, dct[key])
 
-    # checks for params similarity, returns True if already got similar
+    # checks for self.params + params for similarity, returns True if already got similar
     def check_params_sim(
             self,
-            params :dict or list,
-            lev_dist_diff: int=     1):
+            params: Optional[Union[Dict,List]]= None,
+            lev_dist_diff: int=                 1):
 
-        found_any = False
-
-        # look for params not in self.keys
+        if params is None: params = []
         paramsL = params if type(params) is list else list(params.keys())
         self_paramsL = list(self.get_point().keys())
         diff_paramsL = [par for par in paramsL if par not in self_paramsL]
 
-        # prepare dictionary of lists of lowercased underscore splits of params not in self.keys
-        diff_paramsD = {}
-        for par in diff_paramsL:
-            split = par.split('_')
-            split_lower = [el.lower() for el in split]
-            perm = list(itertools.permutations(split_lower))
-            diff_paramsD[par] = [''.join(el) for el in perm]
+        all_params = sorted(list(set([p.lower() for p in self_paramsL + diff_paramsL])))
 
-        self_paramsD = {par: par.replace('_','').lower() for par in self_paramsL} # self params lowercased with removed underscores
+        #found_any = False
+        found = set()
+        for pa in all_params:
+            for pb in all_params:
+                if pa != pb:
+                    levD = lev_dist(pa,pb)
+                    if levD <= lev_dist_diff:
+                        found.add(tuple(sorted([pa, pb])))
 
-        for p_key in diff_paramsD:
-            for s_key in self_paramsD:
-                sim_keys = False
-                s_par = self_paramsD[s_key]
-                for p_par in diff_paramsD[p_key]:
-                    if len(s_par) > lev_dist_diff and len(p_par) > lev_dist_diff:
-                        levD = lev_dist(p_par,s_par)
-                        if levD <= lev_dist_diff: sim_keys = True
-                        if s_par in p_par or p_par in s_par:
-                            sim_keys = True
-                if sim_keys:
-                    if not found_any:
-                        print('\nSubscriptable was asked to check for params similarity and found:')
-                        found_any = True
-                    print(f'WARNING: keys \'{p_key}\' and \'{s_key}\' are too CLOSE !!!')
+        if found:
+            print('\nSubscriptable was asked to check for params similarity and found:')
+            for pa,pb in found:
+                print(f'WARNING: params \'{pa}\' and \'{pb}\' are too CLOSE !!!')
 
-        return found_any
+        return len(found) > 0
 
     def __str__(self):
         s = f'\n(Subscriptable):\n'

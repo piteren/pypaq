@@ -33,6 +33,7 @@ def lr_scaler(
         n_wup_off: float=       2.0,    # N warmUp offset of annealing
         verb=                   0):
 
+    if verb>0: print(f'\nbuilding lR scaling graph for iLR: {iLR} ..')
     g_step_fl = tf.cast(g_step, dtype=tf.float32)
     if warm_up is None: warm_up = 0
     lR = iLR
@@ -40,7 +41,7 @@ def lr_scaler(
     if warm_up:
         ratioWm = tf.reduce_min([g_step_fl, warm_up]) / warm_up # warmUp ratio
         lR = iLR * ratioWm # learning rate with warmup
-        if verb > 0: print(f'applied warmUp ({warm_up}) to lR')
+        if verb>0: print(f'applied warmUp ({warm_up}) to lR')
     if ann_base is not None and ann_base != 1:
         gStep_offs = tf.reduce_max([0, g_step_fl - warm_up * n_wup_off]) # offset by warmUpSteps
         lR *= ann_base ** (gStep_offs * ann_step) # learning rate with annealing
