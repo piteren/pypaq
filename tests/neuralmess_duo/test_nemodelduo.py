@@ -3,9 +3,11 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import unittest
 
+from tests.envy import TEMP_DIR
+
 from pypaq.neuralmess_duo.nemodelduo import NEModelDUO, fwd_graph
 
-TEMP_DIR = '_temp_tests/nemodelduo'
+SCRIPT_TEMP_DIR = f'{TEMP_DIR}/nemodelduo'
 
 
 class TestNEModelDUO(unittest.TestCase):
@@ -24,7 +26,7 @@ class TestNEModelDUO(unittest.TestCase):
         model = NEModelDUO(
             name=           'pio',
             fwd_func=       fwd_graph,
-            save_topdir=    TEMP_DIR,
+            save_topdir=    SCRIPT_TEMP_DIR,
             iLR=            0.001,
             verb=           0)
         print(model['iLR'])
@@ -33,7 +35,7 @@ class TestNEModelDUO(unittest.TestCase):
         model = NEModelDUO(
             name=           'pio',
             fwd_func=       fwd_graph,
-            save_topdir=    TEMP_DIR,
+            save_topdir=    SCRIPT_TEMP_DIR,
             verb=           1)
         print(model['iLR'])
         self.assertTrue(model['iLR'] == 0.001)
