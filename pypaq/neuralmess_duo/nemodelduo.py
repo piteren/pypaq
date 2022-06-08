@@ -14,7 +14,6 @@ from pypaq.neuralmess_duo.base_elements import lr_scaler, grad_clipper_AVT
 SPEC_KEYS = [
     'train_vars',                                       # list of variables to train (may be returned, otherwise all trainable are taken)
     'opt_vars',                                         # list of variables returned by opt_func
-    'loss',                                             # loss
     'acc',                                              # accuracy
     'f1',                                               # F1
     'batch_size',                                       # batch size

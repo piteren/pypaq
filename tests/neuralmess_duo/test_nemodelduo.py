@@ -17,7 +17,8 @@ class TestNEModelDUO(unittest.TestCase):
             name=           'pio',
             name_timestamp= True,
             fwd_func=       fwd_graph,
-            verb=           0)
+            warm_up=        100,
+            verb=           1)
         self.assertTrue(model['iLR'] == 0.0005)
         self.assertTrue(len(model['name']) > 3)
 
