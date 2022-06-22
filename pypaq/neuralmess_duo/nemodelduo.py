@@ -19,6 +19,7 @@ SPEC_KEYS = [
     'batch_size',                                       # batch size
     'n_batches']                                        # number of batches for train
 
+# defaults below may be overridden by fwd_graph attributes
 NEMODELDUO_DEFAULTS = {
     'seed':             123,                            # seed for TF and numpy
     'opt_class':        tf.keras.optimizers.Adam,       # default optimizer of train()
