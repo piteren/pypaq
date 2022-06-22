@@ -13,6 +13,7 @@ from typing import List, Union, Optional
 
 # default initializer for variables of graph (recommended by TF, BERT: stddev = 0.02)
 def my_initializer(seed=12321, stddev=0.02):
+    # TODO: consider GlorotUniform (Keras default) - compare on some cases
     return tf.keras.initializers.TruncatedNormal(stddev=stddev, seed=seed)
 
 # GeLU (Gaussian Error Linear Unit) activation https://arxiv.org/abs/1606.08415

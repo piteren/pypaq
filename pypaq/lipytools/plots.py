@@ -8,28 +8,8 @@ from typing import List
 
 from pypaq.lipytools.little_methods import prep_folder
 from pypaq.lipytools.stats import stats_pd, msmx
-from pypaq.neuralmess.get_tf import tf
 
-
-# tensorboard plotter
-class TBPoltter:
-
-    def __init__(
-            self,
-            folder: str):
-
-        self.__writer = tf.summary.FileWriter(
-            logdir=         folder,
-            flush_secs=     10)
-
-    def log(
-            self,
-            value,
-            tag: str,
-            step: int):
-
-        vsumm = tf.Summary(value=[tf.Summary.Value(tag=tag, simple_value=value)])
-        self.__writer.add_summary(vsumm, step)
+# INFO: TBPlotter has been moved to TBwr in neuralmess.base_elements.py
 
 
 def histogram(

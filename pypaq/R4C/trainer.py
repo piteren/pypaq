@@ -131,6 +131,7 @@ class Trainer(ABC):
             sampled=        False,
             render=         False) -> Tuple[List,List,List]:
 
+        if self.verb>1: print(f'playing for {steps} steps..')
         observations = []
         actions = []
         rewards = []
@@ -206,14 +207,15 @@ class Trainer(ABC):
         returns list of "metrics" (Actor loss)
         """
 
-        print(f'\nStarting train for {num_updates} updates..')
+        if self.verb>0: print(f'\nStarting train for {num_updates} updates..')
         self.init_memory()
 
         returnL = []
         n_terminals = 0
         last_terminals = 0
         for uix in range(num_updates):
-            print(f'\rUPD:{uix:4}', end='')
+            if self.verb==1: print(f'\rplaying for UPD:{uix:4}', end='')
+            if self.verb>1: print(f'playing for UPD:{uix:4}')
 
             while len(self.memory) < self.batch_size:
                 observations, actions, rewards = self.play(
@@ -232,11 +234,13 @@ class Trainer(ABC):
                     self.remember(observation=o, action=a, dreturn=d, reward=r, next_observation=n, game_over=t)
 
                 n_terminals += np.sum(np.array(terminals).astype(dtype=np.int32))
+                if self.verb>1: print(f' >> Trainer gots {len(observations):3} observations after play and {len(self.memory):3} in memory' )
 
                 if upd_on_episode: break
 
             inspect = (uix % test_freq == 0) if self.verb > 1 else False
             loss_actor = self.update_actor(inspect=inspect)
+            print(f'actor UPDATED, loss: {loss_actor}')
             returnL.append(self.metric.upd(loss_actor))
 
             if uix % test_freq == 0:

@@ -76,7 +76,7 @@ def fwd_graph(
         'probs':    probs,
         'loss':     loss, # loss must be defined to build train model
 
-        # train_model IO specs
+        # train_model IO specs, put here inputs and output (keys) of train_model to be built by NEModelDUO
         'train_model_IO':   {
             'inputs':       ['in_vec','in_true'],   # str or List[str]
             'outputs':      'probs'},               # str or List[str], put here any metric tensors, loss may be not added
@@ -127,7 +127,7 @@ class NEModelDUO(ParaSave):
         self.check_params_sim(SPEC_KEYS)  # safety check
 
         dna = self.get_point()
-        if self.verb>0: print(f'\n > NEModel complete DNA: {dna}')
+        if self.verb>0: print(f'\n > NEModelDUO complete DNA: {dna}')
 
         np.random.seed(self['seed'])
         tf.random.set_seed(self['seed'])
@@ -137,7 +137,7 @@ class NEModelDUO(ParaSave):
         self.update(fwd_func(**fwd_func_dna))
 
         assert 'loss' in self, 'ERR: You need to return loss with fwd_func!'
-        assert 'train_model_IO' in self, 'ERR: You need to return train_model_IO specs with fwd_func!'
+        assert 'train_model_IO' in self, 'ERR: fwd_func should return train_model_IO specs, see fwd_graph example!'
 
         # change to lists
         for k in self['train_model_IO']:
@@ -145,8 +145,9 @@ class NEModelDUO(ParaSave):
                 self['train_model_IO'][k] = [self['train_model_IO'][k]]
         if 'loss' not in self['train_model_IO']['outputs']: self['train_model_IO']['outputs'].append('loss') # add loss
 
+        if self.verb>0: print(f'\n > NEModelDUO is building train_model, name: {self.name} ..')
         self.train_model = self.__get_model(
-            name=       name,
+            name=       self.name,
             inputs=     self['train_model_IO']['inputs'],
             outputs=    self['train_model_IO']['outputs'])
 
@@ -168,13 +169,13 @@ class NEModelDUO(ParaSave):
 
         try:
             self.train_model.load_weights(filepath=f'{self.dir}/weights')
-            if self.verb>0: print(f'\n > NEModelDUO ({self.name}) weights loaded..')
+            if self.verb>0: print(f' > train_model weights loaded..')
         except:
-            if self.verb>0: print(f'\n > NEModelDUO ({self.name}) weights NOT loaded..')
+            if self.verb>0: print(f' > train_model weights NOT loaded..')
 
-        if self.verb>0:
-            print(f'\ntrain.model ({self.train_model.name}) weights:')
-            for w in self.train_model.weights: print(w.name)
+        if self.verb>1:
+            print(f'\n >> train.model ({self.train_model.name}) weights:')
+            for w in self.train_model.weights: print(f' **  {w.name:30} {w.shape}')
 
         scaled_LR = lr_scaler(
             iLR=        self['iLR'],
@@ -191,6 +192,8 @@ class NEModelDUO(ParaSave):
         self.submodels: Dict[str, tf.keras.Model] = {}
 
         #self.writer = tf.summary.create_file_writer(self.dir)
+
+        if self.verb>0: print(f'\n > NEModelDUO init finished..')
 
 
     def __get_model(
@@ -213,7 +216,7 @@ class NEModelDUO(ParaSave):
             inputs: str or List[str],
             outputs: str or List[str]):
         assert name not in self.submodels
-        if self.verb>0: print(f' > building callable: {name}, inputs: {inputs}, outputs: {outputs}')
+        if self.verb>0: print(f'\n > NEModelDUO is building callable: {name}, inputs: {inputs}, outputs: {outputs}')
         self.submodels[name] = self.__get_model(
             name=       name,
             inputs=     inputs,
@@ -232,31 +235,32 @@ class NEModelDUO(ParaSave):
             assert name in self.submodels
             model = self.submodels[name]
 
-        print(type(model))
-        print(model.inputs)
-        print(model.inputs[0].name)
-        print(model.outputs)
-        print(model.outputs[0].name)
-
+        if self.verb>1: print(f' >> NEModelDUO is calling: {model.name}, inputs: {model.inputs}, outputs: {model.outputs}')
         return model(data, training=training)
 
+    # WARNING:tensorflow:6 out of the last 6 calls to <function NEModelDUO.train at 0x7f7c1c783b90> triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes, (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of the loop. For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing. For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
     @tf.function
     def train(self, data):
 
-        with tf.GradientTape() as tape:
-            out = self.call(data, training=True)
-            loss = out['loss']
-            print(list(out.keys()))
-            print(loss)
+        print('IN TRAIN pre print')
 
-        variables = self.train_model.trainable_variables
+        with tf.GradientTape() as tape:
+            out = self.train_model(data, training=True)
+            #out = self.call(data, training=True)
+            #loss = out['loss']
+            #print(list(out.keys()))
+            #print(loss)
+
         # TODO: what about colocate_gradients_with_ops=False
         gradients = tape.gradient(
-            target=     loss,
-            sources=    variables)
+            target=     out['loss'],
+            sources=    self.train_model.trainable_variables)
+
+        #self['optimizer'].apply_gradients(zip(gradients, self.train_model.trainable_variables))
+        #gclr_out = {}
 
         gclr_out = grad_clipper_AVT(
-            variables=      variables,
+            variables=      self.train_model.trainable_variables,
             gradients=      gradients,
             ggnorm_avt=     self.ggnorm_avt,
             optimizer=      self['optimizer'],
@@ -265,19 +269,22 @@ class NEModelDUO(ParaSave):
             do_clip=        self['do_clip'],
             verb=           self.verb)
 
+
+        """
         with self.writer.as_default():
             tf.summary.write('loss', out['loss'], step=self['optimizer'].iterations)
 
         self.writer.flush()
-
-        return {
-            'loss':         loss,
+        """
+        out.update({
             'ggnorm':       gclr_out['ggnorm'],
             'ggnorm_avt':   self.ggnorm_avt,
-            'iterations':   self['optimizer'].iterations} # TODO: is iterations saved and kept properly with checkpoint
+            'iterations':   self['optimizer'].iterations}) # TODO: is iterations saved and kept properly with checkpoint
+
+        return out
 
     def save(self):
-        ParaSave.save_dna(self)
+        self.save_dna()
         self.iterations.assign(self['optimizer'].iterations)
         self.train_model.save_weights(filepath=f'{self.dir}/weights')
 
