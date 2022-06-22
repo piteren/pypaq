@@ -229,7 +229,7 @@ class Trainer(ABC):
                 next_observations = observations[1:] + [self.envy.get_observation()]
                 terminals = [False]*(len(observations)-1) + [self.envy.is_terminal()]
 
-                # INFO: not all algorithms (PG,AC) need all below data, but to make this method proper for more algorithms we store 'more'
+                # INFO: not all algorithms (PG,AC) need all the data below (we store 'more' just in case)
                 for o,a,d,r,n,t in zip(observations, actions, dreturns, rewards, next_observations, terminals):
                     self.remember(observation=o, action=a, dreturn=d, reward=r, next_observation=n, game_over=t)
 
