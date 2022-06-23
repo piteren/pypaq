@@ -223,7 +223,7 @@ class NEModelDUO(ParaSave):
             inputs=     inputs,
             outputs=    outputs)
 
-    @tf.function
+    @tf.function(reduce_retracing=True)
     def call(
             self,
             data,
@@ -239,8 +239,17 @@ class NEModelDUO(ParaSave):
         if self.verb>1: print(f' >> NEModelDUO is calling: {model.name}, inputs: {model.inputs}, outputs: {model.outputs}')
         return model(data, training=training)
 
-    # WARNING:tensorflow:6 out of the last 6 calls to <function NEModelDUO.train at 0x7f7c1c783b90> triggered tf.function retracing. Tracing is expensive and the excessive number of tracings could be due to (1) creating @tf.function repeatedly in a loop, (2) passing tensors with different shapes, (3) passing Python objects instead of tensors. For (1), please define your @tf.function outside of the loop. For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing. For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
-    @tf.function
+    # WARNING:tensorflow:
+    # 6 out of the last 6 calls to <function NEModelDUO.train at 0x7f7c1c783b90> triggered tf.function retracing.
+    # Tracing is expensive and the excessive number of tracings could be due to
+    # (1) creating @tf.function repeatedly in a loop,
+    # (2) passing tensors with different shapes,
+    # (3) passing Python objects instead of tensors.
+    # For (1), please define your @tf.function outside of the loop.
+    # For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing.
+    # For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing
+    # and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
+    @tf.function(reduce_retracing=True)
     def train(self, data):
 
         print('IN TRAIN pre print')
