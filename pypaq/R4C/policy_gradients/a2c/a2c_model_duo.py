@@ -28,7 +28,7 @@ class A2CModel_duo(Actor, ABC):
 
         mdict['observation_width'] = observation_width
         mdict['num_actions'] = self.num_actions
-        if 'name' not in mdict: mdict['name'] = f'a2c_{stamp()}'
+        if 'name' not in mdict: mdict['name'] = f'a2c_duo_{stamp()}'
 
         self.nn = NEModelDUO(
             fwd_func=       graph,
@@ -57,14 +57,10 @@ class A2CModel_duo(Actor, ABC):
     def get_policy_probs(self, observation) -> np.ndarray:
         ov = self.observation_vec(observation)
         ov = np.asarray([ov])
-        #print(f' # observation ({type(ov)}): {ov}, shape: {ov.shape}')
         out = self.nn.call(
             data=   {'observation': ov},
             name=   'probs_model')
         probs = out['action_prob']
-        #print(f' # probs ({type(probs)}): {probs}', probs)
-        #print(probs[0])
-        #print(type(probs[0]))
         return probs.numpy()[0]
 
     def get_policy_probs_batch(self, observations) -> np.ndarray:
@@ -81,6 +77,7 @@ class A2CModel_duo(Actor, ABC):
         else:       action = int(np.argmax(probs))
         return action
 
+    """
     def get_qvs(self, observation) -> np.ndarray:
         ov = self.observation_vec(observation)
         qvs = self.nn.session.run(
@@ -101,57 +98,32 @@ class A2CModel_duo(Actor, ABC):
             feed_dict=  {self.nn['observation_PH']: ovs},
             fetches=    self.nn['value'])
         return values
-
+    """
     def update_batch(
             self,
             observations,
             actions,
             dreturns) -> float:
 
-        ovs = self.observation_vec_batch(observations)
-
         data = {
-            'observation':  ovs,
+            'observation':  self.observation_vec_batch(observations),
             'action':       actions,
             'ret':          dreturns}
 
-        #print(' ### train data:')
-        #for k in data: print(k, type(data[k]), data[k].shape)
-
-        #print('into train')
         out = self.nn.train(data=data)
-        #print('after train')
-        #print(out)
-        #print(list(out.keys()))
-        """
-        _, loss, loss_actor, loss_critic, gn, gn_avt, amax_prob, amin_prob, ace = self.nn.session.run(
-            fetches=    [
-                self.nn['optimizer'],
-                self.nn['loss'],
-                self.nn['loss_actor'],
-                self.nn['loss_critic'],
-                self.nn['gg_norm'],
-                self.nn['gg_avt_norm'],
-                self.nn['amax_prob'],
-                self.nn['amin_prob'],
-                self.nn['actor_ce_mean']],
-            feed_dict=  {
-                self.nn['observation_PH']:  ovs,
-                self.nn['action_PH']:       actions,
-                self.nn['return_PH']:       dreturns})
 
         self.__upd_step += 1
 
         if self.verb>0:
-            self.nn.log_TB(loss,        'upd/loss',             step=self.__upd_step)
-            self.nn.log_TB(loss_actor,  'upd/loss_actor',       step=self.__upd_step)
-            self.nn.log_TB(loss_critic, 'upd/loss_critic',      step=self.__upd_step)
-            self.nn.log_TB(gn,          'upd/gn',               step=self.__upd_step)
-            self.nn.log_TB(gn_avt,      'upd/gn_avt',           step=self.__upd_step)
-            self.nn.log_TB(amax_prob,   'upd/amax_prob',        step=self.__upd_step)
-            self.nn.log_TB(amin_prob,   'upd/amin_prob',        step=self.__upd_step)
-            self.nn.log_TB(ace,         'upd/actor_ce_mean',    step=self.__upd_step)
-        """
+            self.nn.log_TB(out['loss'],             'upd/loss',             step=self.__upd_step)
+            self.nn.log_TB(out['loss_actor'],       'upd/loss_actor',       step=self.__upd_step)
+            self.nn.log_TB(out['loss_critic'],      'upd/loss_critic',      step=self.__upd_step)
+            self.nn.log_TB(out['ggnorm'],           'upd/gn',               step=self.__upd_step)
+            self.nn.log_TB(out['ggnorm_avt'],       'upd/gn_avt',           step=self.__upd_step)
+            self.nn.log_TB(out['amax_prob'],        'upd/amax_prob',        step=self.__upd_step)
+            self.nn.log_TB(out['amin_prob'],        'upd/amin_prob',        step=self.__upd_step)
+            self.nn.log_TB(out['actor_ce_mean'],    'upd/actor_ce_mean',    step=self.__upd_step)
+
         return out['loss_actor']
 
 

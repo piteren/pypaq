@@ -154,6 +154,7 @@ class Trainer(ABC):
 
             if render: self.envy.render()
 
+        if self.verb>1: print(f'played {len(actions)} steps (break_terminal is {break_terminal})')
         return observations, actions, rewards
 
     # plays one episode from reset till won or max_steps, returns (observations, actions, rewards, win/lost)
@@ -211,6 +212,7 @@ class Trainer(ABC):
         self.init_memory()
 
         returnL = []
+        num_act = []
         n_terminals = 0
         last_terminals = 0
         for uix in range(num_updates):
@@ -236,11 +238,11 @@ class Trainer(ABC):
                 n_terminals += np.sum(np.array(terminals).astype(dtype=np.int32))
                 if self.verb>1: print(f' >> Trainer gots {len(observations):3} observations after play and {len(self.memory):3} in memory' )
 
+                num_act.append(len(actions))
                 if upd_on_episode: break
 
-            inspect = (uix % test_freq == 0) if self.verb > 1 else False
+            inspect = (uix % test_freq == 0) if self.verb>1 else False
             loss_actor = self.update_actor(inspect=inspect)
-            print(f'actor UPDATED, loss: {loss_actor}')
             returnL.append(self.metric.upd(loss_actor))
 
             if uix % test_freq == 0:
@@ -257,7 +259,9 @@ class Trainer(ABC):
                 if self.verb>0: print(f' T:{n_terminals}(+{n_terminals-last_terminals}) -- TS: {len(actions)} actions, return {sum(rewards):.1f} ({"won" if won else "lost"}) -- {test_episodes}xTS: avg_won: {tr[0]*100:.1f}%, avg_return: {tr[1]:.1f} -- loss_actor: {self.metric():.4f}')
                 last_terminals = n_terminals
 
-        if self.verb>0: two_dim(returnL, name='Actor loss')
+        if self.verb>0:
+            two_dim(returnL, name='Actor loss')
+            two_dim(num_act, name='num_act')
         return returnL
 
 
