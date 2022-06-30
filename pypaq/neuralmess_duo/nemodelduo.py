@@ -75,7 +75,7 @@ def fwd_graph(
         'in_vec':   in_vec,
         'in_true':  in_true,
         'probs':    probs,
-        'loss':     loss, # loss must be defined to build train model
+        'loss':     loss, # loss must be returned to build train_model
 
         # train_model IO specs, put here inputs and output (keys) of train_model to be built by NEModelDUO
         'train_model_IO':   {
@@ -99,6 +99,7 @@ class NEModelDUO(ParaSave):
 
         if name_timestamp: name += f'.{stamp()}'
         if verb>0: print(f'\n *** NEModelDUO {name} (type: {type(self).__name__}) *** initializes..')
+        if verb>1: print(f' >> TF is executing eagerly: {tf.executing_eagerly()}')
 
         # *************************************************************************** collect DNA from different sources
 
@@ -192,7 +193,7 @@ class NEModelDUO(ParaSave):
 
         self.submodels: Dict[str, tf.keras.Model] = {}
 
-        #self.writer = tf.summary.create_file_writer(self.dir)
+        self.writer = tf.summary.create_file_writer(self.dir)
 
         if self.verb>0: print(f'\n > NEModelDUO init finished..')
 
@@ -239,35 +240,16 @@ class NEModelDUO(ParaSave):
         if self.verb>1: print(f' >> NEModelDUO is calling: {model.name}, inputs: {model.inputs}, outputs: {model.outputs}')
         return model(data, training=training)
 
-    # WARNING:tensorflow:
-    # 6 out of the last 6 calls to <function NEModelDUO.train at 0x7f7c1c783b90> triggered tf.function retracing.
-    # Tracing is expensive and the excessive number of tracings could be due to
-    # (1) creating @tf.function repeatedly in a loop,
-    # (2) passing tensors with different shapes,
-    # (3) passing Python objects instead of tensors.
-    # For (1), please define your @tf.function outside of the loop.
-    # For (2), @tf.function has reduce_retracing=True option that can avoid unnecessary retracing.
-    # For (3), please refer to https://www.tensorflow.org/guide/function#controlling_retracing
-    # and https://www.tensorflow.org/api_docs/python/tf/function for  more details.
     @tf.function(reduce_retracing=True)
     def train(self, data):
 
-        print('IN TRAIN pre print')
-
         with tf.GradientTape() as tape:
             out = self.train_model(data, training=True)
-            #out = self.call(data, training=True)
-            #loss = out['loss']
-            #print(list(out.keys()))
-            #print(loss)
 
         # TODO: what about colocate_gradients_with_ops=False
         gradients = tape.gradient(
             target=     out['loss'],
             sources=    self.train_model.trainable_variables)
-
-        #self['optimizer'].apply_gradients(zip(gradients, self.train_model.trainable_variables))
-        #gclr_out = {}
 
         gclr_out = grad_clipper_AVT(
             variables=      self.train_model.trainable_variables,
@@ -279,19 +261,17 @@ class NEModelDUO(ParaSave):
             do_clip=        self['do_clip'],
             verb=           self.verb)
 
-
-        """
-        with self.writer.as_default():
-            tf.summary.write('loss', out['loss'], step=self['optimizer'].iterations)
-
-        self.writer.flush()
-        """
         out.update({
             'ggnorm':       gclr_out['ggnorm'],
             'ggnorm_avt':   self.ggnorm_avt,
             'iterations':   self['optimizer'].iterations}) # TODO: is iterations saved and kept properly with checkpoint
 
         return out
+
+    def log_TB(self, value, tag: str, step: int):
+        with self.writer.as_default():
+            tf.summary.scalar(name=tag, data=value, step=step)
+        self.writer.flush()
 
     def save(self):
         self.save_dna()
