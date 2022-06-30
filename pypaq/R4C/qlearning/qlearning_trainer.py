@@ -53,7 +53,8 @@ class QLearningTrainer(FATrainer):
         self.memory = ExperienceMemory(self.batch_size * self.memsize_batches)
 
     # updates QLearningActor policy with batch of data from memory
-    def update_actor(self):
+    # INFO: inspect is not used ..
+    def update_actor(self, inspect=False):
 
         batch = self.memory.sample(self.batch_size)
 
@@ -76,12 +77,15 @@ class QLearningTrainer(FATrainer):
             actions=        actions,
             new_qvs=        new_qvs)
 
+    # INFO: upd_on_episode & test_render is not implemented
     def train(
             self,
             num_updates=    2000,   # number of training updates
+            upd_on_episode= False,  # updates on episode finish (do not wait till batch)
             test_freq=      100,    # number of updates between test
             test_episodes=  100,    # number of testing episodes
-            test_max_steps= 1000,  # max number of episode steps while testing
+            test_max_steps= 1000,   # max number of episode steps while testing
+            test_render=    True
     ) -> List[float]:
 
         self.init_memory()

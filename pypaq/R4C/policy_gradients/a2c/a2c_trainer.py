@@ -10,12 +10,11 @@ class A2CTrainer(FATrainer):
 
     def __init__(
             self,
-            a2c_model,#: Union[A2CModel, A2CModel_duo],
-            verb=           1,
+            a2c_model,
+            verb=       1,
             **kwargs):
 
         FATrainer.__init__(self, actor=a2c_model, verb=verb, **kwargs)
-        #self.actor = a2c_model # INFO: type "upgrade" for pycharm editor
 
         self.num_of_actions = self.envy.num_actions()
 
@@ -32,7 +31,7 @@ class A2CTrainer(FATrainer):
         dreturns =              self._extract_from_batch(batch, 'dreturn')
 
         #dreturns_norm = self.zscore_norm(dreturns)
-        dreturns_norm = dreturns
+        dreturns_norm = dreturns # TODO: here we use not normalized dreturns
 
         if inspect:
             print(f'\nBatch size: {len(batch)}')

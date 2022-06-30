@@ -96,9 +96,9 @@ class Trainer(ABC):
         if len(x) < 2: return x
         return (x - np.mean(x)) / np.std(x) + 0.00000001
 
-    # updates Actor policy
+    # updates Actor policy, returns Actor "metric" - loss etc. (float)
     @abstractmethod
-    def update_actor(self, inspect=False): pass
+    def update_actor(self, inspect=False) -> float: pass
 
     # trainer selects exploring action (with Trainer exploratory policy)
     @abstractmethod
@@ -162,6 +162,7 @@ class Trainer(ABC):
             self,
             max_steps=      1000,  # single play with max_steps is considered to be won
             exploration=    0.0,
+            sampled=        False,
             render=         False
     ) -> Tuple[List,List,List,bool]:
 
@@ -170,6 +171,7 @@ class Trainer(ABC):
             steps=          max_steps,
             break_terminal= True,
             exploration=    exploration,
+            sampled=        sampled,
             render=         render)
 
         won = self.envy.won_episode() or len(actions)==max_steps
@@ -204,8 +206,8 @@ class Trainer(ABC):
         """
         generic RL training procedure,
         implementation below is valid for PG & AC algorithm
-        usually to be overridden with custom implementation,
-        returns list of "metrics" (Actor loss)
+        may be overridden with custom implementation,
+        returns list of Actor "metrics" (Actor loss)
         """
 
         if self.verb>0: print(f'\nStarting train for {num_updates} updates..')
@@ -275,5 +277,6 @@ class FATrainer(Trainer, ABC):
         Trainer.__init__(self, envy=envy, **kwargs)
         self.envy = envy # INFO: type "upgrade" for pycharm editor
 
+    # selects random action from action space
     def get_exploring_action(self):
         return np.random.choice(self.envy.num_actions())
