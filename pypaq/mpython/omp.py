@@ -34,6 +34,10 @@ from pypaq.neuralmess.dev_manager import tf_devices
 
 # interface of running object - processes task given with kwargs and returns result
 class RunningWorker(ABC):
+
+    def __init__(self, devices: DevicesParam):
+        self.devices = devices
+
     @ abstractmethod # processing method to be implemented
     def process(self, **kwargs) -> Any: pass
 
@@ -46,7 +50,7 @@ class OMPRunner:
         def __init__(
                 self,
                 rw_class: type(RunningWorker),
-                rw_init_kwargs: dict,
+                rw_init_kwargs: Dict,
                 raise_unk_exception=    False,
                 **kwargs):
 

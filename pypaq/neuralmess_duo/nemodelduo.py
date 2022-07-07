@@ -5,10 +5,11 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import numpy as np
 import tensorflow as tf
 from typing import List, Callable, Dict, Optional
+import warnings
 
 from pypaq.lipytools.little_methods import stamp, get_params, get_func_dna
 from pypaq.pms.parasave import ParaSave
-from pypaq.neuralmess_duo.base_elements import lr_scaler, grad_clipper_AVT
+from pypaq.neuralmess_duo.base_elements import lr_scaler, grad_clipper_AVT, TBwr
 
 # restricted keys for fwd_func DNA and return DNA (if they appear in kwargs, should be named exactly like below)
 SPEC_KEYS = [
@@ -91,15 +92,17 @@ class NEModelDUO(ParaSave):
             self,
             name: str,
             fwd_func: Callable,                                 # function building graph (from inputs to loss)
-            name_timestamp=             False,                  # adds timestamp to model name
+            name_timestamp=             False,                  # adds timestamp to the model name
+            device=                     'GPU:0',                # for TF1 we used '/device:CPU:0'
             save_topdir=                '_models',              # top folder of model save
             save_fn_pfx=                'nemodelduo_dna',       # dna filename prefix
             verb=                       0,
             **kwargs):
 
+        if verb>1: tf.debugging.set_log_device_placement(True)
         if name_timestamp: name += f'.{stamp()}'
         if verb>0: print(f'\n *** NEModelDUO {name} (type: {type(self).__name__}) *** initializes..')
-        if verb>1: print(f' >> TF is executing eagerly: {tf.executing_eagerly()}')
+        if not tf.executing_eagerly(): warnings.warn(f'TF is NOT executing eagerly!')
 
         # *************************************************************************** collect DNA from different sources
 
@@ -134,9 +137,36 @@ class NEModelDUO(ParaSave):
         np.random.seed(self['seed'])
         tf.random.set_seed(self['seed'])
 
-        if self.verb>0: print(f'\n > building graph ({fwd_func})..')
+        self.device = device
+
+        # TODO: put device management to tf_devices() for TF2
+
+        # check for TF visible_physical_devices
+        visible_physical_devices = tf.config.list_physical_devices()
+        if self.verb>1:
+            print(' > devices available for TF:')
+            for dev in visible_physical_devices:
+                print(f' >> {dev.name}')
+
+        # INFO: Currently, memory growth needs to be the same across GPUs (https://www.tensorflow.org/guide/gpu#logging_device_placement)
+        for dev in visible_physical_devices:
+            if 'GPU' in dev.name:
+                tf.config.experimental.set_memory_growth(dev, True)
+
+        set_visible = []
+        for dev in visible_physical_devices:
+            # INFO: it looks that TF usually needs CPU and it cannot be masked-out
+            # TODO: self.device in dev.name will fail for more than 10 GPUs, cause 'GPU:1' is in 'GPU:10' - need to fix it later
+            if self.device in dev.name or 'CPU' in dev.name:
+                set_visible.append(dev)
+        if self.verb>1: print(f' > setting visible to NEModelDUO: {set_visible} for {self.device}')
+        tf.config.set_visible_devices(set_visible)
+
+        if self.verb>0: print(f'\n > building graph ({fwd_func}) on {self.device} ..')
         fwd_func_dna = get_func_dna(fwd_func, dna)
-        self.update(fwd_func(**fwd_func_dna))
+        with tf.device(self.device):
+            fwd_func_out = fwd_func(**fwd_func_dna)
+        self.update(fwd_func_out)
 
         assert 'loss' in self, 'ERR: You need to return loss with fwd_func!'
         assert 'train_model_IO' in self, 'ERR: fwd_func should return train_model_IO specs, see fwd_graph example!'
@@ -153,19 +183,21 @@ class NEModelDUO(ParaSave):
             inputs=     self['train_model_IO']['inputs'],
             outputs=    self['train_model_IO']['outputs'])
 
-        # variable for time averaged global norm of gradients
-        self.ggnorm_avt = self.train_model.add_weight(
-            name=       'gg_avt_norm',
-            trainable=  False,
-            dtype=      tf.float32)
-        self.ggnorm_avt.assign(self['avt_SVal'])
+        with tf.device(self.device):
 
-        # global step variable
-        self.iterations = self.train_model.add_weight(
-            name=       'iterations',
-            trainable=  False,
-            dtype=      tf.int64)
-        self.iterations.assign(0)
+            # variable for time averaged global norm of gradients
+            self.ggnorm_avt = self.train_model.add_weight(
+                name=       'gg_avt_norm',
+                trainable=  False,
+                dtype=      tf.float32)
+            self.ggnorm_avt.assign(self['avt_SVal'])
+
+            # global step variable
+            self.iterations = self.train_model.add_weight(
+                name=       'iterations',
+                trainable=  False,
+                dtype=      tf.int64)
+            self.iterations.assign(0)
 
         self.dir = f'{self.save_topdir}/{self.name}'
 
@@ -177,7 +209,7 @@ class NEModelDUO(ParaSave):
 
         if self.verb>1:
             print(f'\n >> train.model ({self.train_model.name}) weights:')
-            for w in self.train_model.weights: print(f' **  {w.name:30} {w.shape}')
+            for w in self.train_model.weights: print(f' **  {w.name:30} {str(w.shape):10} {w.device}')
 
         scaled_LR = lr_scaler(
             iLR=        self['iLR'],
@@ -193,7 +225,7 @@ class NEModelDUO(ParaSave):
 
         self.submodels: Dict[str, tf.keras.Model] = {}
 
-        self.writer = tf.summary.create_file_writer(self.dir)
+        self.writer = TBwr(logdir=self.dir)
 
         if self.verb>0: print(f'\n > NEModelDUO init finished..')
 
@@ -224,12 +256,13 @@ class NEModelDUO(ParaSave):
             inputs=     inputs,
             outputs=    outputs)
 
+    # call wrapped with tf.function
     @tf.function(reduce_retracing=True)
-    def call(
+    def __call(
             self,
             data,
-            name: Optional[str]=    None,
-            training=               False):
+            name: Optional[str] = None,
+            training=False):
 
         if name is None:
             model = self.train_model
@@ -237,11 +270,18 @@ class NEModelDUO(ParaSave):
             assert name in self.submodels
             model = self.submodels[name]
 
-        if self.verb>1: print(f' >> NEModelDUO is calling: {model.name}, inputs: {model.inputs}, outputs: {model.outputs}')
+        if self.verb > 1: print(
+            f' >> NEModelDUO is calling: {model.name}, inputs: {model.inputs}, outputs: {model.outputs}')
         return model(data, training=training)
 
+    # call wrapped with device
+    def call(self, **kwargs):
+        with tf.device(self.device):
+            return self.__call(**kwargs)
+
+    # train wrapped with tf.function
     @tf.function(reduce_retracing=True)
-    def train(self, data):
+    def __train(self, data):
 
         with tf.GradientTape() as tape:
             out = self.train_model(data, training=True)
@@ -268,10 +308,15 @@ class NEModelDUO(ParaSave):
 
         return out
 
+    # train wrapped with device
+    def train(self, **kwargs):
+        with tf.device(self.device):
+            return self.__train(**kwargs)
+
     def log_TB(self, value, tag: str, step: int):
-        with self.writer.as_default():
-            tf.summary.scalar(name=tag, data=value, step=step)
-        self.writer.flush()
+        self.writer.add(value=value, tag=tag, step=step)
+        # TODO: is line below desired
+        #self.writer.flush()
 
     def save(self):
         self.save_dna()

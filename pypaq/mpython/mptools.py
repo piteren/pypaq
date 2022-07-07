@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from multiprocessing import cpu_count, Process, Queue
 from queue import Empty
-import os
 import psutil
 from typing import List, Any, Optional
 from typing_extensions import TypedDict

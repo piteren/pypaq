@@ -215,6 +215,7 @@ class OMPRunnerNB:
             rw_init_kwargs: Optional[Dict]= None,   # RunningWorker __init__ kwargs
             rw_lifetime: Optional[int]=     None,   # RunningWorker lifetime, for None or 0 is unlimited, for N <1,n> each RW will be restarted after processing N tasks
             multiproc: MultiprocParam=      'auto', # multiprocessing cores; auto, all, off, 1-N
+            # TODO: None below is a valid value for DevicesParam - it is misleading - change !!!
             devices: DevicesParam=          None,   # alternatively may be set (None gives priority to multiproc), if given then RW must accept 'devices' param
             name=                           'OMPRunnerNB',
             ordered_results=                True,   # returns results in the order of tasks

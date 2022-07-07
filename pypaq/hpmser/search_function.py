@@ -42,12 +42,12 @@ from typing import Callable, Optional, List, Any
 
 from pypaq.hpmser.search_results import SRL
 from pypaq.lipytools.little_methods import stamp, prep_folder, get_params
-from pypaq.lipytools.plots import TBPoltter
 from pypaq.lipytools.logger import set_logger
 from pypaq.lipytools.stats import msmx
 from pypaq.mpython.mptools import DevicesParam
 from pypaq.mpython.omp_nb import OMPRunnerNB, RunningWorker
 from pypaq.neuralmess.dev_manager import tf_devices
+from pypaq.neuralmess_duo.base_elements import TBwr
 from pypaq.pms.config_manager import ConfigManager
 from pypaq.pms.paspa import PaSpa
 from pypaq.pms.base_types import PSDD, POINT, point_str
@@ -86,7 +86,7 @@ def _str_weights(
 
 
 # hyper-parameters searching function (based on OMP engine)
-#@timing # << temporary disabled
+#@timing <- temporary disabled
 def hpmser(
         func: Callable,                                 # function which parameters need to be optimized
         func_psdd: PSDD,                                # func PSDD, from here points {param: arg} will be sampled
@@ -114,7 +114,9 @@ def hpmser(
                 self,
                 func: Callable,
                 func_const: Optional[POINT],
-                devices: DevicesParam):
+                **kwargs):
+
+            RunningWorker.__init__(self, **kwargs)
 
             self.func = func
             self.func_const = func_const if func_const else {}
@@ -126,7 +128,7 @@ def hpmser(
             for pn in ['device','devices']:
                 if pn in func_args:
                     devices_in_func = pn
-            if devices_in_func: func_const[devices_in_func] = devices
+            if devices_in_func: self.func_const[devices_in_func] = self.devices
 
         # processes given spoint, passes **kwargs
         def process(
@@ -173,7 +175,7 @@ def hpmser(
         try_to_load=    True)
     sampling_config = config_manager.get_config() # update in case of read from existing file
 
-    tbwr = TBPoltter(f'{hpmser_FD}/{name}') if do_TB else None
+    tbwr = TBwr(logdir=f'{hpmser_FD}/{name}') if do_TB else None
 
     if verb>0:
         print(f'\n*** hpmser *** {name} started for: {func.__name__}, sampling config: {sampling_config}')
@@ -350,11 +352,11 @@ def hpmser(
                     score_diff = sr.score - msg_est_score
                     score_avg = sum(scores_all)/len(scores_all)
                     step = len(srl)
-                    tbwr.log(avg_dst,         'hpmser/avg_dst', step)
-                    tbwr.log(score_avg,       'hpmser/score_avg', step)
-                    tbwr.log(sr.score,        'hpmser/score_current', step)
-                    tbwr.log(score_diff,      'hpmser/space_estimation_error', step)
-                    tbwr.log(abs(score_diff), 'hpmser/space_estimation_error_abs', step)
+                    tbwr.add(avg_dst,         'hpmser/avg_dst',                    step)
+                    tbwr.add(score_avg,       'hpmser/score_avg',                  step)
+                    tbwr.add(sr.score,        'hpmser/score_current',              step)
+                    tbwr.add(score_diff,      'hpmser/space_estimation_error',     step)
+                    tbwr.add(abs(score_diff), 'hpmser/space_estimation_error_abs', step)
 
                 if len(srl) == n_loops:
                     if verb>0: print(f'{n_loops} loops done!')

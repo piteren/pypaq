@@ -84,3 +84,32 @@ def grad_clipper_AVT(
     return {
         'gradients':    gradients,
         'ggnorm':       ggnorm}
+
+# TensorBoard writer
+class TBwr:
+
+    def __init__(
+            self,
+            logdir: str,
+            flush_secs= 10):
+        self.logdir = logdir
+        self.flush_secs = flush_secs
+        # INFO: tf.summary.create_file_writer creates logdir while init, because of that self.sw init has moved to the first call of add()
+        self.sw = None
+
+    def add(self,
+            value,
+            tag: str,
+            step: int):
+
+        if not self.sw:
+            self.sw = tf.summary.create_file_writer(
+                logdir=         self.logdir,
+                flush_millis=   1000*self.flush_secs)
+        with self.sw.as_default():
+            tf.summary.scalar(name=tag, data=value, step=step)
+
+    def add_summary(self, summ, step):
+        self.sw.add_summary(summ, step)
+
+    def flush(self): self.sw.flush()

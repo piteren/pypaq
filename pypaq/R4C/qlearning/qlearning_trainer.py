@@ -12,7 +12,7 @@
 
 import numpy as np
 import random
-from typing import List
+from typing import Dict
 
 from pypaq.lipytools.plots import two_dim
 from pypaq.R4C.envy import FiniteActionsRLEnvy
@@ -85,12 +85,15 @@ class QLearningTrainer(FATrainer):
             test_freq=      100,    # number of updates between test
             test_episodes=  100,    # number of testing episodes
             test_max_steps= 1000,   # max number of episode steps while testing
-            test_render=    True
-    ) -> List[float]:
+            test_render=    True,
+            break_onetest=  False,  # breaks training after all test episodes succeeded
+    ) -> Dict:
 
         self.init_memory()
 
         returnL = []
+        n_terminals = 0
+        break_succeeded = False
         for uix in range(num_updates):
 
             all_rewards = 0
@@ -112,6 +115,8 @@ class QLearningTrainer(FATrainer):
                 for o,a,r,n,t in zip(observations, actions, rewards, next_observations, terminals):
                     self.memory.append({'observation':o, 'action':a, 'reward':r, 'next_observation':n, 'terminal':t})
 
+                if self.envy.is_terminal(): n_terminals += 1
+
             self.update_actor()
 
             returnL.append(all_rewards)
@@ -121,6 +126,12 @@ class QLearningTrainer(FATrainer):
                     n_episodes= test_episodes,
                     max_steps=  test_max_steps)
                 if self.verb>0: print(f' > test avg_won:{tr[0]*100:.1f}%, avg_return:{tr[1]:.1f}')
+                break_succeeded = tr[0] == 1
+
+            if break_onetest and break_succeeded: break
 
         if self.verb>0: two_dim(returnL)
-        return returnL
+        return { # training_report
+            'returnL':          returnL,
+            'n_terminals':      n_terminals,
+            'break_succeeded':  break_succeeded}

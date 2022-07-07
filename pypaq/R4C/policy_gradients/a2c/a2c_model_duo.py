@@ -3,6 +3,8 @@ import numpy as np
 
 
 from pypaq.lipytools.little_methods import stamp
+from pypaq.lipytools.plots import two_dim_multi
+from pypaq.R4C.helpers import extract_from_batch, zscore_norm
 from pypaq.R4C.actor import Actor
 from pypaq.R4C.policy_gradients.a2c.a2c_graph_duo import a2c_graph_duo
 from pypaq.neuralmess_duo.nemodelduo import NEModelDUO
@@ -99,16 +101,18 @@ class A2CModel_duo(Actor, ABC):
             fetches=    self.nn['value'])
         return values
     """
-    def update_batch(
-            self,
-            observations,
-            actions,
-            dreturns) -> float:
+    def update_batch(self, batch, inspect=False) -> float:
+
+        observations =  extract_from_batch(batch, 'observation')
+        actions=        extract_from_batch(batch, 'action')
+        dreturns =      extract_from_batch(batch, 'dreturn')
+        #dreturns_norm = zscore_norm(dreturns)
 
         data = {
             'observation':  self.observation_vec_batch(observations),
             'action':       actions,
-            'ret':          dreturns}
+            'ret':          dreturns, #dreturns_norm # TODO: here we use not normalized dreturns
+        }
 
         out = self.nn.train(data=data)
 
@@ -123,6 +127,25 @@ class A2CModel_duo(Actor, ABC):
             self.nn.log_TB(out['amax_prob'],        'upd/amax_prob',        step=self.__upd_step)
             self.nn.log_TB(out['amin_prob'],        'upd/amin_prob',        step=self.__upd_step)
             self.nn.log_TB(out['actor_ce_mean'],    'upd/actor_ce_mean',    step=self.__upd_step)
+
+        if inspect:
+            #print(f'\nBatch size: {len(batch)}')
+            #print(f'observations: {observations.shape}, first: {observations[0]}')
+            #print(f'actions: {actions}')
+            #print(f'rewards: {rewards.shape}, first: {rewards[0]}')
+            #print(f'dreturns: {dreturns.shape}, first: {dreturns[0]}')
+            #print(f'action_prob: {out["action_prob"]}')
+            #print(f'action_prob_selected: {out["action_prob_selected"]}')
+            #print(f'actor_ce: {out["actor_ce"]}')
+            rewards = extract_from_batch(batch, 'reward')
+            two_dim_multi(
+                ys=         [rewards, dreturns,
+                             #dreturns_norm,
+                             out['advantage'], out['value']],
+                names=      ['rewards', 'dreturns',
+                             #'dreturns_norm',
+                             'advantage', 'value'],
+                legend_loc= 'lower left')
 
         return out['loss_actor']
 

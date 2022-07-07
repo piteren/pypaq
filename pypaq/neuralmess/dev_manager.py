@@ -8,11 +8,8 @@ import GPUtil
 import os
 import platform
 from typing import List, Optional
-import warnings
 
-from pypaq.lipytools.logger import set_logger
 from pypaq.mpython.mptools import DevicesParam
-from pypaq.neuralmess.get_tf import tf
 
 
 # masks GPUs from given list of ids or single one
@@ -109,26 +106,8 @@ def tf_devices(
         if verb>0: report_cuda()
         for dev in devices_int: final_devices.append(f'/device:GPU:{dev}')
 
-    if verb>0: print(f' > returning {len(final_devices)} devices: {final_devices}')
+    if verb>0: print(f'\ntf_devices is returning {len(final_devices)} devices: {final_devices}')
     return final_devices
-
-# init function for every TF.py script:
-# - sets low verbosity of TF
-# - starts logger
-# - manages TF devices
-def nestarter(
-        log_folder: Optional[str]=  '_log', # for None doesn't log
-        custom_name: str or None=   None,   # set custom logger name, for None uses default
-        devices=                    -1,     # False to not manage TF devices
-        verb=                       1,
-        silent_error=               False): # turns off any TF errors, be careful
-
-    tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
-    warnings.filterwarnings('ignore')
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' if silent_error else '2'
-
-    if log_folder: set_logger(log_folder=log_folder, custom_name=custom_name, verb=verb) # set logger
-    if devices is not False: return tf_devices(devices=devices, verb=verb)
 
 
 if __name__ == '__main__':

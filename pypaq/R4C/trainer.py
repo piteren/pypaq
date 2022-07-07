@@ -10,10 +10,11 @@ from abc import abstractmethod, ABC
 from collections import deque
 import numpy as np
 import random
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict
 
 from pypaq.lipytools.moving_average import MovAvg
 from pypaq.lipytools.plots import two_dim
+from pypaq.R4C.helpers import discounted_return, movavg_return
 from pypaq.R4C.envy import RLEnvy, FiniteActionsRLEnvy
 from pypaq.R4C.actor import Actor
 
@@ -51,6 +52,7 @@ class Trainer(ABC):
             exploration=    0.5,    # exploration factor
             batch_size=     32,     # Actor update data size
             discount=       0.9,    # return discount factor (gamma)
+            movavg_factor=  0.3,
             verb=           1):
 
         self.verb = verb
@@ -59,11 +61,16 @@ class Trainer(ABC):
         self.exploration = exploration
         self.batch_size = batch_size
         self.discount = discount
+        self.movavg_factor = movavg_factor
 
         self.memory: Optional[ExperienceMemory] = None
         self.metric = MovAvg()
 
-        if self.verb>0: print(f'\n*** Trainer for {self.envy.name} initialized')
+        if self.verb>0:
+            print(f'\n*** Trainer for {self.envy.name} initialized')
+            print(f' > exploration: {self.exploration}')
+            print(f' > batch_size:  {self.batch_size}')
+            print(f' > discount:    {self.discount}')
 
     def init_memory(self):
         self.memory = ExperienceMemory(self.batch_size)
@@ -72,33 +79,12 @@ class Trainer(ABC):
     def remember(self, **kwargs):
         self.memory.append(kwargs)
 
-    # extracts array of data from a batch
-    @staticmethod
-    def _extract_from_batch(
-            batch :List[dict],
-            key: str) -> np.ndarray:
-        return np.array(list(map(lambda x: x[key], batch)))
-
-    # prepares list of discounted accumulated return from [reward]
-    def discounted_return(self, rewards: List[float]) -> List[float]:
-
-        dar = np.zeros_like(rewards)
-        s = 0.0
-        for i in reversed(range(len(rewards))):
-            s = s * self.discount + rewards[i]
-            dar[i] = s
-
-        return list(dar)
-
-    # normalizes x with zscore (0 mean 1 std), this is helpful for training, as rewards can vary considerably between episodes,
-    @staticmethod
-    def zscore_norm(x):
-        if len(x) < 2: return x
-        return (x - np.mean(x)) / np.std(x) + 0.00000001
-
     # updates Actor policy, returns Actor "metric" - loss etc. (float)
-    @abstractmethod
-    def update_actor(self, inspect=False) -> float: pass
+    def update_actor(self, inspect=False) -> float:
+        batch = self.memory.get_all()
+        loss = self.actor.update_batch(batch=batch, inspect=inspect)
+        self.memory.reset()
+        return loss
 
     # trainer selects exploring action (with Trainer exploratory policy)
     @abstractmethod
@@ -107,15 +93,16 @@ class Trainer(ABC):
     # performs one Actor move (action) and gathers some data
     def _ex_move(
             self,
-            exploration=    0.0,
-            sampled=        False):
+            exploration=    0.0,    # exploration factor
+            sampled=        0.0):   # sampling (vs argmax) factor
 
         observation = self.envy.get_observation()
 
         if np.random.rand() < exploration: action = self.get_exploring_action()
         else:                              action = self.actor.get_policy_action(
                                                         observation=    observation,
-                                                        sampled=        sampled)
+                                                        #sampled=        sampled)
+                                                        sampled=        np.random.rand() < sampled)
         self.envy.run(action)
 
         reward = self.envy.get_last_action_reward()
@@ -128,10 +115,10 @@ class Trainer(ABC):
             steps=          1000,
             break_terminal= False, # for True breaks play at episode end
             exploration=    0.0,
-            sampled=        False,
+            sampled=        0.0,
             render=         False) -> Tuple[List,List,List]:
 
-        if self.verb>1: print(f'playing for {steps} steps..')
+        if self.verb>2: print(f'playing for {steps} steps..')
         observations = []
         actions = []
         rewards = []
@@ -154,15 +141,15 @@ class Trainer(ABC):
 
             if render: self.envy.render()
 
-        if self.verb>1: print(f'played {len(actions)} steps (break_terminal is {break_terminal})')
+        if self.verb>2: print(f'played {len(actions)} steps (break_terminal is {break_terminal})')
         return observations, actions, rewards
 
-    # plays one episode from reset till won or max_steps, returns (observations, actions, rewards, win/lost)
+    # plays one episode from reset till won or max_steps
     def play_episode(
             self,
             max_steps=      1000,  # single play with max_steps is considered to be won
             exploration=    0.0,
-            sampled=        False,
+            sampled=        0.0,
             render=         False
     ) -> Tuple[List,List,List,bool]:
 
@@ -198,11 +185,15 @@ class Trainer(ABC):
     def train(
             self,
             num_updates=    2000,   # number of training updates
-            upd_on_episode= False,  # updates on episode finish (do not wait till batch)
+            upd_on_episode= False,  # updates on episode finish (does not wait till batch)
+            train_sampled=  0.3,    # how often move is sampled (vs argmax) while TRAINING
+            use_movavg=     True,
             test_freq=      100,    # number of updates between test
             test_episodes=  100,    # number of testing episodes
             test_max_steps= 1000,   # max number of episode steps while testing
-            test_render=    True) -> List[float]:
+            test_render=    True,
+            break_ntests=   0,      # when > 0: breaks training after all test episodes succeeded N times
+    ) -> Dict:
         """
         generic RL training procedure,
         implementation below is valid for PG & AC algorithm
@@ -217,19 +208,22 @@ class Trainer(ABC):
         num_act = []
         n_terminals = 0
         last_terminals = 0
+        break_succeeded = 0
         for uix in range(num_updates):
-            if self.verb==1: print(f'\rplaying for UPD:{uix:4}', end='')
-            if self.verb>1: print(f'playing for UPD:{uix:4}')
+            if self.verb in [1,2]: print(f'\rplaying for UPD:{uix:4}', end='')
+            if self.verb>2: print(f'playing for UPD:{uix:4}')
 
             while len(self.memory) < self.batch_size:
                 observations, actions, rewards = self.play(
                     steps=          self.batch_size - len(self.memory),
                     break_terminal= True,
                     exploration=    self.exploration,
-                    sampled=        True,
+                    sampled=        train_sampled,
                     render=         False)
 
-                dreturns = self.discounted_return(rewards)
+
+                if use_movavg: dreturns = movavg_return(rewards=rewards, factor=self.movavg_factor)
+                else:          dreturns = discounted_return(rewards=rewards, discount=self.discount)
                 next_observations = observations[1:] + [self.envy.get_observation()]
                 terminals = [False]*(len(observations)-1) + [self.envy.is_terminal()]
 
@@ -237,10 +231,10 @@ class Trainer(ABC):
                 for o,a,d,r,n,t in zip(observations, actions, dreturns, rewards, next_observations, terminals):
                     self.remember(observation=o, action=a, dreturn=d, reward=r, next_observation=n, game_over=t)
 
-                n_terminals += np.sum(np.array(terminals).astype(dtype=np.int32))
-                if self.verb>1: print(f' >> Trainer gots {len(observations):3} observations after play and {len(self.memory):3} in memory' )
+                if self.verb>2: print(f' >> Trainer gots {len(observations):3} observations after play and {len(self.memory):3} in memory' )
 
                 num_act.append(len(actions))
+                if self.envy.is_terminal(): n_terminals += 1
                 if upd_on_episode: break
 
             inspect = (uix % test_freq == 0) if self.verb>1 else False
@@ -261,10 +255,19 @@ class Trainer(ABC):
                 if self.verb>0: print(f' T:{n_terminals}(+{n_terminals-last_terminals}) -- TS: {len(actions)} actions, return {sum(rewards):.1f} ({"won" if won else "lost"}) -- {test_episodes}xTS: avg_won: {tr[0]*100:.1f}%, avg_return: {tr[1]:.1f} -- loss_actor: {self.metric():.4f}')
                 last_terminals = n_terminals
 
-        if self.verb>0:
+                if tr[0] == 1: break_succeeded += 1
+                else: break_succeeded = 0
+
+            if break_ntests and break_succeeded==break_ntests: break
+
+        if self.verb>1:
             two_dim(returnL, name='Actor loss')
             two_dim(num_act, name='num_act')
-        return returnL
+
+        return { # training_report
+            'returnL':          returnL,
+            'n_terminals':      n_terminals,
+            'break_succeeded':  break_succeeded}
 
 
 # RL Trainer for Actor acting on FiniteActionsRLEnvy
@@ -276,7 +279,8 @@ class FATrainer(Trainer, ABC):
             **kwargs):
         Trainer.__init__(self, envy=envy, **kwargs)
         self.envy = envy # INFO: type "upgrade" for pycharm editor
+        self.num_of_actions = self.envy.num_actions()
 
     # selects random action from action space
     def get_exploring_action(self):
-        return np.random.choice(self.envy.num_actions())
+        return np.random.choice(self.num_of_actions)
