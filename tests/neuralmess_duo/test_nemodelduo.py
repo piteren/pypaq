@@ -3,11 +3,11 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import unittest
 
-from tests.envy import TEMP_DIR
+from tests.envy import flush_tmp_dir
 
 from pypaq.neuralmess_duo.nemodelduo import NEModelDUO, fwd_graph
 
-SCRIPT_TEMP_DIR = f'{TEMP_DIR}/nemodelduo'
+SCRIPT_TEMP_DIR = f'{flush_tmp_dir()}/nemodelduo'
 
 
 class TestNEModelDUO(unittest.TestCase):
