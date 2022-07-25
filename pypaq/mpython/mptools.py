@@ -1,3 +1,4 @@
+import time
 from abc import ABC, abstractmethod
 from multiprocessing import cpu_count, Process, Queue
 from queue import Empty
@@ -113,9 +114,11 @@ class ExSubprocess(Process, ABC):
 
     def kill(self):
         if self.alive: super().kill()
+        while self.alive: time.sleep(0.01)
 
     def terminate(self):
         if self.alive: super().terminate()
+        while self.alive: time.sleep(0.01)
 
     @property
     def alive(self):

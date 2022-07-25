@@ -39,6 +39,36 @@ class TestMPTools(unittest.TestCase):
 
         exs = ExS(Que(), Que(), raise_unk_exception=False, verb=1)
         exs.start()
+        msg = exs.oque.get()
+        print(msg.type, msg.data)
+        self.assertTrue('ex_' in msg.type)
+
+    def test_ExSubprocess_after(self):
+
+        class ExS(ExSubprocess):
+
+            def subprocess_method(self):
+                cnt = 0
+                print(f'Starting ExSubprocess.subprocess_method() loop..')
+                while True:
+                    print(f'subprocess_method is running (#{cnt})..')
+                    cnt += 1
+                    if random.random() < 0.1: raise KeyboardInterrupt
+                    if random.random() < 0.1: raise Exception
+                    time.sleep(1)
+
+            def after_exception_handle_run(self):
+                print('dupex')
+                self.oque.put(QMessage(type='info', data='after'))
+
+        exs = ExS(Que(), Que(), raise_unk_exception=False, verb=1)
+        exs.start()
+        msg = exs.oque.get()
+        print(msg.type)
+        self.assertTrue('ex_' in msg.type)
+        msg = exs.oque.get()
+        print(msg.type, msg.data)
+        self.assertTrue(msg.data == 'after')
 
     def test_test_ExSubprocess_management(self):
 
@@ -53,23 +83,26 @@ class TestMPTools(unittest.TestCase):
                     cnt += 1
                     time.sleep(1)
 
-        class SPManager:
+        ique = Que()
+        oque = Que()
+        exs = ExS(
+            ique=   oque,
+            oque=   ique,
+            verb=   1)
+        self.assertTrue(not exs.alive)
+        self.assertTrue(not exs.closed)
 
-            def __init__(self):
-                self.ique = Que()
-                self.oque = Que()
-                self.exs = ExS(
-                    ique=   self.oque,
-                    oque=   self.ique,
-                    verb=   1)
-                self.exs.start()
-                self.oque.put(QMessage(type='test', data='data'))
-                time.sleep(3)
-                print(self.exs.get_info())
-                self.exs.kill()
-                print(self.exs.get_info())
+        exs.start()
+        oque.put(QMessage(type='test', data='data'))
+        time.sleep(3)
+        print(exs.get_info())
+        exs.kill()
+        print(exs.get_info())
+        self.assertTrue(not exs.alive)
+        exs.close()
+        self.assertTrue(exs.closed)
+        print(exs.get_info())
 
-        SPManager()
 
     def test_sys_res_nfo(self):
         info = sys_res_nfo()
