@@ -4,7 +4,7 @@ import unittest
 from pypaq.lipytools.plots import histogram, two_dim, three_dim
 
 
-class TestStamp(unittest.TestCase):
+class TestPlots(unittest.TestCase):
 
     def test_histogram(self):
         histogram([1, 4, 5, 5, 3, 3, 5, 65, 32, 45, 5, 5, 6, 33, 5])

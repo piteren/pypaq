@@ -3,7 +3,6 @@ from multiprocessing import cpu_count, Process, Queue
 from queue import Empty
 import psutil
 from typing import List, Any, Optional
-from typing_extensions import TypedDict
 
 """
 devices: DevicesParam - (parameter) manages GPUs, gives options for CPUs
@@ -26,10 +25,11 @@ multiproc: MultiprocParam - (parameter) manages CPUs only
 MultiprocParam: str or int = 'auto'
 
 
-# message sent between processes via ques
-class QMessage(TypedDict):
-    type:   str
-    data:   Any
+# message sent between processes via Ques (my que)
+class QMessage:
+    def __init__(self, type:str, data:Any):
+        self.type = type
+        self.data = data
 
 # my que
 class Que:
@@ -38,16 +38,21 @@ class Que:
         self.q = Queue()
 
     def put(self, obj:QMessage, **kwargs):
+        assert isinstance(obj, QMessage)
         self.q.put(obj, **kwargs)
 
     def get(self, **kwargs) -> QMessage:
-        return self.q.get(**kwargs)
+        obj = self.q.get(**kwargs)
+        assert isinstance(obj, QMessage)
+        return obj
 
     def get_if(self) -> Optional[QMessage]:
-        try:            return self.q.get_nowait()
-        except Empty:   return None
-
-    #INFO: get_nowait replaced by get_if
+        try:
+            obj = self.q.get_nowait()
+            assert isinstance(obj, QMessage)
+            return obj
+        except Empty:
+            return None
 
     def empty(self): return self.q.empty()
 
@@ -84,9 +89,9 @@ class ExSubprocess(Process, ABC):
 
     # when exception occurs, message with exception data is put on the output que
     def __exception_handle(self, name: str):
-        msg: QMessage = {
-            'type': f'ex_{name}, ExSubprocess id: {self.id}, pid: {self.pid}',
-            'data': self.id} # returns ID here to allow process identification
+        msg = QMessage(
+            type=   f'ex_{name}, ExSubprocess id: {self.id}, pid: {self.pid}',
+            data=   self.id) # returns ID here to allow process identification
         self.oque.put(msg)
         if self.verb>0: print(f' > ExSubprocess ({self.id}) halted by exception: {name}')
         self.after_exception_handle_run()
@@ -135,68 +140,3 @@ def sys_res_nfo():
         'cpu_count':    cpu_count(),
         'mem_total_GB': vm.total / gb,
         'mem_used_%':   vm.percent}
-
-
-def system_resources_example():
-    sri = sys_res_nfo()
-    for k in sri: print(f'{k:15s}: {sri[k]}')
-
-
-def exsubprocess_exception_example():
-
-    import random
-    import time
-
-    class ExS(ExSubprocess):
-
-        def subprocess_method(self):
-            cnt = 0
-            while True:
-                print(f'subprocess_method is running (#{cnt})..')
-                cnt += 1
-                if random.random() < 0.1: raise KeyboardInterrupt
-                if random.random() < 0.1: raise Exception
-                time.sleep(1)
-
-    exs = ExS(Que(),Que(),verb=1)
-    exs.start()
-
-
-def exsubprocess_management_example():
-
-    import time
-
-    class ExS(ExSubprocess):
-
-        def subprocess_method(self):
-            cnt = 0
-            while True:
-                msg = self.ique.get_if()
-                if msg: print(f'ExS received message: {msg}')
-                print(f'subprocess_method is running (#{cnt})..')
-                cnt += 1
-                time.sleep(1)
-
-    class SPManager:
-
-        def __init__(self):
-            self.ique = Que()
-            self.oque = Que()
-            self.exs = ExS(
-                ique=   self.oque,
-                oque=   self.ique,
-                verb=   1)
-            self.exs.start()
-            self.oque.put({'type': 'test', 'data': 'data'})
-            time.sleep(3)
-            print(self.exs.get_info())
-            self.exs.kill()
-            print(self.exs.get_info())
-
-    SPManager()
-
-
-if __name__ == '__main__':
-    #system_resources_example()
-    #exsubprocess_exception_example()
-    exsubprocess_management_example()

@@ -46,7 +46,7 @@ class TestNEModel(unittest.TestCase):
         self.assertTrue('loss' not in nnm.get_managed_params())
         nnm.save()
 
-        print('\n@@@ saved, now loading...')
+        print('\nsaved, now loading...')
 
         nnm = NEModel(
             name=           'nemodel_test',

@@ -3,7 +3,7 @@ import unittest
 from pypaq.lipytools.little_methods import stamp, print_nested_dict
 
 
-class TestStamp(unittest.TestCase):
+class TestLittleMethods(unittest.TestCase):
 
     def test_stamp(self):
         print(stamp())

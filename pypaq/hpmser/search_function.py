@@ -45,7 +45,7 @@ from pypaq.lipytools.little_methods import stamp, prep_folder, get_params
 from pypaq.lipytools.logger import set_logger
 from pypaq.lipytools.stats import msmx
 from pypaq.mpython.mptools import DevicesParam
-from pypaq.mpython.omp_nb import OMPRunnerNB, RunningWorker
+from pypaq.mpython.omp import OMPRunner, RunningWorker
 from pypaq.neuralmess.dev_manager import tf_devices
 from pypaq.neuralmess_duo.base_elements import TBwr
 from pypaq.pms.config_manager import ConfigManager
@@ -114,12 +114,11 @@ def hpmser(
                 self,
                 func: Callable,
                 func_const: Optional[POINT],
-                **kwargs):
-
-            RunningWorker.__init__(self, **kwargs)
+                devices: DevicesParam = None):
 
             self.func = func
             self.func_const = func_const if func_const else {}
+            self.devices = devices
 
             # resolve device/devices param in func >> pass it to func if needed
             func_args = get_params(self.func)
@@ -211,7 +210,7 @@ def hpmser(
 
     num_free_rw = len(devices)
 
-    omp = OMPRunnerNB(
+    omp = OMPRunner(
         rw_class=               HRW,
         rw_init_kwargs=         {'func': func, 'func_const':func_const},
         rw_lifetime=            1,
