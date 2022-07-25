@@ -7,12 +7,20 @@ from pypaq.mpython.mptools import sys_res_nfo, ExSubprocess, Que, QMessage
 
 class TestMPTools(unittest.TestCase):
 
-    def test_sys_res_nfo(self):
-        info = sys_res_nfo()
-        print(info)
-        self.assertTrue(info['cpu_count'] > 0)
-        self.assertTrue(info['mem_total_GB'] > 0)
-        self.assertTrue(info['mem_used_%'] > 0)
+    def test_Que(self):
+        que = Que()
+        self.assertTrue(que.empty())
+        self.assertTrue(que.qsize() == 0)
+
+        qm = QMessage(type='test', data=1)
+        que.put(qm)
+        qm = que.get()
+        self.assertTrue(qm.data == 1)
+
+        self.assertTrue(que.empty())
+        self.assertTrue(que.qsize()==0)
+        qm = que.get_if()
+        self.assertTrue(not qm)
 
     def test_ExSubprocess_exception(self):
 
@@ -62,3 +70,10 @@ class TestMPTools(unittest.TestCase):
                 print(self.exs.get_info())
 
         SPManager()
+
+    def test_sys_res_nfo(self):
+        info = sys_res_nfo()
+        print(info)
+        self.assertTrue(info['cpu_count'] > 0)
+        self.assertTrue(info['mem_total_GB'] > 0)
+        self.assertTrue(info['mem_used_%'] > 0)
