@@ -9,7 +9,7 @@ import os
 import platform
 from typing import List, Optional
 
-from pypaq.mpython.mptools import DevicesParam
+from pypaq.mpython.mptools import DevicesParam, sys_res_nfo
 
 
 # masks GPUs from given list of ids or single one
@@ -59,6 +59,9 @@ def report_cuda():
 def tf_devices(
         devices :DevicesParam=  -1,
         verb=                   1) -> List[str]:
+
+    # all CPU case
+    if devices == 'all': devices = [None] * sys_res_nfo()['cpu_count']
 
     if type(devices) is not list: devices = [devices]  # first convert to list
 
@@ -117,6 +120,7 @@ if __name__ == '__main__':
         1,
         -1,
         None,
+        'all',
         '/device:GPU:0',
         ['/device:GPU:0','/device:GPU:0'],
         [],

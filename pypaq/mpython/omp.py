@@ -30,7 +30,7 @@ import psutil
 import time
 from typing import Any, List, Dict, Optional, Tuple
 
-from pypaq.mpython.mptools import sys_res_nfo, MultiprocParam, DevicesParam, QMessage, ExSubprocess, Que
+from pypaq.mpython.mptools import sys_res_nfo, DevicesParam, QMessage, ExSubprocess, Que
 from pypaq.neuralmess.dev_manager import tf_devices
 
 
@@ -98,7 +98,6 @@ class OMPRunner:
                 rw_class: type(RunningWorker),
                 rw_init_kwargs: Optional[Dict],
                 rw_lifetime: Optional[int],
-                multiproc: MultiprocParam,
                 devices: DevicesParam,
                 ordered_results: bool,
                 report_delay: int or str,
@@ -132,33 +131,22 @@ class OMPRunner:
             self.print_exceptions = print_exceptions
             self.raise_RWW_exception = raise_RWW_exception
 
+            pms = getfullargspec(self.rw_class).args
+            assert 'device' not in pms, 'ERR: please rename "device" into "devices" in params of RunningWorker'
+            dev_param_name = 'devices' if 'devices' in pms else None
+
+            devices = tf_devices(devices=devices, verb=verb)
+
             # prepare RunningWorkers arguments dictionary
             if not rw_init_kwargs: rw_init_kwargs = {}
             self.rwwD: Dict[int, Dict] = {}  # {rww.id: {'rw_init_kwargs':{}, 'rww':RWWrap}}
-            if devices is not None:
-                pms = getfullargspec(self.rw_class).args
-                assert 'device' not in pms, 'ERR: please rename "device" into "devices" in params of RunningWorker'
-                dev_param_name = 'devices' if 'devices' in pms else None
-                devices = tf_devices(devices=devices, verb=verb)
-                for id, dev in enumerate(devices):
-                    kwD = {}
-                    kwD.update(rw_init_kwargs)
-                    if dev_param_name: kwD[dev_param_name] = dev
-                    self.rwwD[id] = {
-                        'rw_init_kwargs':   kwD,
-                        'rww':              None}
-            else:
-                # get n_rww
-                if type(multiproc) is int:
-                    assert multiproc > 0, 'ERR: cannot continue with 0 subprocesses'
-                    n_rww = multiproc
-                else:
-                    if multiproc == 'off': n_rww = 1                            # off
-                    else:                  n_rww = sys_res_nfo()['cpu_count']   # auto / all
-                for id in range(n_rww):
-                    self.rwwD[id] = {
-                        'rw_init_kwargs':   rw_init_kwargs,
-                        'rww':              None}                               # None means that RW is not started (or has been killed)
+            for id, dev in enumerate(devices):
+                kwD = {}
+                kwD.update(rw_init_kwargs)
+                if dev_param_name: kwD[dev_param_name] = dev
+                self.rwwD[id] = {
+                    'rw_init_kwargs':   kwD,
+                    'rww':              None}
 
 
         # builds and starts RWWrap
@@ -409,8 +397,6 @@ class OMPRunner:
             rw_class: type(RunningWorker),          # RunningWorker class that will run() given tasks
             rw_init_kwargs: Optional[Dict]= None,   # RunningWorker __init__ kwargs
             rw_lifetime: Optional[int]=     None,   # RunningWorker lifetime, for None or 0 is unlimited, for N <1,n> each RW will be restarted after processing N tasks
-            multiproc: MultiprocParam=      'auto', # multiprocessing cores; auto, all, off, 1-N
-            # TODO: None below is a valid value for DevicesParam - it is misleading - change !!!
             devices: DevicesParam=          None,   # alternatively may be set (None gives priority to multiproc), if given then RW must accept 'devices' param
             name=                           'OMPRunner',
             ordered_results=                True,   # returns results in the order of tasks
@@ -438,7 +424,6 @@ class OMPRunner:
             rw_class=               rw_class,
             rw_init_kwargs=         rw_init_kwargs if rw_init_kwargs else {},
             rw_lifetime=            rw_lifetime,
-            multiproc=              multiproc,
             devices=                devices,
             ordered_results=        ordered_results,
             report_delay=           report_delay,

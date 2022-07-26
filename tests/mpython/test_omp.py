@@ -2,7 +2,6 @@ import random
 import time
 import unittest
 
-from pypaq.mpython.mptools import MultiprocParam
 from pypaq.mpython.omp import OMPRunner, RunningWorker
 
 
@@ -22,13 +21,13 @@ class TestOMP_NB(unittest.TestCase):
 
     def test_OMP_base(self):
 
-        multiproc: MultiprocParam=  10
-        n_tasks: int=               50
-        max_sec: int=               3
+        cores =   10
+        n_tasks = 50
+        max_sec = 3
 
         ompr = OMPRunner(
             rw_class=       BRW,
-            multiproc=      multiproc,
+            devices=        [None] * cores,
             verb=           1)
         tasks = [{
             'id':   id,
@@ -51,13 +50,13 @@ class TestOMP_NB(unittest.TestCase):
     # results received one by one
     def test_OMP_one_by_one(self):
 
-        multiproc: MultiprocParam=  7
-        n_tasks: int=               20
-        max_sec: int=               3
+        cores =   7
+        n_tasks = 20
+        max_sec = 3
 
         ompr = OMPRunner(
             rw_class=       BRW,
-            multiproc=      multiproc,
+            devices=        [None] * cores,
             verb=           1)
         tasks = [{
             'id':   id,
@@ -90,13 +89,13 @@ class TestOMP_NB(unittest.TestCase):
     # not sorted results
     def test_OMP_one_by_one_not_sorted(self):
 
-        multiproc: MultiprocParam=  7
-        n_tasks: int=               20
-        max_sec: int=               3
+        cores =   7
+        n_tasks = 20
+        max_sec = 3
 
         ompr = OMPRunner(
             rw_class=           BRW,
-            multiproc=          multiproc,
+            devices=            [None] * cores,
             ordered_results=    False,
             verb=               1)
         tasks = [{
@@ -123,15 +122,15 @@ class TestOMP_NB(unittest.TestCase):
     # OMPRunner example with process lifetime and exceptions
     def test_OMP_lifetime_exceptions(self):
 
-        multiproc: MultiprocParam=  10
-        max_sec: int=               5
-        process_lifetime=           2
-        exception_prob=             0.1
+        cores =             10
+        max_sec =           5
+        process_lifetime=   2
+        exception_prob=     0.1
 
         ompr = OMPRunner(
             rw_class=       BRW,
             rw_lifetime=    process_lifetime,
-            multiproc=      multiproc,
+            devices=        [None] * cores,
             verb=           1)
 
         tasks = [{
@@ -165,15 +164,15 @@ class TestOMP_NB(unittest.TestCase):
     # OMPRunner not restarting tasks with exceptions
     def test_OMP_exceptions_not_restart(self):
 
-        multiproc: MultiprocParam=  10
-        max_sec: int=               5
-        process_lifetime=           2
-        exception_prob=             0.1
+        cores =             10
+        max_sec =           5
+        process_lifetime=   2
+        exception_prob=     0.1
 
         ompr = OMPRunner(
             rw_class=           BRW,
             rw_lifetime=        process_lifetime,
-            multiproc=          multiproc,
+            devices=            [None] * cores,
             restart_ex_tasks=   False,
             verb=               1)
 

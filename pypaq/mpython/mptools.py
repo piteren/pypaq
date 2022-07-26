@@ -3,27 +3,19 @@ from abc import ABC, abstractmethod
 from multiprocessing import cpu_count, Process, Queue
 from queue import Empty
 import psutil
-from typing import List, Any, Optional
+from typing import Any, Optional, Union
 
 """
 devices: DevicesParam - (parameter) manages GPUs, gives options for CPUs
     int                 - one (system) CUDA ID
     -1                  - last AVAILABLE CUDA
-    None                - single CPU device
-    str                 - device in TF format (e.g. '/device:GPU:0')
+    'all'               - all CPU cores
+    None                - single CPU core
+    str_TF_format       - device in TF format ('GPU:0')
     [] (empty list)     - all AVAILABLE CUDA
     [int,-1,None,str]   - list of devices: ints (CUDA IDs), may contain None, possible repetitions
 """
-DevicesParam: int or None or str or List[int or None or str] = -1
-
-"""
-multiproc: MultiprocParam - (parameter) manages CPUs only
-    'auto'              - automatic
-    'all'               - all CPU cores
-    'off'               - single core == 1
-    int (1-N)           - number of CPU cores
-"""
-MultiprocParam: str or int = 'auto'
+DevicesParam: Union[int, None, str, list] = -1
 
 
 # message sent between processes via Ques (my que)
