@@ -30,7 +30,6 @@ import psutil
 import time
 from typing import Any, List, Dict, Optional, Tuple
 
-from pypaq.lipytools.decorators import timing
 from pypaq.mpython.mptools import sys_res_nfo, MultiprocParam, DevicesParam, QMessage, ExSubprocess, Que
 from pypaq.neuralmess.dev_manager import tf_devices
 
@@ -44,7 +43,7 @@ class RunningWorker(ABC):
 
 class OMPRunner:
 
-    # OMPRunnerNB Internal Process
+    # Object Multi Processing Internal Process
     class OMP_IP(ExSubprocess):
 
         POISON_MSG = QMessage(type='poison', data=None)
@@ -413,7 +412,7 @@ class OMPRunner:
             multiproc: MultiprocParam=      'auto', # multiprocessing cores; auto, all, off, 1-N
             # TODO: None below is a valid value for DevicesParam - it is misleading - change !!!
             devices: DevicesParam=          None,   # alternatively may be set (None gives priority to multiproc), if given then RW must accept 'devices' param
-            name=                           'OMPRunnerNB',
+            name=                           'OMPRunner',
             ordered_results=                True,   # returns results in the order of tasks
             report_delay: int or str=       'auto', # num sec between speed_report
             restart_ex_tasks=               True,   # restarts tasks that caused exception, for False returns 'TASK #{tix} RAISED EXCEPTION'
@@ -455,11 +454,8 @@ class OMPRunner:
         self._tasks_que.put(QMessage(type='tasks', data=tasks))
         self._n_tasks_received += len(tasks)
 
-    # returns single result
-    def get_result(
-            self,
-            block=  True # blocks execution till result ready and returned, for False does not block and returns None
-    ) -> Optional[Any]:
+    # returns single result, may block or not
+    def get_result(self, block=True) -> Optional[Any]:
         if self._n_results_returned == self._n_tasks_received:
             if self.verb>0: print(f'OMPRunner get_result() returns None since already returned all results (for all given tasks: n_results_returned == n_tasks_received)')
             return None
@@ -476,87 +472,9 @@ class OMPRunner:
         results = []
         n_results = self._n_tasks_received - self._n_results_returned
         while len(results) < n_results: results.append(self.get_result(block=True))
-        self._n_results_returned += n_results
         return results
 
     def exit(self):
         if self._n_results_returned != self._n_tasks_received: print(f'WARNING: {self.omp_name} exits while not all results were returned to user!')
         self._internal_processor.exit()
         if self.verb>0: print(f' > {self.omp_name}: internal processor stopped, {self.omp_name} exits.')
-
-
-# basic OMPRunnerNB example
-@timing
-def example_basic_OMPRunner(
-        multiproc: MultiprocParam=  10,
-        n_tasks: int=               50,
-        max_sec: int=               5):
-
-    import random
-
-    # basic RunningWorker
-    class BRW(RunningWorker):
-        def process(self,
-                    id: int,
-                    sec: int) -> object:
-            time.sleep(sec)
-            return f'{id}_{sec}'
-
-    ompr = OMPRunner(
-        rw_class=       BRW,
-        multiproc=      multiproc,
-        verb=           5)
-
-    tasks = [{
-        'id':   id,
-        'sec':  random.randrange(1, max_sec)}
-        for id in range(n_tasks)]
-
-    ompr.process(tasks)
-    results = ompr.get_all_results()
-    ompr.exit()
-
-    print(f'({len(results)}) {results}')
-
-# OMPRunnerNB example with process lifetime and exceptions
-@timing
-def example_more_OMPRunner(
-        multiproc: MultiprocParam=  10,
-        n_tasks: int=               100,
-        max_sec: int=               5,
-        process_lifetime=           2,
-        exception_prob=             0.1):
-
-    import random
-    import time
-
-    # basic RunningWorker
-    class BRW(RunningWorker):
-        def process(self,
-                    id: int,
-                    sec: int) -> object:
-            if random.random() < exception_prob: raise Exception('randomly crashed')
-            time.sleep(sec)
-            return f'{id}_{sec}'
-
-    ompr = OMPRunner(
-        rw_class=       BRW,
-        rw_lifetime=    process_lifetime,
-        multiproc=      multiproc,
-        verb=           2)
-
-    tasks = [{'id': id, 'sec': random.randrange(1, max_sec)} for id in range(n_tasks)]
-    ompr.process(tasks)
-    results = ompr.get_all_results()
-    print(f'({len(results)}) {results}')
-
-    tasks = [{'id': id, 'sec': random.randrange(1, max_sec)} for id in range(30)] # additional 30 tasks
-    ompr.process(tasks)
-    results = ompr.get_all_results()
-    print(f'({len(results)}) {results}')
-
-    ompr.exit()
-
-if __name__ == '__main__':
-    example_basic_OMPRunner()
-    #example_more_OMPRunner()
