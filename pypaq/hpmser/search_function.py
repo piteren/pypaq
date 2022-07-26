@@ -47,7 +47,7 @@ from pypaq.lipytools.stats import msmx
 from pypaq.mpython.mptools import DevicesParam
 from pypaq.mpython.omp import OMPRunner, RunningWorker
 from pypaq.neuralmess.dev_manager import tf_devices
-from pypaq.neuralmess_duo.base_elements import TBwr
+from pypaq.neuralmess_duo.tbwr import TBwr
 from pypaq.pms.config_manager import ConfigManager
 from pypaq.pms.paspa import PaSpa
 from pypaq.pms.base_types import PSDD, POINT, point_str
@@ -371,6 +371,8 @@ def hpmser(
 
     finally:
         omp.exit()
+
+        if tbwr: tbwr.exit()
 
         srl.save(folder=f'{hpmser_FD}/{name}')
 

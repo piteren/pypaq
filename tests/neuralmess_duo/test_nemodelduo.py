@@ -21,6 +21,7 @@ class TestNEModelDUO(unittest.TestCase):
             verb=           1)
         self.assertTrue(model['iLR'] == 0.0005)
         self.assertTrue(len(model['name']) > 3)
+        model.exit()
 
     def test_save_load(self):
 
@@ -32,6 +33,7 @@ class TestNEModelDUO(unittest.TestCase):
             verb=           0)
         print(model['iLR'])
         model.save()
+        model.exit()
 
         model = NEModelDUO(
             name=           'pio',
@@ -40,6 +42,7 @@ class TestNEModelDUO(unittest.TestCase):
             verb=           1)
         print(model['iLR'])
         self.assertTrue(model['iLR'] == 0.001)
+        model.exit()
 
 
 if __name__ == '__main__':

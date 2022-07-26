@@ -9,7 +9,8 @@ import warnings
 
 from pypaq.lipytools.little_methods import stamp, get_params, get_func_dna
 from pypaq.pms.parasave import ParaSave
-from pypaq.neuralmess_duo.base_elements import lr_scaler, grad_clipper_AVT, TBwr
+from pypaq.neuralmess_duo.base_elements import lr_scaler, grad_clipper_AVT
+from pypaq.neuralmess_duo.tbwr import TBwr
 
 # restricted keys for fwd_func DNA and return DNA (if they appear in kwargs, should be named exactly like below)
 SPEC_KEYS = [
@@ -225,7 +226,7 @@ class NEModelDUO(ParaSave):
 
         self.submodels: Dict[str, tf.keras.Model] = {}
 
-        self.writer = TBwr(logdir=self.dir)
+        self.writer = TBwr(logdir=self.dir, set_to_CPU=False)
 
         if self.verb>0: print(f'\n > NEModelDUO init finished..')
 
@@ -352,3 +353,6 @@ class NEModelDUO(ParaSave):
             else:
                 wt.assign(wa)
                 if verb>0: print(f' >> not mixed: {wa.name:50}, {wa.dtype}')
+
+    def exit(self):
+        self.writer.exit()

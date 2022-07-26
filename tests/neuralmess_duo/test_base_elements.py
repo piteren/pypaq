@@ -6,9 +6,7 @@ import unittest
 import numpy as np
 import tensorflow as tf
 
-from tests.envy import flush_tmp_dir
-
-from pypaq.neuralmess_duo.base_elements import my_initializer, gelu, replace_nan_with_zero, TBwr
+from pypaq.neuralmess_duo.base_elements import my_initializer, gelu, replace_nan_with_zero
 
 
 class TestBaseElements(unittest.TestCase):
@@ -41,17 +39,6 @@ class TestBaseElements(unittest.TestCase):
     def test_grad_clipper_AVT(self):
         # TODO: write test
         pass
-
-    def test_TBwr(self):
-        tmp_dir = flush_tmp_dir()
-        self.assertTrue(not os.listdir(tmp_dir))
-        tbwr = TBwr(logdir=f'{tmp_dir}/tbwr')
-        self.assertTrue(not os.listdir(tmp_dir))
-        val=1.0
-        for s in range(10):
-            tbwr.add(val,'val',s)
-            val += 0.3
-        self.assertTrue(os.listdir(tmp_dir)[0]=='tbwr')
 
 
 if __name__ == '__main__':

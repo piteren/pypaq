@@ -68,8 +68,9 @@ class OMPRunner:
 
                 if self.verb>0: print(f' > RWWrap({self.id}) initialized')
 
-            # .. loop for processing RW tasks, this method will be run within subprocess (ExSubprocess)
+            # loop for processing RW tasks, this method will be run within subprocess (ExSubprocess)
             def subprocess_method(self):
+
                 if self.verb>0: print(f' > RWWrap ({self.id}) pid: {os.getpid()} inits RunningWorker')
                 rwo = self.rw_class(**self.rw_init_kwargs)
                 if self.verb>0: print(f' > RWWrap ({self.id}) starts process loop..')
@@ -109,7 +110,7 @@ class OMPRunner:
             self.omp_name = name
             if verb>0: print(f'\n*** {self.omp_name} (pid: {os.getpid()}) inits for {rw_class.__name__}')
 
-            # adds to OMPRunner subprocess properties
+            # adds to OMPRunner Exception Managed Subprocess properties
             ExSubprocess.__init__(
                 self,
                 ique=           ique,
@@ -433,7 +434,7 @@ class OMPRunner:
             verb=                   self.verb)
         self._internal_processor.start()
 
-    # non-blocking method that starts processing given tasks and does not return anything
+    # takes tasks for processing, not blocks and starts processing, does not return anything
     def process(self, tasks: dict or List[dict]):
         if type(tasks) is dict: tasks = [tasks]
         self._tasks_que.put(QMessage(type='tasks', data=tasks))

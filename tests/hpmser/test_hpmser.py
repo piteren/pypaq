@@ -52,7 +52,7 @@ class TestHpmser(unittest.TestCase):
             func=               some_func,
             func_psdd=          psdd,
             func_const=         func_const,
-            devices=            [None]*n_proc,
+            devices=            [None] * n_proc,
             hpmser_FD=          f'{TEMP_DIR}/_hpmser_runs',
             raise_exceptions=   False,
             verb=               verb)
