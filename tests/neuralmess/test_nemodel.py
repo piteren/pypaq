@@ -1,16 +1,18 @@
 import unittest
 
+from tests.envy import get_tmp_dir
+
 from pypaq.lipytools.little_methods import prep_folder
 from pypaq.mpython.mpdecor import proc_wait
 from pypaq.neuralmess.nemodel import NEModelBase, NEModel
 
-TEMP_DIR = '_temp_tests/nemodel'
+NEMODEL_DIR = f'{get_tmp_dir()}/nemodel'
 
 
 class TestNEModel(unittest.TestCase):
 
     def setUp(self) -> None:
-        prep_folder(TEMP_DIR, flush_non_empty=True)
+        prep_folder(NEMODEL_DIR, flush_non_empty=True)
         pass
 
     def test_init(self):
@@ -20,8 +22,8 @@ class TestNEModel(unittest.TestCase):
         nnm = NEModelBase(
             name=           'nemodel_base_test',
             opt_func=       None,
-            save_topdir=    TEMP_DIR,
-            do_logfile=     False,      # INFO: unittests crashes with logger
+            save_topdir=    NEMODEL_DIR,
+            do_logfile=     False,  # INFO: unittests crashes with logger
             verb=           1,
             **dna)
         nnm.save_ckpt()
@@ -29,7 +31,7 @@ class TestNEModel(unittest.TestCase):
 
         nnm = NEModelBase(
             name=           'nemodel_base_test',
-            save_topdir=    TEMP_DIR,
+            save_topdir=    NEMODEL_DIR,
             do_logfile=     False,      # INFO: unittests crashes with logger
             verb=           1,
             **dna)
@@ -38,7 +40,7 @@ class TestNEModel(unittest.TestCase):
 
         nnm = NEModel(
             name=           'nemodel_test',
-            save_topdir=    TEMP_DIR,
+            save_topdir=    NEMODEL_DIR,
             do_logfile=     False,      # INFO: unittests crashes with logger
             verb=           1,
             **dna)
@@ -50,7 +52,7 @@ class TestNEModel(unittest.TestCase):
 
         nnm = NEModel(
             name=           'nemodel_test',
-            save_topdir=    TEMP_DIR,
+            save_topdir=    NEMODEL_DIR,
             do_logfile=     False,      # INFO: unittests crashes with logger
             verb=           0)
         self.assertTrue(nnm['seq_len']==20 and nnm['emb_num']==33)
@@ -61,7 +63,7 @@ class TestNEModel(unittest.TestCase):
             dna = {'seq_len':20, 'emb_num':33, 'seed':111}
             nnm = NEModel(
                 name=           'nemodel_testA',
-                save_topdir=    TEMP_DIR,
+                save_topdir=    NEMODEL_DIR,
                 do_logfile=     False,      # INFO: unittests crashes with logger
                 verb=           1,
                 **dna)
@@ -69,7 +71,7 @@ class TestNEModel(unittest.TestCase):
             dna = {'seq_len':20, 'emb_num':33, 'seed':111}
             nnm = NEModel(
                 name=           'nemodel_testB',
-                save_topdir=    TEMP_DIR,
+                save_topdir=    NEMODEL_DIR,
                 do_logfile=     False,      # INFO: unittests crashes with logger
                 verb=           1,
                 **dna)
@@ -80,7 +82,7 @@ class TestNEModel(unittest.TestCase):
             name_parent_main=           'nemodel_testA',
             name_parent_scnd=           'nemodel_testB',
             name_child=                 'nemodel_testC',
-            save_topdir_parent_main=    TEMP_DIR,
+            save_topdir_parent_main=    NEMODEL_DIR,
             #do_gx_ckpt=                 False
         )
 

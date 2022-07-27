@@ -19,7 +19,7 @@ class TestTBwr(unittest.TestCase):
         val = 1.0
         for s in range(30):
             tbwr.add(val, 'val', s)
-            print(f'put val: {val}')
+            print(f'put val (sample #{s}): {val}')
             val += 0.3
             time.sleep(1)
 

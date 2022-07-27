@@ -1,9 +1,11 @@
 import unittest
 
+from tests.envy import get_tmp_dir
+
 from pypaq.lipytools.little_methods import prep_folder
 from pypaq.pms.parasave import ParaSave
 
-TEMP_DIR = '_temp_tests/parasave'
+PARASAVE_DIR = f'{get_tmp_dir()}/parasave'
 
 _DNA = {
     'name': 'pio',
@@ -18,7 +20,7 @@ _PSDD = {
 class TestParaSave(unittest.TestCase):
 
     def setUp(self) -> None:
-        prep_folder(TEMP_DIR, flush_non_empty=True)
+        prep_folder(PARASAVE_DIR, flush_non_empty=True)
 
     def test_base(self):
 
@@ -37,14 +39,14 @@ class TestParaSave(unittest.TestCase):
         psa_dna = {}
         psa_dna.update(_DNA)
         psa_dna['name'] = 'psa'
-        psa = ParaSave(save_topdir=TEMP_DIR, **psa_dna)
+        psa = ParaSave(save_topdir=PARASAVE_DIR, **psa_dna)
         print(psa.get_point())
         self.assertTrue(psa['a'] == 1)
         psa['a'] = 2
         psa.save_dna()
 
         # load A from folder
-        psa = ParaSave(name='psa', save_topdir=TEMP_DIR)
+        psa = ParaSave(name='psa', save_topdir=PARASAVE_DIR)
         print(psa.get_point())
         self.assertTrue(psa['a'] == 2)
         psa['psdd'].update(_PSDD)
@@ -55,8 +57,8 @@ class TestParaSave(unittest.TestCase):
         ParaSave.copy_saved_dna(
             name_src=           'psa',
             name_trg=           'psb',
-            save_topdir_src=    TEMP_DIR)
-        psb = ParaSave(name='psb', save_topdir=TEMP_DIR)
+            save_topdir_src=    PARASAVE_DIR)
+        psb = ParaSave(name='psb', save_topdir=PARASAVE_DIR)
         print(psb.get_point())
         self.assertTrue(psb['a'] == 2)
 
@@ -65,8 +67,8 @@ class TestParaSave(unittest.TestCase):
             name_parent_main=           'psb',
             name_parent_scnd=           None,
             name_child=                 'psc',
-            save_topdir_parent_main=    TEMP_DIR)
-        psc = ParaSave(name='psc', save_topdir=TEMP_DIR)
+            save_topdir_parent_main=    PARASAVE_DIR)
+        psc = ParaSave(name='psc', save_topdir=PARASAVE_DIR)
         print(psc.get_point())
         self.assertTrue(0<=psc['a']<=100 and 0<=psc['b']<=10)
 
@@ -75,8 +77,8 @@ class TestParaSave(unittest.TestCase):
             name_parent_main=           'psb',
             name_parent_scnd=           'psc',
             name_child=                 'psd',
-            save_topdir_parent_main=    TEMP_DIR)
-        psd = ParaSave(name='psd', save_topdir=TEMP_DIR)
+            save_topdir_parent_main=    PARASAVE_DIR)
+        psd = ParaSave(name='psd', save_topdir=PARASAVE_DIR)
         print(psd.get_point())
         self.assertTrue(0<=psd['a']<=100 and 0<=psd['b']<=10)
 

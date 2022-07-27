@@ -3,17 +3,19 @@ import random
 import time
 import unittest
 
+from tests.envy import get_tmp_dir
+
 from pypaq.lipytools.little_methods import prep_folder
 from pypaq.mpython.devices import DevicesParam
 from pypaq.hpmser.search_function import hpmser
 
-TEMP_DIR = '_temp_tests/hpmser'
+HPMSER_FD = f'{get_tmp_dir()}/hpmser'
 
 
 class TestHpmser(unittest.TestCase):
 
     def setUp(self) -> None:
-        prep_folder(TEMP_DIR, flush_non_empty=True)
+        prep_folder(HPMSER_FD, flush_non_empty=True)
 
     def test_simple_run(self):
 
@@ -53,8 +55,10 @@ class TestHpmser(unittest.TestCase):
             func_psdd=          psdd,
             func_const=         func_const,
             devices=            [None] * n_proc,
-            hpmser_FD=          f'{TEMP_DIR}/_hpmser_runs',
+            n_loops=            500,
+            hpmser_FD=          HPMSER_FD,
             raise_exceptions=   False,
+            do_log=             False,  # INFO: unittests crashes with logger
             verb=               verb)
 
 

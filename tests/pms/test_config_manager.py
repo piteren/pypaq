@@ -1,16 +1,18 @@
 import time
 import unittest
 
+from tests.envy import get_tmp_dir
+
 from pypaq.lipytools.little_methods import prep_folder
 from pypaq.pms.config_manager import ConfigManager
 
-TEMP_DIR = '_temp_tests/config_manager'
+CONFIG_DIR = f'{get_tmp_dir()}/config_manager'
 
 
 class TestCM(unittest.TestCase):
 
     def setUp(self) -> None:
-        prep_folder(TEMP_DIR, flush_non_empty=True)
+        prep_folder(CONFIG_DIR, flush_non_empty=True)
 
     # you should go to {TEMP_DIR}/config.file and edit>save it while running this test
     def test_base(self):
@@ -23,7 +25,7 @@ class TestCM(unittest.TestCase):
             'do_it':        False,
             'dont_do':      None}
 
-        cm = ConfigManager(f'{TEMP_DIR}/config.file', config=config)
+        cm = ConfigManager(f'{CONFIG_DIR}/config.file', config=config)
         print(cm.get_config())
 
         for _ in range(n_loops):
@@ -31,7 +33,7 @@ class TestCM(unittest.TestCase):
             newc = cm.load()
             print(newc, cm.get_config())
 
-        cm = ConfigManager(file=f'{TEMP_DIR}/config.file')
+        cm = ConfigManager(file=f'{CONFIG_DIR}/config.file')
         print(cm.get_config())
 
 
