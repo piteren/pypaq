@@ -2,7 +2,7 @@ import random
 import time
 import unittest
 
-from pypaq.mpython.mptools import sys_res_nfo, ExSubprocess, Que, QMessage
+from pypaq.mpython.mptools import ExSubprocess, Que, QMessage, sys_res_nfo
 
 
 class TestMPTools(unittest.TestCase):

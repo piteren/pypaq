@@ -1,39 +1,23 @@
-"""
-
- 2019 (c) piteren
-
-"""
-
 import GPUtil
 import os
 import platform
-from typing import List, Optional
+from typing import Optional, Union, List
 
-from pypaq.mpython.mptools import DevicesParam, sys_res_nfo
+from pypaq.mpython.mptools import sys_res_nfo
 
 
-# masks GPUs from given list of ids or single one
-def mask_cuda(ids :Optional[List[int] or int]=  None):
-    if ids is None: ids = []
-    if type(ids) is int: ids = [ids]
-    mask = ''
-    for id in ids: mask += f'{int(id)},'
-    if len(mask) > 1: mask = mask[:-1]
-    os.environ["CUDA_VISIBLE_DEVICES"] = mask
+"""
+devices: DevicesParam - (parameter) manages GPUs, gives options for CPUs
+    int                 - one (system) CUDA ID
+    -1                  - last AVAILABLE CUDA
+    'all'               - all CPU cores
+    None                - single CPU core
+    str_TF_format       - device in TF format ('GPU:0')
+    [] (empty list)     - all AVAILABLE CUDA
+    [int,-1,None,str]   - list of devices: ints (CUDA IDs), may contain None, possible repetitions
+"""
+DevicesParam: Union[int, None, str, list] = -1
 
-# wraps mask_cuda to hold DevicesParam
-def mask_cuda_devices(devices :DevicesParam=-1, verb=0):
-
-    devices = tf_devices(devices, verb=verb)
-
-    ids = []
-    devices_other = []
-    devices_gpu = []
-    for device in devices:
-        if 'GPU' in device: devices_gpu.append(device)
-        else: devices_other.append(device)
-    if devices_gpu: ids = [dev[12:] for dev in devices_gpu]
-    mask_cuda(ids)
 
 # returns cuda memory size (system first device)
 def get_cuda_mem():
@@ -55,10 +39,13 @@ def report_cuda():
     for device in GPUtil.getGPUs():
         print(f' > id: {device.id}, name: {device.name}, MEM: {int(device.memoryUsed)}/{int(device.memoryTotal)} (U/T)')
 
-# resolves given devices, returns list of str in TF naming convention, for OSX returns CPU only
-def tf_devices(
-        devices :DevicesParam=  -1,
+
+def get_devices(
+        devices: DevicesParam=  -1,
+        tf2_naming=             False,
         verb=                   1) -> List[str]:
+
+    device_pfx = '/device:' if not tf2_naming else ''
 
     # all CPU case
     if devices == 'all': devices = [None] * sys_res_nfo()['cpu_count']
@@ -71,7 +58,7 @@ def tf_devices(
         print('no GPUs available for OSX, using only CPU')
         force_CPU = True
     # no GPU @system
-    if not force_CPU and not GPUtil.getGPUs():
+    if not force_CPU and not get_available_cuda_id():
         print('no GPUs available, using only CPU')
         force_CPU = True
     if force_CPU:
@@ -100,39 +87,39 @@ def tf_devices(
         if type(dev) is int: devices_int.append(dev)
         if dev is None: devices_CPU.append(None)
 
+    # reduce str to int
+    for dev in devices_str:
+        devices_int.append(int(dev.split(':')[-1]))
+
     # prepare final list
     final_devices = []
-    final_devices += devices_str # just add str
-    final_devices += ['/device:CPU:0'] * len(devices_CPU)
+    final_devices += [f'{device_pfx}CPU:0'] * len(devices_CPU)
     if devices_int:
-        os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
         if verb>0: report_cuda()
-        for dev in devices_int: final_devices.append(f'/device:GPU:{dev}')
+        for dev in devices_int: final_devices.append(f'{device_pfx}GPU:{dev}')
 
-    if verb>0: print(f'\ntf_devices is returning {len(final_devices)} devices: {final_devices}')
+    if verb>0: print(f'\nget_devices is returning {len(final_devices)} devices: {final_devices}')
     return final_devices
 
+# masks GPUs from given list of ids or single one
+def mask_cuda(ids: Optional[List[int] or int]=  None):
+    if ids is None: ids = []
+    if type(ids) is int: ids = [ids]
+    mask = ''
+    for id in ids: mask += f'{int(id)},'
+    if len(mask) > 1: mask = mask[:-1]
+    os.environ["CUDA_VISIBLE_DEVICES"] = mask
 
-if __name__ == '__main__':
+# wraps mask_cuda to hold DevicesParam
+def mask_cuda_devices(devices: DevicesParam=-1, verb=0):
 
-    devices_conf = [
-        0,
-        1,
-        -1,
-        None,
-        'all',
-        '/device:GPU:0',
-        ['/device:GPU:0','/device:GPU:0'],
-        [],
-        [0,1],
-        [0,0],
-        [0,-1],
-        [-1,-1],
-        [None]*5,
-        [None,0,1,-1,'/device:GPU:0',None]]
+    devices = get_devices(devices, verb=verb)
 
-    for dc in devices_conf:
-        print(f'\n ### DC: {dc}')
-        print(tf_devices(devices=dc, verb=1))
-
-    #print(get_cuda_mem())
+    ids = []
+    devices_other = []
+    devices_gpu = []
+    for device in devices:
+        if 'GPU' in device: devices_gpu.append(device)
+        else: devices_other.append(device)
+    if devices_gpu: ids = [dev[12:] for dev in devices_gpu]
+    mask_cuda(ids)

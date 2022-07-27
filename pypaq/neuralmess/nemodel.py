@@ -61,14 +61,13 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 from pypaq.lipytools.logger import set_logger
 from pypaq.lipytools.little_methods import short_scin, stamp, get_params, get_func_dna
 from pypaq.lipytools.moving_average import MovAvg
-from pypaq.mpython.mptools import DevicesParam
+from pypaq.mpython.devices import DevicesParam, mask_cuda, get_devices
 from pypaq.mpython.mpdecor import proc_wait
 from pypaq.pms.subscriptable import Subscriptable
 from pypaq.pms.parasave import ParaSave
 from pypaq.neuralmess.get_tf import tf
 from pypaq.neuralmess.base_elements import num_var_floats, lr_scaler, gc_loss_reductor, log_vars, mrg_ckpts, TBwr
 from pypaq.neuralmess.layers import lay_dense
-from pypaq.neuralmess.dev_manager import tf_devices, mask_cuda
 from pypaq.neuralmess.multi_saver import MultiSaver
 from pypaq.neuralmess.batcher import Batcher
 
@@ -316,7 +315,7 @@ class NEModelBase(Subscriptable):
 
         # ****************************************************************************************** resolve devices
 
-        self.devices = tf_devices(self.devices, verb=self.verb)
+        self.devices = get_devices(self.devices, verb=self.verb)
 
         # mask GPU devices
         ids = []

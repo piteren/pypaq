@@ -1,6 +1,3 @@
-import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-
 import unittest
 
 from tests.envy import flush_tmp_dir
@@ -17,13 +14,12 @@ class TestNEModelDUO(unittest.TestCase):
             name=           'pio',
             name_timestamp= True,
             fwd_func=       fwd_graph,
-            warm_up=        100,
             verb=           1)
         self.assertTrue(model['iLR'] == 0.0005)
         self.assertTrue(len(model['name']) > 3)
         model.exit()
 
-    def test_save_load(self):
+    def test_save_then_load(self):
 
         model = NEModelDUO(
             name=           'pio',

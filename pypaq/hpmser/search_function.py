@@ -18,7 +18,7 @@
     1. having some FUNCTION:
         - some parameters need to be optimized
         - some parameters may be fixed / constant
-        - if function accepts 'device' or 'devices' it should be type of DevicesParam (check pypaq.mpython.mptools),
+        - if function accepts 'device' or 'devices' it should be type of DevicesParam (check pypaq.mpython.devices),
           it will be used by hpmser to put proper device for each function call
         - returns a dict with 'score' or just a value (score)
     2. define PSDD - dictionary with parameters to be optimized and the space to search in (check pypaq.pms.pasap.PaSpa)
@@ -44,9 +44,8 @@ from pypaq.hpmser.search_results import SRL
 from pypaq.lipytools.little_methods import stamp, prep_folder, get_params
 from pypaq.lipytools.logger import set_logger
 from pypaq.lipytools.stats import msmx
-from pypaq.mpython.mptools import DevicesParam
+from pypaq.mpython.devices import DevicesParam, get_devices
 from pypaq.mpython.omp import OMPRunner, RunningWorker
-from pypaq.neuralmess.dev_manager import tf_devices
 from pypaq.neuralmess_duo.tbwr import TBwr
 from pypaq.pms.config_manager import ConfigManager
 from pypaq.pms.paspa import PaSpa
@@ -206,7 +205,7 @@ def hpmser(
 
     scores_all = []
 
-    devices = tf_devices(devices=devices, verb=verb) # manage devices
+    devices = get_devices(devices=devices, verb=verb) # manage devices
 
     num_free_rw = len(devices)
 

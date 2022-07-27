@@ -8,6 +8,7 @@ from typing import List, Callable, Dict, Optional
 import warnings
 
 from pypaq.lipytools.little_methods import stamp, get_params, get_func_dna
+from pypaq.mpython.devices import DevicesParam, get_devices
 from pypaq.pms.parasave import ParaSave
 from pypaq.neuralmess_duo.base_elements import lr_scaler, grad_clipper_AVT
 from pypaq.neuralmess_duo.tbwr import TBwr
@@ -94,9 +95,10 @@ class NEModelDUO(ParaSave):
             name: str,
             fwd_func: Callable,                                 # function building graph (from inputs to loss)
             name_timestamp=             False,                  # adds timestamp to the model name
-            device=                     'GPU:0',                # for TF1 we used '/device:CPU:0'
+            devices: DevicesParam=      'GPU:0',                # for TF1 we used '/device:CPU:0'
             save_topdir=                '_models',              # top folder of model save
             save_fn_pfx=                'nemodelduo_dna',       # dna filename prefix
+            do_TB=                      True,                   # runs TensorBard
             verb=                       0,
             **kwargs):
 
@@ -135,12 +137,16 @@ class NEModelDUO(ParaSave):
         dna = self.get_point()
         if self.verb>0: print(f'\n > NEModelDUO complete DNA: {dna}')
 
+        # **************************************************************************************************************
+
+        self.dir = f'{self.save_topdir}/{self.name}' # self.save_topdir & self.name come from ParaSave
+
         np.random.seed(self['seed'])
         tf.random.set_seed(self['seed'])
 
-        self.device = device
+        # *********************************************************************************************** manage devices
 
-        # TODO: put device management to tf_devices() for TF2
+        self.devices = get_devices(devices, tf2_naming=True)[0] # TODO: by now we are using only first device
 
         # check for TF visible_physical_devices
         visible_physical_devices = tf.config.list_physical_devices()
@@ -158,14 +164,16 @@ class NEModelDUO(ParaSave):
         for dev in visible_physical_devices:
             # INFO: it looks that TF usually needs CPU and it cannot be masked-out
             # TODO: self.device in dev.name will fail for more than 10 GPUs, cause 'GPU:1' is in 'GPU:10' - need to fix it later
-            if self.device in dev.name or 'CPU' in dev.name:
+            if self.devices in dev.name or 'CPU' in dev.name:
                 set_visible.append(dev)
-        if self.verb>1: print(f' > setting visible to NEModelDUO: {set_visible} for {self.device}')
+        if self.verb>1: print(f' > setting visible to NEModelDUO: {set_visible} for {self.devices}')
         tf.config.set_visible_devices(set_visible)
 
-        if self.verb>0: print(f'\n > building graph ({fwd_func}) on {self.device} ..')
+        # **************************************************************************************************************
+
+        if self.verb>0: print(f'\n > building graph ({fwd_func}) on {self.devices} ..')
         fwd_func_dna = get_func_dna(fwd_func, dna)
-        with tf.device(self.device):
+        with tf.device(self.devices):
             fwd_func_out = fwd_func(**fwd_func_dna)
         self.update(fwd_func_out)
 
@@ -184,7 +192,7 @@ class NEModelDUO(ParaSave):
             inputs=     self['train_model_IO']['inputs'],
             outputs=    self['train_model_IO']['outputs'])
 
-        with tf.device(self.device):
+        with tf.device(self.devices):
 
             # variable for time averaged global norm of gradients
             self.ggnorm_avt = self.train_model.add_weight(
@@ -199,8 +207,6 @@ class NEModelDUO(ParaSave):
                 trainable=  False,
                 dtype=      tf.int64)
             self.iterations.assign(0)
-
-        self.dir = f'{self.save_topdir}/{self.name}'
 
         try:
             self.train_model.load_weights(filepath=f'{self.dir}/weights')
@@ -226,7 +232,7 @@ class NEModelDUO(ParaSave):
 
         self.submodels: Dict[str, tf.keras.Model] = {}
 
-        self.writer = TBwr(logdir=self.dir, set_to_CPU=False)
+        self.writer = TBwr(logdir=self.dir, set_to_CPU=False) if do_TB else None
 
         if self.verb>0: print(f'\n > NEModelDUO init finished..')
 
@@ -277,7 +283,7 @@ class NEModelDUO(ParaSave):
 
     # call wrapped with device
     def call(self, **kwargs):
-        with tf.device(self.device):
+        with tf.device(self.devices):
             return self.__call(**kwargs)
 
     # train wrapped with tf.function
@@ -311,13 +317,12 @@ class NEModelDUO(ParaSave):
 
     # train wrapped with device
     def train(self, **kwargs):
-        with tf.device(self.device):
+        with tf.device(self.devices):
             return self.__train(**kwargs)
 
     def log_TB(self, value, tag: str, step: int):
-        self.writer.add(value=value, tag=tag, step=step)
-        # TODO: is line below desired
-        #self.writer.flush()
+        if self.writer: self.writer.add(value=value, tag=tag, step=step)
+        else: warnings.warn(f'NEModel_duo {self.name} cannot log TensorBoard since do_TB flag is False!')
 
     def save(self):
         self.save_dna()
@@ -355,4 +360,4 @@ class NEModelDUO(ParaSave):
                 if verb>0: print(f' >> not mixed: {wa.name:50}, {wa.dtype}')
 
     def exit(self):
-        self.writer.exit()
+        if self.writer: self.writer.exit()

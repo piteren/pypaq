@@ -10,7 +10,7 @@ import numpy as np
 from typing import Optional
 
 from pypaq.neuralmess.get_tf import tf
-from pypaq.neuralmess.dev_manager import DevicesParam, mask_cuda_devices, tf_devices
+from pypaq.mpython.devices import DevicesParam, mask_cuda_devices
 from pypaq.lipytools.little_methods import short_scin
 from pypaq.mpython.mpdecor import proc_wait
 

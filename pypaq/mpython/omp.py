@@ -30,8 +30,8 @@ import psutil
 import time
 from typing import Any, List, Dict, Optional, Tuple
 
-from pypaq.mpython.mptools import sys_res_nfo, DevicesParam, QMessage, ExSubprocess, Que
-from pypaq.neuralmess.dev_manager import tf_devices
+from pypaq.mpython.devices import DevicesParam, get_devices
+from pypaq.mpython.mptools import QMessage, ExSubprocess, Que
 
 
 # interface of running object - processes task given with kwargs and returns result
@@ -136,7 +136,7 @@ class OMPRunner:
             assert 'device' not in pms, 'ERR: please rename "device" into "devices" in params of RunningWorker'
             dev_param_name = 'devices' if 'devices' in pms else None
 
-            devices = tf_devices(devices=devices, verb=verb)
+            devices = get_devices(devices=devices, verb=verb)
 
             # prepare RunningWorkers arguments dictionary
             if not rw_init_kwargs: rw_init_kwargs = {}

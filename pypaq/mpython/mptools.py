@@ -1,21 +1,9 @@
-import time
 from abc import ABC, abstractmethod
 from multiprocessing import cpu_count, Process, Queue
 from queue import Empty
 import psutil
-from typing import Any, Optional, Union
-
-"""
-devices: DevicesParam - (parameter) manages GPUs, gives options for CPUs
-    int                 - one (system) CUDA ID
-    -1                  - last AVAILABLE CUDA
-    'all'               - all CPU cores
-    None                - single CPU core
-    str_TF_format       - device in TF format ('GPU:0')
-    [] (empty list)     - all AVAILABLE CUDA
-    [int,-1,None,str]   - list of devices: ints (CUDA IDs), may contain None, possible repetitions
-"""
-DevicesParam: Union[int, None, str, list] = -1
+import time
+from typing import Any, Optional
 
 
 # message sent between processes via Ques (my que)

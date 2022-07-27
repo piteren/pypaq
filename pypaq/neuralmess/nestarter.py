@@ -3,7 +3,7 @@ import warnings
 from typing import Optional
 
 from pypaq.lipytools.logger import set_logger
-from pypaq.neuralmess.dev_manager import tf_devices
+from pypaq.mpython.devices import DevicesParam, get_devices
 from pypaq.neuralmess.get_tf import tf
 
 # init function for every TF.py script:
@@ -13,7 +13,7 @@ from pypaq.neuralmess.get_tf import tf
 def nestarter(
         log_folder: Optional[str]=  '_log', # for None doesn't log
         custom_name: str or None=   None,   # set custom logger name, for None uses default
-        devices=                    -1,     # False to not manage TF devices
+        devices: DevicesParam=      -1,     # False to not manage TF devices
         verb=                       1,
         silent_error=               False): # turns off any TF errors, be careful
 
@@ -22,4 +22,4 @@ def nestarter(
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' if silent_error else '2'
 
     if log_folder: set_logger(log_folder=log_folder, custom_name=custom_name, verb=verb) # set logger
-    if devices is not False: return tf_devices(devices=devices, verb=verb)
+    if devices is not False: return get_devices(devices=devices, verb=verb)

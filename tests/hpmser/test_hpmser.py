@@ -4,7 +4,7 @@ import time
 import unittest
 
 from pypaq.lipytools.little_methods import prep_folder
-from pypaq.mpython.mptools import DevicesParam
+from pypaq.mpython.devices import DevicesParam
 from pypaq.hpmser.search_function import hpmser
 
 TEMP_DIR = '_temp_tests/hpmser'
