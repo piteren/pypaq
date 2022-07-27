@@ -11,7 +11,7 @@ from typing import Optional
 from pypaq.lipytools.little_methods import prep_folder, stamp
 
 
-# logger duplicating print() output to given file
+# logger duplicates print() output to given file
 class Logger:
 
     def __init__(
@@ -27,6 +27,9 @@ class Logger:
 
     def flush(self):
         self.log.flush()
+
+    # only to pass unittests with objects that uses logger
+    def getvalue(self): return 0
 
 # method setting logger to logfile, returns path to logfile
 def set_logger(

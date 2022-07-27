@@ -8,35 +8,46 @@ from typing import List, Callable, Dict, Optional
 import warnings
 
 from pypaq.lipytools.little_methods import stamp, get_params, get_func_dna
-from pypaq.mpython.devices import DevicesParam, get_devices
+from pypaq.lipytools.logger import set_logger
+from pypaq.mpython.devices import get_devices
 from pypaq.pms.parasave import ParaSave
 from pypaq.neuralmess_duo.base_elements import lr_scaler, grad_clipper_AVT
 from pypaq.neuralmess_duo.tbwr import TBwr
 
 # restricted keys for fwd_func DNA and return DNA (if they appear in kwargs, should be named exactly like below)
 SPEC_KEYS = [
-    'train_vars',                                       # list of variables to train (may be returned, otherwise all trainable are taken)
-    'opt_vars',                                         # list of variables returned by opt_func
-    'acc',                                              # accuracy
-    'f1',                                               # F1
-    'batch_size',                                       # batch size
-    'n_batches']                                        # number of batches for train
+    'name',         # model name
+    'train_vars',   # list of variables to train (may be returned, otherwise all trainable are taken)
+    'opt_vars',     # list of variables returned by opt_func
+    'loss',         # loss
+    'acc',          # accuracy
+    'f1',           # F1
+    'batch_size',   # batch size
+    'n_batches',    # number of batches for train
+    'verb',         # verbosity
+]
 
-# defaults below may be overridden by fwd_graph attributes
+# defaults below may be given with NEModel_duo kwargs or overridden by fwd_graph attributes
 NEMODELDUO_DEFAULTS = {
-    'seed':             123,                            # seed for TF and numpy
-    'opt_class':        tf.keras.optimizers.Adam,       # default optimizer of train()
-    'iLR':              3e-4,                           # initial learning rate (base)
+    'seed':         123,                        # seed for TF and numpy
+    'opt_class':    tf.keras.optimizers.Adam,   # default optimizer of train()
+    'devices':      'GPU:0',                    # for TF1 we used '/device:CPU:0'
     #iLR management (parameters of LR warmup and annealing)
-    'warm_up':          None,
-    'ann_base':         None,
-    'ann_step':         1.0,
-    'n_wup_off':        1.0,
+    'iLR':          3e-4,                       # initial learning rate (base)
+    'warm_up':      None,
+    'ann_base':     None,
+    'ann_step':     1.0,
+    'n_wup_off':    1.0,
     # gradients clipping parameters
-    'avt_SVal':         0.1,
-    'avt_window':       100,
-    'avt_max_upd':      1.5,
-    'do_clip':          False,
+    'avt_SVal':     0.1,
+    'avt_window':   100,
+    'avt_max_upd':  1.5,
+    'do_clip':      False,
+    # other
+    'hpmser_mode':  False,                      # it will set model to be read_only and quiet
+    'read_only':    False,                      # sets model to be read only - wont save anything (wont even create self.model_dir)
+    'do_logfile':   True,                       # enables saving log file in self.model_dir
+    'do_TB':        True,                       # runs TensorBard and saves in self.model_dir
 }
 
 
@@ -93,60 +104,77 @@ class NEModelDUO(ParaSave):
     def __init__(
             self,
             name: str,
-            fwd_func: Callable,                                 # function building graph (from inputs to loss)
+            fwd_func: Callable,                                 # function building graph (from inputs to loss) - always has to be given
             name_timestamp=             False,                  # adds timestamp to the model name
-            devices: DevicesParam=      'GPU:0',                # for TF1 we used '/device:CPU:0'
             save_topdir=                '_models',              # top folder of model save
             save_fn_pfx=                'nemodelduo_dna',       # dna filename prefix
-            do_TB=                      True,                   # runs TensorBard
             verb=                       0,
             **kwargs):
 
-        if verb>1: tf.debugging.set_log_device_placement(True)
-        if name_timestamp: name += f'.{stamp()}'
-        if verb>0: print(f'\n *** NEModelDUO {name} (type: {type(self).__name__}) *** initializes..')
         if not tf.executing_eagerly(): warnings.warn(f'TF is NOT executing eagerly!')
 
-        # *************************************************************************** collect DNA from different sources
+        if name_timestamp: name += f'.{stamp()}'
+
+        if verb>0: print(f'\n *** NEModelDUO {name} (type: {type(self).__name__}) *** initializes..')
+
+        # *************************************************************************************************** manage DNA
 
         dna = {
-            'name': name,
+            'name':        name,
             'save_topdir': save_topdir,
             'save_fn_pfx': save_fn_pfx}
 
-        dna_saved = ParaSave.load_dna(**dna)                # load dna from folder
+        dna_fwd_func_defaults = get_params(fwd_func)['with_defaults']       # get fwd_func defaults
+        dna_saved = ParaSave.load_dna(**dna)                                # load dna from folder
 
-        dna['fwd_func'] = fwd_func                          # update fwd_func
-        dna.update(NEMODELDUO_DEFAULTS)                     # update with NEMODELDUO_DEFAULTS
-        dna.update(get_params(fwd_func)['with_defaults'])   # update with fwd_func defaults
-        dna.update(dna_saved)                               # update with already saved dna
-        dna['verb'] = verb                                  # update verb
-        dna.update(kwargs)                                  # update with kwargs given NOW by user
-
-        if verb>0:
-            print(f'\n > NEModelDUO DNA sources:')
-            print(f' >> NEMODELDUO_DEFAULTS:  {NEMODELDUO_DEFAULTS}')
-            print(f' >> fwd_func defaults:    {get_params(fwd_func)["with_defaults"]}')
-            print(f' >> DNA saved:            {dna_saved}')
-            print(f' >> given kwargs:         {kwargs}')
-
+        dna['fwd_func'] = fwd_func
+        dna.update(NEMODELDUO_DEFAULTS)
+        dna.update(dna_fwd_func_defaults)
+        dna.update(dna_saved)
+        dna['verb'] = verb
+        dna.update(kwargs)                                                  # update with kwargs given NOW by user
         ParaSave.__init__(self, lock_managed_params=True, **dna)
+        self.check_params_sim(SPEC_KEYS + list(NEMODELDUO_DEFAULTS.keys())) # safety check
 
-        self.check_params_sim(SPEC_KEYS)  # safety check
+        # hpmser_mode - early override
+        if self['hpmser_mode']:
+            self.verb = 0
+            self['read_only'] = True
+
+        # read only - early override
+        if self['read_only']:
+            self['do_logfile'] = False
+            self['do_TB'] = False
+
+        self.model_dir = f'{self.save_topdir}/{self.name}'
+        if self.verb>0: print(f' > NEModelDUO dir: {self.model_dir}{" read only mode!" if self["read_only"] else ""}')
+
+        if self['do_logfile']:
+            set_logger(
+                log_folder=     self.model_dir,
+                custom_name=    self.name,
+                verb=           self.verb)
 
         dna = self.get_point()
-        if self.verb>0: print(f'\n > NEModelDUO complete DNA: {dna}')
+
+        if self.verb>0:
+            print(f'\n > NEModelDUO DNA sources:')
+            print(f' >> NEMODELDUO_DEFAULTS:    {NEMODELDUO_DEFAULTS}')
+            print(f' >> fwd_func defaults:      {dna_fwd_func_defaults}')
+            print(f' >> DNA saved:              {dna_saved}')
+            print(f' >> given kwargs:           {kwargs}')
+            print(f' NEModelDUO complete DNA:   {dna}')
 
         # **************************************************************************************************************
 
-        self.dir = f'{self.save_topdir}/{self.name}' # self.save_topdir & self.name come from ParaSave
+
 
         np.random.seed(self['seed'])
         tf.random.set_seed(self['seed'])
 
         # *********************************************************************************************** manage devices
 
-        self.devices = get_devices(devices, tf2_naming=True)[0] # TODO: by now we are using only first device
+        self['devices'] = get_devices(self['devices'], tf2_naming=True)[0] # TODO: by now we are using only first device, support for multidevice will be added later
 
         # check for TF visible_physical_devices
         visible_physical_devices = tf.config.list_physical_devices()
@@ -164,16 +192,18 @@ class NEModelDUO(ParaSave):
         for dev in visible_physical_devices:
             # INFO: it looks that TF usually needs CPU and it cannot be masked-out
             # TODO: self.device in dev.name will fail for more than 10 GPUs, cause 'GPU:1' is in 'GPU:10' - need to fix it later
-            if self.devices in dev.name or 'CPU' in dev.name:
+            if self['devices'] in dev.name or 'CPU' in dev.name:
                 set_visible.append(dev)
-        if self.verb>1: print(f' > setting visible to NEModelDUO: {set_visible} for {self.devices}')
+        if self.verb>1: print(f' > setting visible to NEModelDUO: {set_visible} for {self["devices"]}')
         tf.config.set_visible_devices(set_visible)
 
         # **************************************************************************************************************
 
-        if self.verb>0: print(f'\n > building graph ({fwd_func}) on {self.devices} ..')
+        if self.verb>0: print(f'\n > building graph ({fwd_func}) on {self["devices"]} ..')
+        if self.verb>1: tf.debugging.set_log_device_placement(True)
+
         fwd_func_dna = get_func_dna(fwd_func, dna)
-        with tf.device(self.devices):
+        with tf.device(self['devices']):
             fwd_func_out = fwd_func(**fwd_func_dna)
         self.update(fwd_func_out)
 
@@ -192,7 +222,7 @@ class NEModelDUO(ParaSave):
             inputs=     self['train_model_IO']['inputs'],
             outputs=    self['train_model_IO']['outputs'])
 
-        with tf.device(self.devices):
+        with tf.device(self['devices']):
 
             # variable for time averaged global norm of gradients
             self.ggnorm_avt = self.train_model.add_weight(
@@ -209,10 +239,10 @@ class NEModelDUO(ParaSave):
             self.iterations.assign(0)
 
         try:
-            self.train_model.load_weights(filepath=f'{self.dir}/weights')
+            self.train_model.load_weights(filepath=f'{self.model_dir}/weights')
             if self.verb>0: print(f' > train_model weights loaded..')
-        except:
-            if self.verb>0: print(f' > train_model weights NOT loaded..')
+        except Exception as e:
+            if self.verb>0: print(f' > train_model weights NOT loaded ({e})..')
 
         if self.verb>1:
             print(f'\n >> train.model ({self.train_model.name}) weights:')
@@ -232,7 +262,7 @@ class NEModelDUO(ParaSave):
 
         self.submodels: Dict[str, tf.keras.Model] = {}
 
-        self.writer = TBwr(logdir=self.dir, set_to_CPU=False) if do_TB else None
+        self.writer = TBwr(logdir=self.model_dir, set_to_CPU=False) if self['do_TB'] else None
 
         if self.verb>0: print(f'\n > NEModelDUO init finished..')
 
@@ -327,7 +357,7 @@ class NEModelDUO(ParaSave):
     def save(self):
         self.save_dna()
         self.iterations.assign(self['optimizer'].iterations)
-        self.train_model.save_weights(filepath=f'{self.dir}/weights')
+        self.train_model.save_weights(filepath=f'{self.model_dir}/weights')
 
     # mixes: weights_a * (1-ratio) + weights_a * ratio + noise
     @staticmethod

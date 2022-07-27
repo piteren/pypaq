@@ -206,7 +206,7 @@ class NEModelBase(Subscriptable):
             name: str,
             fwd_func: Callable=             fwd_graph,  # default function building forward (FWD) graph (from PH to loss)
             opt_func: Optional[Callable]=   opt_graph,  # default function building optimization (OPT) graph (from train_vars & gradients to optimizer)
-            devices: DevicesParam=          -1,         # check neuralmess.dev_manager.ft_devices for details
+            devices: DevicesParam=          -1,         # check mpython.devices for details
             seed=                           12321,      # default seed
                 # default train parameters, may be overridden by params given with graph kwargs
             batch_size=                     64,
