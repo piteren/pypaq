@@ -32,7 +32,7 @@ NEMODELDUO_DEFAULTS = {
     'seed':         123,                        # seed for TF and numpy
     'opt_class':    tf.keras.optimizers.Adam,   # default optimizer of train()
     'devices':      'GPU:0',                    # for TF1 we used '/device:CPU:0'
-    #iLR management (parameters of LR warmup and annealing)
+    # LR management (parameters of LR warmup and annealing)
     'iLR':          3e-4,                       # initial learning rate (base)
     'warm_up':      None,
     'ann_base':     None,
@@ -47,7 +47,7 @@ NEMODELDUO_DEFAULTS = {
     'hpmser_mode':  False,                      # it will set model to be read_only and quiet
     'read_only':    False,                      # sets model to be read only - wont save anything (wont even create self.model_dir)
     'do_logfile':   True,                       # enables saving log file in self.model_dir
-    'do_TB':        True,                       # runs TensorBard and saves in self.model_dir
+    'do_TB':        True,                       # runs TensorBard, saves in self.model_dir
 }
 
 
@@ -167,14 +167,12 @@ class NEModelDUO(ParaSave):
 
         # **************************************************************************************************************
 
-
-
         np.random.seed(self['seed'])
         tf.random.set_seed(self['seed'])
 
         # *********************************************************************************************** manage devices
 
-        self['devices'] = get_devices(self['devices'], tf2_naming=True)[0] # TODO: by now we are using only first device, support for multidevice will be added later
+        self.device = get_devices(self['devices'], tf2_naming=True)[0] # TODO: by now we are using only first device, support for multidevice will be added later
 
         # check for TF visible_physical_devices
         visible_physical_devices = tf.config.list_physical_devices()
@@ -192,18 +190,18 @@ class NEModelDUO(ParaSave):
         for dev in visible_physical_devices:
             # INFO: it looks that TF usually needs CPU and it cannot be masked-out
             # TODO: self.device in dev.name will fail for more than 10 GPUs, cause 'GPU:1' is in 'GPU:10' - need to fix it later
-            if self['devices'] in dev.name or 'CPU' in dev.name:
+            if self.device in dev.name or 'CPU' in dev.name:
                 set_visible.append(dev)
-        if self.verb>1: print(f' > setting visible to NEModelDUO: {set_visible} for {self["devices"]}')
+        if self.verb>1: print(f' > setting visible to NEModelDUO: {set_visible} for {self.device}')
         tf.config.set_visible_devices(set_visible)
 
         # **************************************************************************************************************
 
-        if self.verb>0: print(f'\n > building graph ({fwd_func}) on {self["devices"]} ..')
+        if self.verb>0: print(f'\n > building graph ({fwd_func}) on {self.device} ..')
         if self.verb>1: tf.debugging.set_log_device_placement(True)
 
         fwd_func_dna = get_func_dna(fwd_func, dna)
-        with tf.device(self['devices']):
+        with tf.device(self.device):
             fwd_func_out = fwd_func(**fwd_func_dna)
         self.update(fwd_func_out)
 
@@ -222,7 +220,7 @@ class NEModelDUO(ParaSave):
             inputs=     self['train_model_IO']['inputs'],
             outputs=    self['train_model_IO']['outputs'])
 
-        with tf.device(self['devices']):
+        with tf.device(self.device):
 
             # variable for time averaged global norm of gradients
             self.ggnorm_avt = self.train_model.add_weight(
@@ -295,26 +293,21 @@ class NEModelDUO(ParaSave):
 
     # call wrapped with tf.function
     @tf.function(reduce_retracing=True)
-    def __call(
-            self,
-            data,
-            name: Optional[str] = None,
-            training=False):
+    def __call(self, data, name):
 
-        if name is None:
-            model = self.train_model
+        if name is None: model = self.train_model
         else:
             assert name in self.submodels
             model = self.submodels[name]
 
         if self.verb > 1: print(
             f' >> NEModelDUO is calling: {model.name}, inputs: {model.inputs}, outputs: {model.outputs}')
-        return model(data, training=training)
+        return model(data, training=False)
 
     # call wrapped with device
-    def call(self, **kwargs):
-        with tf.device(self.devices):
-            return self.__call(**kwargs)
+    def call(self, data, name: Optional[str]=None):
+        with tf.device(self.device):
+            return self.__call(data, name)
 
     # train wrapped with tf.function
     @tf.function(reduce_retracing=True)
@@ -346,15 +339,16 @@ class NEModelDUO(ParaSave):
         return out
 
     # train wrapped with device
-    def train(self, **kwargs):
-        with tf.device(self.devices):
-            return self.__train(**kwargs)
+    def train(self, data):
+        with tf.device(self.device):
+            return self.__train(data)
 
     def log_TB(self, value, tag: str, step: int):
         if self.writer: self.writer.add(value=value, tag=tag, step=step)
         else: warnings.warn(f'NEModel_duo {self.name} cannot log TensorBoard since do_TB flag is False!')
 
     def save(self):
+        assert not self['read_only'], 'ERR: read only NEModelDUO cannot be saved!'
         self.save_dna()
         self.iterations.assign(self['optimizer'].iterations)
         self.train_model.save_weights(filepath=f'{self.model_dir}/weights')
@@ -371,7 +365,7 @@ class NEModelDUO(ParaSave):
 
         if weights_target is None: weights_target = weights_a
 
-        if verb > 0: print(f' > weight_mix gots {len(weights_target)} variables to mix')
+        if verb>0: print(f' > weight_mix gots {len(weights_target)} variables to mix')
 
         for wt, wa, wb in zip(weights_target, weights_a, weights_b):
             assert wt.shape == wa.shape == wb.shape

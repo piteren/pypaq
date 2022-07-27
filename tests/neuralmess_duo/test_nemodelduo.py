@@ -34,6 +34,7 @@ class TestNEModelDUO(unittest.TestCase):
             save_topdir=    MODEL_DIR,
             read_only=      True,
             verb=           1)
+        self.assertRaises(AssertionError, model.save)
         model.exit()
         self.assertTrue(not os.listdir(tmp_dir))
 
