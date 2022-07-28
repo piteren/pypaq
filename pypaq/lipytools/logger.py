@@ -4,6 +4,7 @@
 
 """
 
+import logging
 import os
 import sys
 from typing import Optional
@@ -31,6 +32,37 @@ class Logger:
     # only to pass unittests with objects that uses logger
     def getvalue(self): return 0
 
+
+class Logg:
+
+    ERROR =     logging.ERROR   # 0
+    WARNING =   logging.WARNING # 0
+    INFO =      logging.INFO    # 1
+    DEBUG =     logging.DEBUG   # 2
+
+    def __init__(
+            self,
+            name=                   'logger',
+            folder: Optional[str]=  None,
+            level=                  None):
+        if not level: level = logging.INFO
+        filename = f'{folder}/{name}.log' if folder else None
+        self.logger = logging
+        self.logger.basicConfig(
+            level=      level,
+            format=     '%(message)s',
+            filename=   filename)
+        fni = f', file: {filename}' if filename else ''
+        self(f'Logger {name} started, level: {self.logger.getLevelName(level=level)}{fni}')
+
+
+    def __call__(self, msg:str, level=None):
+        if level == Logg.DEBUG:             self.logger.debug(msg)
+        if level == Logg.INFO or not level: self.logger.info(msg)
+        if level == Logg.WARNING:           self.logger.warning(f'WARNING: {msg}')
+        if level == Logg.ERROR:             self.logger.error(f'ERROR: {msg}')
+
+
 # method setting logger to logfile, returns path to logfile
 def set_logger(
         log_folder: str,
@@ -54,3 +86,12 @@ def set_logger(
         print(f' > logfile    : {logfile_path}')
 
     return logfile_path
+
+
+if __name__ == '__main__':
+
+    log = Logg(level=Logg.WARNING)
+    log('debug one', level=Logg.DEBUG)
+    log('info one')
+    log('warning one', level=Logg.WARNING)
+    log('error one', level=Logg.ERROR)

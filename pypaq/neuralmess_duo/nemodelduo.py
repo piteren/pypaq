@@ -347,12 +347,6 @@ class NEModelDUO(ParaSave):
         if self.writer: self.writer.add(value=value, tag=tag, step=step)
         else: warnings.warn(f'NEModel_duo {self.name} cannot log TensorBoard since do_TB flag is False!')
 
-    def save(self):
-        assert not self['read_only'], 'ERR: read only NEModelDUO cannot be saved!'
-        self.save_dna()
-        self.iterations.assign(self['optimizer'].iterations)
-        self.train_model.save_weights(filepath=f'{self.model_dir}/weights')
-
     # mixes: weights_a * (1-ratio) + weights_a * ratio + noise
     @staticmethod
     def weights_mix(
@@ -382,6 +376,15 @@ class NEModelDUO(ParaSave):
             else:
                 wt.assign(wa)
                 if verb>0: print(f' >> not mixed: {wa.name:50}, {wa.dtype}')
+
+    def __str__(self):
+        return ParaSave.dict_2str(self.get_point())
+
+    def save(self):
+        assert not self['read_only'], 'ERR: read only NEModelDUO cannot be saved!'
+        self.save_dna()
+        self.iterations.assign(self['optimizer'].iterations)
+        self.train_model.save_weights(filepath=f'{self.model_dir}/weights')
 
     def exit(self):
         if self.writer: self.writer.exit()
