@@ -172,7 +172,8 @@ class NEModelDUO(ParaSave):
 
         # *********************************************************************************************** manage devices
 
-        self.device = get_devices(self['devices'], tf2_naming=True)[0] # TODO: by now we are using only first device, support for multidevice will be added later
+        # TODO: by now we are using only first device, support for multidevice will be added later
+        self.device = get_devices(self['devices'], tf2_naming=True, verb=self.verb)[0]
 
         # check for TF visible_physical_devices
         visible_physical_devices = tf.config.list_physical_devices()

@@ -205,7 +205,7 @@ def hpmser(
 
     scores_all = []
 
-    devices = get_devices(devices=devices, verb=verb) # manage devices
+    devices = get_devices(devices=devices, verb=verb-1) # manage devices
 
     num_free_rw = len(devices)
 
