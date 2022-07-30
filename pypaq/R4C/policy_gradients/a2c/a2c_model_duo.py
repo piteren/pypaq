@@ -151,6 +151,8 @@ class A2CModel_duo(Actor, ABC):
 
         return out['loss_actor']
 
+    def save(self):
+        self.nn.save()
 
 if __name__ == '__main__':
 

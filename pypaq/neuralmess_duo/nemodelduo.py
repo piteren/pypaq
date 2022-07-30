@@ -44,6 +44,8 @@ NEMODELDUO_DEFAULTS = {
     'avt_max_upd':  1.5,
     'do_clip':      False,
     # other
+    'save_topdir':  '_models',                  # top folder of model save
+    'save_fn_pfx':  'nemodelduo_dna',           # dna filename prefix
     'hpmser_mode':  False,                      # it will set model to be read_only and quiet when running with hpmser
     'read_only':    False,                      # sets model to be read only - wont save anything (wont even create self.model_dir)
     'do_logfile':   True,                       # enables saving log file in self.model_dir
@@ -104,11 +106,11 @@ class NEModelDUO(ParaSave):
     def __init__(
             self,
             name: str,
-            fwd_func: Callable,                                 # function building graph (from inputs to loss) - always has to be given
-            name_timestamp=             False,                  # adds timestamp to the model name
-            save_topdir=                '_models',              # top folder of model save
-            save_fn_pfx=                'nemodelduo_dna',       # dna filename prefix
-            verb=                       0,
+            fwd_func: Callable,             # function building graph (from inputs to loss) - always has to be given
+            name_timestamp=     False,      # adds timestamp to the model name
+            save_topdir=        NEMODELDUO_DEFAULTS['save_topdir'],
+            save_fn_pfx=        NEMODELDUO_DEFAULTS['save_fn_pfx'],
+            verb=               0,
             **kwargs):
 
         if not tf.executing_eagerly(): warnings.warn(f'TF is NOT executing eagerly!')
@@ -119,20 +121,25 @@ class NEModelDUO(ParaSave):
 
         # *************************************************************************************************** manage DNA
 
-        dna = {
-            'name':        name,
-            'save_topdir': save_topdir,
-            'save_fn_pfx': save_fn_pfx}
-
         dna_fwd_func_defaults = get_params(fwd_func)['with_defaults']       # get fwd_func defaults
-        dna_saved = ParaSave.load_dna(**dna)                                # load dna from folder
 
-        dna['fwd_func'] = fwd_func
+        # load dna from folder
+        dna_saved = ParaSave.load_dna(
+            name=           name,
+            save_topdir=    save_topdir,
+            save_fn_pfx=    save_fn_pfx)
+
+        dna = {}
         dna.update(NEMODELDUO_DEFAULTS)
         dna.update(dna_fwd_func_defaults)
         dna.update(dna_saved)
-        dna['verb'] = verb
-        dna.update(kwargs)                                                  # update with kwargs given NOW by user
+        dna.update(kwargs)                  # update with kwargs given NOW by user
+        dna.update({
+            'name':         name,
+            'save_topdir':  save_topdir,
+            'save_fn_pfx':  save_fn_pfx,
+            'fwd_func':     fwd_func,
+            'verb':         verb})
         ParaSave.__init__(self, lock_managed_params=True, **dna)
         self.check_params_sim(SPEC_KEYS + list(NEMODELDUO_DEFAULTS.keys())) # safety check
 
@@ -390,3 +397,62 @@ class NEModelDUO(ParaSave):
 
     def exit(self):
         if self.writer: self.writer.exit()
+
+    @staticmethod
+    def gx_ckpt(
+            name_A: str,                        # name parent A
+            name_B: str,                        # name parent B
+            name_child: str,                    # name child
+            save_topdir_A: str,
+            save_topdir_B: Optional[str]=       None,
+            save_topdir_child: Optional[str]=   None,
+            ratio: float=                       0.5,
+            noise: float=                       0.03):
+
+        if not save_topdir_B: save_topdir_B = save_topdir_A
+        if not save_topdir_child: save_topdir_child = save_topdir_A
+
+        """
+        mfd = f'{save_topdir_A}/{name_A}'
+        ckptL = [dI for dI in os.listdir(mfd) if os.path.isdir(os.path.join(mfd,dI))]
+        if 'opt_vars' in ckptL: ckptL.remove('opt_vars')
+
+        for ckpt in ckptL:
+            mrg_ckpts(
+                ckptA=          ckpt,
+                ckptA_FD=       f'{folder_A}/{name_A}/',
+                ckptB=          ckpt,
+                ckptB_FD=       f'{folder_B}/{name_B}/',
+                ckptM=          ckpt,
+                ckptM_FD=       f'{save_topdir_child}/{name_child}/',
+                replace_scope=  name_child,
+                ratio=          ratio,
+                noise=          noise)
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    def gx_saved_dna(
+            name_parent_main: str,
+            name_parent_scnd: Optional[str],            # if not given makes GX only with main parent
+            name_child: str,
+            save_topdir_parent_main: str=               NEMODELDUO_DEFAULTS['save_topdir'],
+            save_topdir_parent_scnd: Optional[str] =    None,
+            save_topdir_child: Optional[str] =          None,
+            save_fn_pfx: Optional[str] =                NEMODELDUO_DEFAULTS['save_fn_pfx'],
+    ) -> None:
+        ParaSave.gx_saved_dna(
+            name_parent_main=           name_parent_main,
+            name_parent_scnd=           name_parent_scnd,
+            name_child=                 name_child,
+            save_topdir_parent_main=    save_topdir_parent_main,
+            save_topdir_parent_scnd=    save_topdir_parent_scnd,
+            save_topdir_child=          save_topdir_child,
+            save_fn_pfx=                save_fn_pfx)
+        NEModelDUO.gx_ckpt(
+            name_A=             name_parent_main,
+            name_B=             name_parent_scnd,
+            name_child=         name_child,
+            save_topdir_A=      save_topdir_parent_main,
+            save_topdir_B=      save_topdir_parent_scnd,
+            save_topdir_child=  save_topdir_child)

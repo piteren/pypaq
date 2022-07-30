@@ -49,6 +49,7 @@ class TestNEModelDUO(unittest.TestCase):
             fwd_func=       fwd_graph,
             save_topdir=    MODEL_DIR,
             iLR=            0.001,
+            do_logfile=     False,
             verb=           0)
         print(model['iLR'])
         model.save()
@@ -58,10 +59,60 @@ class TestNEModelDUO(unittest.TestCase):
             name=           'pio',
             fwd_func=       fwd_graph,
             save_topdir=    MODEL_DIR,
+            do_logfile=     False,
             verb=           1)
         print(model['iLR'])
         self.assertTrue(model['iLR'] == 0.001)
         model.exit()
+
+    def test_gx(self):
+
+        flush_tmp_dir()
+
+        psdd = {'iLR':  [0.000001,0.1]}
+
+        # save #1
+        model = NEModelDUO(
+            name=           'pio',
+            fwd_func=       fwd_graph,
+            save_topdir=    MODEL_DIR,
+            iLR=            0.001,
+            do_logfile=     False,
+            psdd=           psdd,
+            verb=           0)
+        print(model['iLR'])
+        model.save()
+        model.exit()
+
+        # save #2
+        model = NEModelDUO(
+            name=           'pip',
+            fwd_func=       fwd_graph,
+            save_topdir=    MODEL_DIR,
+            iLR=            0.01,
+            do_logfile=     False,
+            psdd=           psdd,
+            verb=           0)
+        print(model['iLR'])
+        model.save()
+        model.exit()
+
+        # GX
+        NEModelDUO.gx_saved_dna(
+            name_parent_main=           'pio',
+            name_parent_scnd=           'pip',
+            name_child=                 'pir',
+            save_topdir_parent_main=    MODEL_DIR)
+
+        # load and check
+        model = NEModelDUO(
+            name=           'pir',
+            fwd_func=       fwd_graph,
+            save_topdir=    MODEL_DIR,
+            verb=           1)
+        print(model['iLR'])
+        model.exit()
+
 
 
 if __name__ == '__main__':
