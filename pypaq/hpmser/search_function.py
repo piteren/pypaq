@@ -21,6 +21,9 @@
         - if function accepts 'device' or 'devices' it should be type of DevicesParam (check pypaq.mpython.devices),
           it will be used by hpmser to put proper device for each function call
         - returns a dict with 'score' or just a value (score)
+        There are two parameters of FUNCTION that may be used by hpmser:
+            - 'devices' (type of DevicesParam - check pypaq.mpython.devices) -> hpmser will send devices to FUNCTION
+            - 'hpmser_mode' -> will be set to True by hpmser
     2. define PSDD - dictionary with parameters to be optimized and the space to search in (check pypaq.pms.pasap.PaSpa)
     3. import hpmser function into your script, and run it with:
         - func << FUNCTION
@@ -33,6 +36,7 @@
 # - look for solution for exponential complexity of space management functions
 # - build hpmser multiserver
 # - limited number of permutations for given PSDD (not-continuous space search case)
+# - add option to search for minimum rather than maximum
 
 
 import os
@@ -89,7 +93,7 @@ def _str_weights(
 def hpmser(
         func: Callable,                                 # function which parameters need to be optimized
         func_psdd: PSDD,                                # func PSDD, from here points {param: arg} will be sampled
-        func_const: Optional[POINT]=    None,           # func constant kwargs, will be updated with sample taken from PaSpa
+        func_const: Optional[POINT]=    None,           # func constant kwargs, will be updated with sample (point) taken from PaSpa
         devices: DevicesParam=          None,           # devices to use for search
         name: Optional[str]=            None,           # hpmser run name, for None stamp will be used
         add_stamp=                      True,           # adds short stamp to name, when name given
@@ -119,14 +123,12 @@ def hpmser(
             self.func_const = func_const if func_const else {}
             self.devices = devices
 
-            # resolve device/devices param in func >> pass it to func if needed
+            # manage 'devices' & 'hpmser_mode' param in func >> set it in func if needed
             func_args = get_params(self.func)
             func_args = list(func_args['with_defaults'].keys()) + func_args['without_defaults']
-            devices_in_func = None
-            for pn in ['device','devices']:
-                if pn in func_args:
-                    devices_in_func = pn
-            if devices_in_func: self.func_const[devices_in_func] = self.devices
+            assert 'device' not in func_args, f'ERR: you should use "devices" instead of "device" in your "{self.func.__name__}()" function'
+            if 'devices' in func_args: self.func_const['devices'] = self.devices
+            if 'hpmser_mode' in func_args: self.func_const['hpmser_mode'] = True
 
         # processes given spoint, passes **kwargs
         def process(

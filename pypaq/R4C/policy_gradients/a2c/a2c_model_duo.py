@@ -17,9 +17,10 @@ class A2CModel_duo(Actor, ABC):
             observation,
             num_actions: int,
             mdict :dict,
-            graph=      a2c_graph_duo,
-            devices=    -1,
-            verb=       1):
+            graph=          a2c_graph_duo,
+            devices=        -1,
+            hpmser_mode=    False,
+            verb=           1):
 
         self.verb = verb
 
@@ -35,6 +36,7 @@ class A2CModel_duo(Actor, ABC):
         self.nn = NEModelDUO(
             fwd_func=       graph,
             devices=        devices,
+            hpmser_mode=    hpmser_mode,
             save_topdir=    '_models',
             #verb=           self.verb-1,
             verb=           self.verb,

@@ -44,7 +44,7 @@ NEMODELDUO_DEFAULTS = {
     'avt_max_upd':  1.5,
     'do_clip':      False,
     # other
-    'hpmser_mode':  False,                      # it will set model to be read_only and quiet
+    'hpmser_mode':  False,                      # it will set model to be read_only and quiet when running with hpmser
     'read_only':    False,                      # sets model to be read only - wont save anything (wont even create self.model_dir)
     'do_logfile':   True,                       # enables saving log file in self.model_dir
     'do_TB':        True,                       # runs TensorBard, saves in self.model_dir
@@ -174,6 +174,7 @@ class NEModelDUO(ParaSave):
 
         # TODO: by now we are using only first device, support for multidevice will be added later
         self.device = get_devices(self['devices'], tf2_naming=True, verb=self.verb)[0]
+        if self.verb>1: print(f' > setting devices from {self["devices"]} to {self.device}')
 
         # check for TF visible_physical_devices
         visible_physical_devices = tf.config.list_physical_devices()
