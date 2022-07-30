@@ -38,6 +38,8 @@ class TestNEModelDUO(unittest.TestCase):
         model.exit()
         self.assertTrue(not os.listdir(tmp_dir))
 
+    # TODO: add tests for different scenarios of init with params (user, folder, defaults, ..)
+
     def test_save_then_load(self):
 
         flush_tmp_dir()

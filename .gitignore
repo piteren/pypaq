@@ -3,5 +3,4 @@ __pycache__
 build/
 dist/
 pypaq.egg-info/
-_temp_tests/
 venv/
