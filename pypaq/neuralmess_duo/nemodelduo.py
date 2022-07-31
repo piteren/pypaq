@@ -27,7 +27,7 @@ SPEC_KEYS = [
     'verb',         # verbosity
 ]
 
-# defaults below may be given with NEModel_duo kwargs or overridden by fwd_graph attributes
+# defaults below may be given with NEModelDUO kwargs or overridden by fwd_graph attributes
 NEMODELDUO_DEFAULTS = {
     'seed':         123,                        # seed for TF and numpy
     'opt_class':    tf.keras.optimizers.Adam,   # default optimizer of train()
@@ -366,7 +366,7 @@ class NEModelDUO(ParaSave):
 
     def log_TB(self, value, tag: str, step: int):
         if self.writer: self.writer.add(value=value, tag=tag, step=step)
-        else: warnings.warn(f'NEModel_duo {self.name} cannot log TensorBoard since do_TB flag is False!')
+        else: warnings.warn(f'NEModelDUO {self.name} cannot log TensorBoard since do_TB flag is False!')
 
     # updates base LR (iLR) in graph - but not saves it to the checkpoint
     def update_LR(self, lr: float):
