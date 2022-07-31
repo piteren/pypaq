@@ -353,7 +353,7 @@ class NEModelDUO(ParaSave):
         out.update({
             'ggnorm':       gclr_out['ggnorm'],
             'ggnorm_avt':   self.ggnorm_avt,
-            'iterations':   self['optimizer'].iterations}) # TODO: is iterations saved and kept properly with checkpoint
+            'iterations':   self['optimizer'].iterations})
 
         return out
 
