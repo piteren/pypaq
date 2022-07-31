@@ -17,9 +17,11 @@ class TestNEModelDUO(unittest.TestCase):
             name_timestamp= True,
             fwd_func=       fwd_graph,
             save_topdir=    MODEL_DIR,
-            verb=           1)
+            do_logfile=     False,
+            verb=           2)
         self.assertTrue(model['iLR'] == 0.0005)
         self.assertTrue(len(model['name']) > 3)
+        model.save()
         model.exit()
         lsn = os.listdir(MODEL_DIR)[0]
         print(lsn)
