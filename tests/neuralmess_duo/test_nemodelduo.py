@@ -1,6 +1,8 @@
 import os
 import unittest
 
+import numpy as np
+
 from tests.envy import flush_tmp_dir
 
 from pypaq.neuralmess_duo.nemodelduo import NEModelDUO, fwd_graph
@@ -54,17 +56,46 @@ class TestNEModelDUO(unittest.TestCase):
             do_logfile=     False,
             verb=           0)
         print(model['iLR'])
+        model.update_LR(0.03)
+        print(model['iLR'])
         model.save()
         model.exit()
+
+        model = NEModelDUO(
+            name=           'pio',
+            save_topdir=    MODEL_DIR,
+            verb=           2)
+        print(model['iLR'])
+        self.assertTrue(model['iLR'] == 0.03)
+        model.exit()
+
+
+    def test_train(self):
+
+        flush_tmp_dir()
 
         model = NEModelDUO(
             name=           'pio',
             fwd_func=       fwd_graph,
             save_topdir=    MODEL_DIR,
             do_logfile=     False,
-            verb=           1)
-        print(model['iLR'])
-        self.assertTrue(model['iLR'] == 0.001)
+            verb=           0)
+        print(f'\n{model}')
+
+        data = {
+            'in_vec':   np.random.random((10,10)),
+            'in_true':  np.random.randint(0,1,10)}
+        model.train(data)
+        print(f'\n{model}')
+
+        model.save()
+        model.exit()
+
+        model = NEModelDUO(
+            name=           'pio',
+            save_topdir=    MODEL_DIR,
+            verb=           0)
+        print(f'\n{model}')
         model.exit()
 
 

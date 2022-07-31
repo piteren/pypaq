@@ -33,7 +33,7 @@ NEMODELDUO_DEFAULTS = {
     'opt_class':    tf.keras.optimizers.Adam,   # default optimizer of train()
     'devices':      'GPU:0',                    # for TF1 we used '/device:CPU:0'
     # LR management (parameters of LR warmup and annealing)
-    'iLR':          3e-4,                       # initial learning rate (base)
+    'iLR':          3e-4,                       # initial learning rate (base init)
     'warm_up':      None,
     'ann_base':     None,
     'ann_step':     1.0,
@@ -236,6 +236,13 @@ class NEModelDUO(ParaSave):
         with tf.device(self.device):
 
             # variable for time averaged global norm of gradients
+            self.lr = self.train_model.add_weight(
+                name=       'lr',
+                trainable=  False,
+                dtype=      tf.float32)
+            self.lr.assign(self['iLR'])
+
+            # variable for time averaged global norm of gradients
             self.ggnorm_avt = self.train_model.add_weight(
                 name=       'gg_avt_norm',
                 trainable=  False,
@@ -260,7 +267,7 @@ class NEModelDUO(ParaSave):
             for w in self.train_model.weights: print(f' **  {w.name:30} {str(w.shape):10} {w.device}')
 
         scaled_LR = lr_scaler(
-            iLR=        self['iLR'],
+            iLR=        self.lr,
             g_step=     self.iterations,
             warm_up=    self['warm_up'],
             ann_base=   self['ann_base'],
@@ -361,9 +368,30 @@ class NEModelDUO(ParaSave):
         if self.writer: self.writer.add(value=value, tag=tag, step=step)
         else: warnings.warn(f'NEModel_duo {self.name} cannot log TensorBoard since do_TB flag is False!')
 
+    # updates base LR (iLR) in graph - but not saves it to the checkpoint
+    def update_LR(self, lr: float):
+        old = self['iLR']
+        self['iLR'] = lr
+        self.lr.assign(self['iLR'])
+        if self.verb>1: print(f'NEModelDUO {self.name} updated iLR from {old} to {self["iLR"]}')
+
 
     def __str__(self):
-        return ParaSave.dict_2str(self.get_point())
+        s = f'NEModelDUO {self.name}'
+        s += f'\n > iLR: {self.lr.numpy()}'
+        s += f'\n > iterations: {self.iterations.numpy()}'
+        s += f'\ntrain_model weights:'
+        total_w = 0
+        for w in self.train_model.weights:
+            s += f'\n > {w.name:30} {str(w.shape):10} {w.device}'
+            shape = w.shape
+            variable_parameters = 1
+            for dim in shape:
+                variable_parameters *= dim
+            total_w += variable_parameters
+        s += f'\n ### total variables: {total_w}'
+        s += f'\nModel params:\n{ParaSave.dict_2str(self.get_point())}'
+        return s
 
 
     def save(self):
