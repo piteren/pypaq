@@ -65,7 +65,7 @@ class TestNEModelDUO(unittest.TestCase):
         self.assertTrue(model['iLR'] == 0.001)
         model.exit()
 
-    def test_gx(self):
+    def test_gx_saved(self):
 
         flush_tmp_dir()
 
@@ -79,6 +79,7 @@ class TestNEModelDUO(unittest.TestCase):
             iLR=            0.001,
             do_logfile=     False,
             psdd=           psdd,
+            seed=           121,
             verb=           0)
         print(model['iLR'])
         model.save()
@@ -92,27 +93,27 @@ class TestNEModelDUO(unittest.TestCase):
             iLR=            0.01,
             do_logfile=     False,
             psdd=           psdd,
+            seed=           122,
             verb=           0)
         print(model['iLR'])
         model.save()
         model.exit()
 
-        # GX
-        NEModelDUO.gx_saved_dna(
+        # GX 1
+        NEModelDUO.gx_saved(
             name_parent_main=           'pio',
-            name_parent_scnd=           'pip',
+            name_parent_scnd=           None,
             name_child=                 'pir',
             save_topdir_parent_main=    MODEL_DIR)
+        self.assertTrue('weights.index' in os.listdir(f'{MODEL_DIR}/pir'))
 
-        # load and check
-        model = NEModelDUO(
-            name=           'pir',
-            fwd_func=       fwd_graph,
-            save_topdir=    MODEL_DIR,
-            verb=           1)
-        print(model['iLR'])
-        model.exit()
-
+        # GX 2
+        NEModelDUO.gx_saved(
+            name_parent_main=           'pio',
+            name_parent_scnd=           'pip',
+            name_child=                 'pis',
+            save_topdir_parent_main=    MODEL_DIR)
+        self.assertTrue('weights.index' in os.listdir(f'{MODEL_DIR}/pis'))
 
 
 if __name__ == '__main__':

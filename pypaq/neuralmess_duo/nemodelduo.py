@@ -121,6 +121,7 @@ class NEModelDUO(ParaSave):
 
         # *************************************************************************************************** manage DNA
 
+        # TODO: maybe it should be allowed to optionally read fwd_func from saved (ParaSave)?
         dna_fwd_func_defaults = get_params(fwd_func)['with_defaults']       # get fwd_func defaults
 
         # load dna from folder
@@ -352,42 +353,15 @@ class NEModelDUO(ParaSave):
         with tf.device(self.device):
             return self.__train(data)
 
+
     def log_TB(self, value, tag: str, step: int):
         if self.writer: self.writer.add(value=value, tag=tag, step=step)
         else: warnings.warn(f'NEModel_duo {self.name} cannot log TensorBoard since do_TB flag is False!')
 
-    # mixes: weights_a * (1-ratio) + weights_a * ratio + noise
-    @staticmethod
-    def weights_mix(
-            weights_a: List[tf.Variable],
-            weights_b: List[tf.Variable],
-            weights_target: Optional[List[tf.Variable]]=    None,
-            ratio: float=                                   0.5,
-            noise: float=                                   0.03,
-            verb=                                           0):
-
-        if weights_target is None: weights_target = weights_a
-
-        if verb>0: print(f' > weight_mix gots {len(weights_target)} variables to mix')
-
-        for wt, wa, wb in zip(weights_target, weights_a, weights_b):
-            assert wt.shape == wa.shape == wb.shape
-            assert wt.dtype == wa.dtype == wb.dtype
-
-            if wa.dtype in [tf.float16, tf.float32, tf.float64, tf.double, tf.bfloat16, tf.half]:
-                noise_tensor = tf.random.truncated_normal(
-                    shape=  wa.shape,
-                    stddev= tf.math.reduce_std(wa))
-
-                new_val = wa*(1-ratio) + wb*ratio + noise_tensor*noise
-                wt.assign(new_val)
-                if verb>0: print(f' >> mixed: {wa.name:50} with {wb.name:50}, {wa.dtype}')
-            else:
-                wt.assign(wa)
-                if verb>0: print(f' >> not mixed: {wa.name:50}, {wa.dtype}')
 
     def __str__(self):
         return ParaSave.dict_2str(self.get_point())
+
 
     def save(self):
         assert not self['read_only'], 'ERR: read only NEModelDUO cannot be saved!'
@@ -395,44 +369,16 @@ class NEModelDUO(ParaSave):
         self.iterations.assign(self['optimizer'].iterations)
         self.train_model.save_weights(filepath=f'{self.model_dir}/weights')
 
+
     def exit(self):
         if self.writer: self.writer.exit()
 
-    @staticmethod
-    def gx_ckpt(
-            name_A: str,                        # name parent A
-            name_B: str,                        # name parent B
-            name_child: str,                    # name child
-            save_topdir_A: str,
-            save_topdir_B: Optional[str]=       None,
-            save_topdir_child: Optional[str]=   None,
-            ratio: float=                       0.5,
-            noise: float=                       0.03):
-
-        if not save_topdir_B: save_topdir_B = save_topdir_A
-        if not save_topdir_child: save_topdir_child = save_topdir_A
-
-        """
-        mfd = f'{save_topdir_A}/{name_A}'
-        ckptL = [dI for dI in os.listdir(mfd) if os.path.isdir(os.path.join(mfd,dI))]
-        if 'opt_vars' in ckptL: ckptL.remove('opt_vars')
-
-        for ckpt in ckptL:
-            mrg_ckpts(
-                ckptA=          ckpt,
-                ckptA_FD=       f'{folder_A}/{name_A}/',
-                ckptB=          ckpt,
-                ckptB_FD=       f'{folder_B}/{name_B}/',
-                ckptM=          ckpt,
-                ckptM_FD=       f'{save_topdir_child}/{name_child}/',
-                replace_scope=  name_child,
-                ratio=          ratio,
-                noise=          noise)
-        """
-        raise NotImplementedError
+    # returns train_model weights (returns list of numpy.ndarray, numpy.float32, numpy.int64, ..)
+    def get_weights(self) -> list:
+        return [w.numpy() for w in self.train_model.weights]
 
     @staticmethod
-    def gx_saved_dna(
+    def gx_saved(
             name_parent_main: str,
             name_parent_scnd: Optional[str],            # if not given makes GX only with main parent
             name_child: str,
@@ -440,7 +386,13 @@ class NEModelDUO(ParaSave):
             save_topdir_parent_scnd: Optional[str] =    None,
             save_topdir_child: Optional[str] =          None,
             save_fn_pfx: Optional[str] =                NEMODELDUO_DEFAULTS['save_fn_pfx'],
-    ) -> None:
+            ratio: float=                               0.5,
+            noise: float=                               0.03) -> None:
+
+        if not save_topdir_parent_scnd: save_topdir_parent_scnd = save_topdir_parent_main
+        if not save_topdir_child: save_topdir_child = save_topdir_parent_main
+
+        # GX ParaSave dna
         ParaSave.gx_saved_dna(
             name_parent_main=           name_parent_main,
             name_parent_scnd=           name_parent_scnd,
@@ -449,10 +401,50 @@ class NEModelDUO(ParaSave):
             save_topdir_parent_scnd=    save_topdir_parent_scnd,
             save_topdir_child=          save_topdir_child,
             save_fn_pfx=                save_fn_pfx)
-        NEModelDUO.gx_ckpt(
-            name_A=             name_parent_main,
-            name_B=             name_parent_scnd,
-            name_child=         name_child,
-            save_topdir_A=      save_topdir_parent_main,
-            save_topdir_B=      save_topdir_parent_scnd,
-            save_topdir_child=  save_topdir_child)
+
+        # load dna from folder & build child model
+        dna_saved = ParaSave.load_dna(
+            name=           name_child,
+            save_topdir=    save_topdir_child,
+            save_fn_pfx=    save_fn_pfx)
+        model_child = NEModelDUO(**dna_saved)
+
+        ckptA_FD = f'{save_topdir_parent_main}/{name_parent_main}/'
+        model_child.train_model.load_weights(filepath=f'{ckptA_FD}/weights')
+        weights_A = model_child.get_weights()
+
+        if name_parent_scnd:
+            ckptB_FD = f'{save_topdir_parent_scnd}/{name_parent_scnd}/'
+            model_child.train_model.load_weights(filepath=f'{ckptB_FD}/weights')
+
+        for w,a in zip(model_child.train_model.weights, weights_A):
+            if np.issubdtype(a.dtype, np.floating):
+                noise_tensor = tf.random.truncated_normal(
+                    shape=  w.shape,
+                    stddev= tf.math.reduce_std(w))
+                new_val = w * (1 - ratio) + a * ratio + noise_tensor * noise
+                w.assign(new_val)
+
+        ckptC_FD = f'{save_topdir_child}/{name_child}/'
+        model_child.train_model.save_weights(filepath=f'{ckptC_FD}/weights')
+
+        model_child.exit()
+
+        """
+        # other unsuccessful tryouts to load wieghts from TF2 checkpoint:
+        
+        ckpt = tf.train.load_checkpoint(ckptA_FD)
+        print(ckpt)
+        print(tf.train.list_variables(ckptA_FD))
+        
+        ckpt = tf.train.Checkpoint()
+        print(ckpt)
+        ckpt.restore(tf.train.latest_checkpoint(ckptA_FD))
+        print(ckpt)
+        
+        lsv = tf.train.list_variables(tf.train.latest_checkpoint(ckptA_FD))
+        print(lsv)
+        for e in lsv:
+            v = tf.train.load_variable(ckptA_FD, e[0])
+            print(type(v))
+        """
