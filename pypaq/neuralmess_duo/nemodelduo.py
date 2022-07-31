@@ -106,11 +106,11 @@ class NEModelDUO(ParaSave):
     def __init__(
             self,
             name: str,
-            fwd_func: Callable,             # function building graph (from inputs to loss) - always has to be given
-            name_timestamp=     False,      # adds timestamp to the model name
-            save_topdir=        NEMODELDUO_DEFAULTS['save_topdir'],
-            save_fn_pfx=        NEMODELDUO_DEFAULTS['save_fn_pfx'],
-            verb=               0,
+            fwd_func: Optional[Callable]=   None,       # function building graph (from inputs to loss) - may be not given if model already saved
+            name_timestamp=                 False,      # adds timestamp to the model name
+            save_topdir=                    NEMODELDUO_DEFAULTS['save_topdir'],
+            save_fn_pfx=                    NEMODELDUO_DEFAULTS['save_fn_pfx'],
+            verb=                           0,
             **kwargs):
 
         if not tf.executing_eagerly(): warnings.warn(f'TF is NOT executing eagerly!')
@@ -121,14 +121,17 @@ class NEModelDUO(ParaSave):
 
         # *************************************************************************************************** manage DNA
 
-        # TODO: maybe it should be allowed to optionally read fwd_func from saved (ParaSave)?
-        dna_fwd_func_defaults = get_params(fwd_func)['with_defaults']       # get fwd_func defaults
-
         # load dna from folder
         dna_saved = ParaSave.load_dna(
             name=           name,
             save_topdir=    save_topdir,
             save_fn_pfx=    save_fn_pfx)
+
+        if not fwd_func:
+            assert 'fwd_func' in dna_saved, 'ERR: cannot continue: fwd_func was not given and model ahs not been saved before, please give fwd_func to model init!'
+            fwd_func = dna_saved['fwd_func']
+
+        dna_fwd_func_defaults = get_params(fwd_func)['with_defaults']  # get fwd_func defaults
 
         dna = {}
         dna.update(NEMODELDUO_DEFAULTS)
@@ -372,6 +375,40 @@ class NEModelDUO(ParaSave):
 
     def exit(self):
         if self.writer: self.writer.exit()
+
+    # copies full NEModelDUO folder (DNA & checkpoints)
+    @staticmethod
+    def copy_saved(
+            name_src: str,
+            name_trg: str,
+            save_topdir_src: str=           NEMODELDUO_DEFAULTS['save_topdir'],
+            save_topdir_trg: Optional[str]= None,
+            save_fn_pfx: str=               NEMODELDUO_DEFAULTS['save_fn_pfx']):
+
+        if save_topdir_trg is None: save_topdir_trg = save_topdir_src
+
+        # copy DNA with ParaSave
+        ParaSave.copy_saved_dna(
+            name_src=           name_src,
+            name_trg=           name_trg,
+            save_topdir_src=    save_topdir_src,
+            save_topdir_trg=    save_topdir_trg,
+            save_fn_pfx=        save_fn_pfx)
+
+        # load dna from folder & build child model
+        dna_trg = ParaSave.load_dna(
+            name=           name_trg,
+            save_topdir=    save_topdir_trg,
+            save_fn_pfx=    save_fn_pfx)
+        model_trg = NEModelDUO(**dna_trg)
+
+        ckptA_FD = f'{save_topdir_src}/{name_src}/'
+        model_trg.train_model.load_weights(filepath=f'{ckptA_FD}/weights')
+
+        ckptC_FD = f'{save_topdir_trg}/{name_trg}/'
+        model_trg.train_model.save_weights(filepath=f'{ckptC_FD}/weights')
+
+        model_trg.exit()
 
     # returns train_model weights (returns list of numpy.ndarray, numpy.float32, numpy.int64, ..)
     def get_weights(self) -> list:

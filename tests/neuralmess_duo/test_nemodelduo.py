@@ -65,6 +65,34 @@ class TestNEModelDUO(unittest.TestCase):
         self.assertTrue(model['iLR'] == 0.001)
         model.exit()
 
+
+    def test_copy_saved(self):
+
+        flush_tmp_dir()
+
+        # save #1
+        model = NEModelDUO(
+            name=           'pio',
+            fwd_func=       fwd_graph,
+            save_topdir=    MODEL_DIR,
+            do_logfile=     False,
+            seed=           121,
+            verb=           0)
+        print(model['iLR'])
+        model.save()
+        model.exit()
+
+        NEModelDUO.copy_saved(
+            name_src=           'pio',
+            name_trg=           'pir',
+            save_topdir_src=    MODEL_DIR)
+        self.assertTrue('weights.index' in os.listdir(f'{MODEL_DIR}/pir'))
+
+        model = NEModelDUO(name='pir', save_topdir=MODEL_DIR)
+        print(model['iLR'])
+        model.exit()
+
+
     def test_gx_saved(self):
 
         flush_tmp_dir()

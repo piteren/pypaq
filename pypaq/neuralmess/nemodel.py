@@ -824,6 +824,7 @@ class NEModel(NEModelBase, ParaSave):
                 replace_scope=  name_trg)
 
     # performs GX on saved NEModel objects (NEModel as a ParaSave and then checkpoints, without even building child objects)
+    # WARNING: it should be named 'gx_saved' cause it does more than 'gx_saved_dna' of ParaSave
     @staticmethod
     def gx_saved_dna(
             name_parent_main: str,
