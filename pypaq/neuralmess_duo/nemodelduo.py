@@ -224,6 +224,7 @@ class NEModelDUO(ParaSave):
         for k in self['train_model_IO']:
             if type(self['train_model_IO'][k]) is str:
                 self['train_model_IO'][k] = [self['train_model_IO'][k]]
+        if 'outputs' not in self['train_model_IO']: self['train_model_IO']['outputs'] = []
         if 'loss' not in self['train_model_IO']['outputs']: self['train_model_IO']['outputs'].append('loss') # add loss
 
         if self.verb>0: print(f'\n > NEModelDUO is building train_model, name: {self.name} ..')
