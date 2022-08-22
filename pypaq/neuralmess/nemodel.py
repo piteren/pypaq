@@ -606,12 +606,12 @@ class NEModelBase(Subscriptable):
     def pre_train(self):
         self._model_data = self.load_model_data()
         self._batcher = Batcher(
-            data_TR=    self._model_data['train'],
-            data_VL=    self._model_data['valid'] if 'valid' in self._model_data else None,
-            data_TS=    self._model_data['test'] if 'test' in self._model_data else None,
-            batch_size= self['batch_size'],
-            btype=      'random_cov',
-            verb=       self.verb)
+            data_TR=        self._model_data['train'],
+            data_VL=        self._model_data['valid'] if 'valid' in self._model_data else None,
+            data_TS=        self._model_data['test'] if 'test' in self._model_data else None,
+            batch_size=     self['batch_size'],
+            batching_type=  'random_cov',
+            verb=           self.verb)
 
     # builds feed dict from given batch of data
     def build_feed(self, batch: dict, train=True) -> dict:

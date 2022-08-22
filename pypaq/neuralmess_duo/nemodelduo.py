@@ -9,10 +9,12 @@ import warnings
 
 from pypaq.lipytools.little_methods import stamp, get_params, get_func_dna
 from pypaq.lipytools.logger import set_logger
+from pypaq.lipytools.moving_average import MovAvg
 from pypaq.mpython.devices import get_devices
 from pypaq.pms.parasave import ParaSave
 from pypaq.neuralmess_duo.base_elements import lr_scaler, grad_clipper_AVT
 from pypaq.neuralmess_duo.tbwr import TBwr
+from pypaq.neuralmess.batcher import Batcher
 
 # restricted keys for fwd_func DNA and return DNA (if they appear in kwargs, should be named exactly like below)
 SPEC_KEYS = [
@@ -60,8 +62,8 @@ def fwd_graph(
         iLR=                0.0005,     # defaults of fwd_graph will override NEMODELDUO_DEFAULTS
         verb=               0):
 
-    in_vec =  tf.keras.Input(shape=(in_width,), name="in_vec")
-    in_true = tf.keras.Input(shape=(1,),        name="in_true")
+    in_vec =  tf.keras.Input(shape=in_width, name="in_vec")
+    in_true = tf.keras.Input(shape=1,        name="in_true", dtype=tf.int32)
     if verb>0: print(' > in_vec', in_vec)
 
     lay = in_vec
@@ -86,16 +88,20 @@ def fwd_graph(
     loss = tf.reduce_mean(loss)
     if verb > 0: print(' > loss', loss)
 
+    preds = tf.cast(tf.argmax(logits, axis=-1), dtype=tf.int32)
+    acc = tf.reduce_mean(tf.cast(tf.equal(tf.squeeze(in_true), preds), dtype=tf.float32))
+
     return {
         'in_vec':   in_vec,
         'in_true':  in_true,
         'probs':    probs,
         'loss':     loss, # loss must be returned to build train_model
+        'acc':      acc,
 
         # train_model IO specs, put here inputs and output (keys) of train_model to be built by NEModelDUO
         'train_model_IO':   {
-            'inputs':       ['in_vec','in_true'],   # str or List[str]
-            'outputs':      'probs'},               # str or List[str], put here any metric tensors, loss may be not added
+            'inputs':       ['in_vec', 'in_true'],  # str or List[str]
+            'outputs':      ['probs', 'acc']},      # str or List[str], put here any metric tensors, loss may be not added
     }
 
 
@@ -282,6 +288,9 @@ class NEModelDUO(ParaSave):
 
         self.writer = TBwr(logdir=self.model_dir, set_to_CPU=False) if self['do_TB'] else None
 
+        self._model_data = None
+        self._batcher = None
+
         if self.verb>0: print(f'\n > NEModelDUO init finished..')
 
 
@@ -331,7 +340,7 @@ class NEModelDUO(ParaSave):
 
     # train wrapped with tf.function
     @tf.function(reduce_retracing=True)
-    def __train(self, data):
+    def __train_batch(self, data):
 
         with tf.GradientTape() as tape:
             out = self.train_model(data, training=True)
@@ -358,10 +367,112 @@ class NEModelDUO(ParaSave):
 
         return out
 
-    # train wrapped with device
-    def train(self, data):
+    # __train_batch wrapped with device
+    def train_batch(self, data):
         with tf.device(self.device):
-            return self.__train(data)
+            return self.__train_batch(data)
+
+    # ******************************************************************** baseline methods for training with given data
+
+    # loads model data for training, dict should have at least 'train':{} for Batcher
+    def load_model_data(self) -> dict:
+        warnings.warn('NEModelBase.load_model_data() should be overridden!')
+        return {}
+
+    # pre (before) training method - may be overridden
+    def pre_train(self):
+        self._model_data = self.load_model_data()
+        self._batcher = Batcher(
+            data_TR=        self._model_data['train'],
+            data_VL=        self._model_data['valid'] if 'valid' in self._model_data else None,
+            data_TS=        self._model_data['test'] if 'test' in self._model_data else None,
+            batch_size=     self['batch_size'],
+            batching_type=  'random_cov',
+            verb=           self.verb)
+
+    # training method, saves for max_ts_acc
+    # INFO: training method below is based on model accuracy so it should be returned by graph as 'acc'
+    def train(
+            self,
+            test_freq=      100,  # number of batches between tests, model SHOULD BE tested while training
+            mov_avg_factor= 0.1,
+            save=           True):  # allows to save model while training
+
+        self.pre_train()
+
+        if self.verb>0: print(f'{self.name} - training starts')
+        batch_IX = 0
+        tr_lssL = []
+        tr_accL = []
+        ts_acc_max = 0
+        ts_acc_mav = MovAvg(mov_avg_factor)
+
+        ts_results = []
+        ts_bIX = [bIX for bIX in range(self['n_batches']+1) if not bIX % test_freq] # batch indexes when test will be performed
+        assert ts_bIX, 'ERR: model SHOULD BE tested while training!'
+        ten_factor = int(0.1*len(ts_bIX)) # number of tests for last 10% of training
+        if ten_factor < 1: ten_factor = 1 # we need at least one result
+        if self['hpmser_mode']: ts_bIX = ts_bIX[-ten_factor:]
+
+        while batch_IX < self['n_batches']:
+            batch_IX += 1
+            batch = self._batcher.get_batch()
+
+            run_out = self.train_batch(batch)
+
+            if self['do_TB']:
+                for k in ['loss', 'acc', 'ggnorm', 'ggnorm_avt']:
+                    self.log_TB(value=run_out[k], tag=f'tr/{k}', step=batch_IX)
+
+            if self.verb>0:
+                tr_lssL.append(run_out['loss'])
+                tr_accL.append(run_out['acc'])
+
+            if batch_IX in ts_bIX:
+                ts_out = self.test()
+                ts_results.append(ts_out['acc'])
+                ts_out['acc_mav'] = ts_acc_mav.upd(ts_out['acc'])
+                if self['do_TB']:
+                    for k in ['loss', 'acc', 'acc_mav']:
+                        self.log_TB(value=ts_out[k], tag=f'ts/{k}', step=batch_IX)
+                if self.verb>0: print(f'{batch_IX:5d} TR: {100*sum(tr_accL)/test_freq:.1f} / {sum(tr_lssL)/test_freq:.3f} -- TS: {100*ts_out["acc"]:.1f} / {ts_out["loss"]:.3f}')
+                tr_lssL = []
+                tr_accL = []
+
+                if ts_out['acc'] > ts_acc_max:
+                    ts_acc_max = ts_out['acc']
+                    if not self['read_only'] and save: self.save()  # model is saved for max_ts_acc
+
+        # weighted test value for last 10% test results
+        ts_results = ts_results[-ten_factor:]
+        ts_wval = 0
+        weight = 1
+        sum_weight = 0
+        for tr in ts_results:
+            ts_wval += tr * weight
+            sum_weight += weight
+            weight += 1
+        ts_wval /= sum_weight
+        if self['do_TB']: self.log_TB(value=ts_wval, tag='ts/ts_wval', step=batch_IX)
+        if self.verb>0:
+            print(f'model {self.name} finished training')
+            print(f' > test_acc_max: {ts_acc_max:.4f}')
+            print(f' > test_wval:    {ts_wval:.4f}')
+
+        return ts_wval
+
+
+    def test(self):
+        batches = self._batcher.get_TS_batches()
+        lossL = []
+        accL = []
+        for batch in batches:
+            out = self.train_model(batch, training=False)
+            lossL.append(out['loss'])
+            accL.append(out['acc'])
+        return {
+            'acc':  sum(accL)/len(accL),
+            'loss': sum(lossL)/len(lossL)}
 
 
     def log_TB(self, value, tag: str, step: int):
@@ -399,6 +510,7 @@ class NEModelDUO(ParaSave):
         self.save_dna()
         self.iterations.assign(self['optimizer'].iterations)
         self.train_model.save_weights(filepath=f'{self.model_dir}/weights')
+        if self.verb>0: print(f'model {self.name} saved')
 
 
     def exit(self):

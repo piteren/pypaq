@@ -116,7 +116,7 @@ class A2CModel_duo(Actor, ABC):
             'ret':          dreturns, #dreturns_norm # TODO: here we use not normalized dreturns
         }
 
-        out = self.nn.train(data=data)
+        out = self.nn.train_batch(data=data)
 
         self.__upd_step += 1
 

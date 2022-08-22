@@ -43,6 +43,7 @@ class TestNEModelDUO(unittest.TestCase):
         self.assertTrue(not os.listdir(tmp_dir))
 
     # TODO: add tests for different scenarios of init with params (user, folder, defaults, ..)
+    # TODO: add tests for hpmser_mode
 
     def test_save_then_load(self):
 
@@ -85,7 +86,7 @@ class TestNEModelDUO(unittest.TestCase):
         data = {
             'in_vec':   np.random.random((10,10)),
             'in_true':  np.random.randint(0,1,10)}
-        model.train(data)
+        model.train_batch(data)
         print(f'\n{model}')
 
         model.save()

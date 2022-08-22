@@ -11,7 +11,7 @@ import numpy as np
 from pypaq.lipytools.stats import msmx
 
 
-BTYPES = [
+BATCHING_TYPES = [
     'base',         # prepares batches in order of given data
     'random',       # basic random sampling
     'random_cov']   # random sampling with full coverage of data
@@ -26,15 +26,15 @@ class Batcher:
             data_TS: dict=      None,
             batch_size: int=    16,
             bs_mul: int=        2,      # VL & TS batch_size multiplier
-            btype: str=         'random_cov',
+            batching_type: str= 'random_cov',
             seed=               123,
             verb=               0):
 
         self.verb = verb
         self.seed_counter = seed
 
-        assert btype in BTYPES, f'ERR: unknown btype, possible: {BTYPES}'
-        self.btype = btype
+        assert batching_type in BATCHING_TYPES, f'ERR: unknown batching_type'
+        self.btype = batching_type
 
         self._data_keys = sorted(list(data_TR.keys()))
 
@@ -105,83 +105,3 @@ class Batcher:
     def get_TS_batches(self) -> list:
         assert self._data_TS, 'ERR: cannot prepare VL batches - data nat given'
         return Batcher.__split_data(self._data_TS, self._batch_size * self._bs_mul)
-
-
-# test for coverage of batchers
-def test_coverage(
-        btype,
-        num_samples=    1000,
-        batch_size=     64,
-        num_batches=    1000):
-
-    print(f'\nStarts coverage of {btype}')
-
-    samples = np.arange(num_samples)
-    np.random.shuffle(samples)
-    samples = samples.tolist()
-
-    labels = np.random.choice(2, num_samples).tolist()
-
-    data = {
-        'samples':  samples,
-        'labels':   labels}
-
-    batcher = Batcher(data, batch_size, btype=btype, verb=1)
-
-    sL = []
-    n_b = 0
-    s_counter = {s: 0 for s in range(num_samples)}
-    for _ in range(num_batches):
-        sL += batcher.get_batch()['samples'].tolist()
-        n_b += 1
-        if len(set(sL)) == num_samples:
-            print(f'got full coverage with {n_b} batches')
-            for s in sL: s_counter[s] += 1
-            sL = []
-            n_b = 0
-
-    print(msmx(list(s_counter.values()))['string'])
-
-    print(f' *** finished coverage tests')
-
-# test for batcher reproducibility with seed
-def test_seed():
-
-    print(f'\nStarts seed tests')
-
-    c_size = 1000
-    b_size = 64
-
-    samples = np.arange(c_size)
-    np.random.shuffle(samples)
-    samples = samples.tolist()
-
-    labels = np.random.choice(2, c_size).tolist()
-
-    data = {
-        'samples': samples,
-        'labels': labels}
-
-    batcher = Batcher(data, b_size, btype='random_cov', verb=1)
-    sA = []
-    while len(sA) < 10000:
-        sA += batcher.get_batch()['samples'].tolist()
-        np.random.seed(len(sA))
-
-    batcher = Batcher(data, b_size, btype='random_cov', verb=1)
-    sB = []
-    while len(sB) < 10000:
-        sB += batcher.get_batch()['samples'].tolist()
-        np.random.seed(10000000-len(sB))
-
-    seed_is_fixed = True
-    for ix in range(len(sA)):
-        if sA[ix] != sB[ix]: seed_is_fixed = False
-    print(f'final result: seed is fixed: {seed_is_fixed}!')
-    print(f' *** finished seed tests')
-
-
-if __name__ == '__main__':
-
-    for cov in BTYPES: test_coverage(cov)
-    test_seed()
