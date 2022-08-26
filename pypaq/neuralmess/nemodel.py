@@ -69,7 +69,7 @@ from pypaq.neuralmess.get_tf import tf
 from pypaq.neuralmess.base_elements import num_var_floats, lr_scaler, gc_loss_reductor, log_vars, mrg_ckpts, TBwr
 from pypaq.neuralmess.layers import lay_dense
 from pypaq.neuralmess.multi_saver import MultiSaver
-from pypaq.neuralmess.batcher import Batcher
+from pypaq.neuralmess_duo.batcher import Batcher
 
 
 # restricted keys for fwd_func DNA and return DNA (if they appear in kwargs, should be named exactly like below)

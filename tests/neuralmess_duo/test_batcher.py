@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from pypaq.neuralmess.batcher import Batcher, BATCHING_TYPES
+from pypaq.neuralmess_duo.batcher import Batcher, BATCHING_TYPES
 from pypaq.lipytools.stats import msmx
 
 

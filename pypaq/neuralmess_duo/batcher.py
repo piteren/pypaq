@@ -8,8 +8,6 @@
 
 import numpy as np
 
-from pypaq.lipytools.stats import msmx
-
 
 BATCHING_TYPES = [
     'base',         # prepares batches in order of given data

@@ -14,7 +14,7 @@ from pypaq.mpython.devices import get_devices
 from pypaq.pms.parasave import ParaSave
 from pypaq.neuralmess_duo.base_elements import lr_scaler, grad_clipper_AVT
 from pypaq.neuralmess_duo.tbwr import TBwr
-from pypaq.neuralmess.batcher import Batcher
+from pypaq.neuralmess_duo.batcher import Batcher
 
 # restricted keys for fwd_func DNA and return DNA (if they appear in kwargs, should be named exactly like below)
 SPEC_KEYS = [

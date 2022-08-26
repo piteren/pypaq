@@ -84,29 +84,3 @@ def grad_clipper_AVT(
     return {
         'gradients':    gradients,
         'ggnorm':       ggnorm}
-
-def mrg_ckpts(
-        ckptA_FD: str,                  # root folder of cpktA (absolute or relative)
-):
-
-    ckpt = tf.train.load_checkpoint(ckptA_FD)
-    print(ckpt)
-    #print(tf.train.list_variables(ckptA_FD))
-    ckpt = tf.train.Checkpoint()
-    print(ckpt)
-    ckpt.restore(tf.train.latest_checkpoint(ckptA_FD))
-
-    lsv = tf.train.list_variables(tf.train.latest_checkpoint(ckptA_FD))
-    #print(lsv)
-    #for e in lsv:
-    #    v = tf.train.load_variable(ckptA_FD, e[0])
-    #    print(type(v))
-        #print(v.shape)
-    #print(ckpt.debug_string())
-    #print(ckpt)
-
-
-
-
-if __name__ == "__main__":
-    mrg_ckpts('_models/a2c_duo_0730_1608_tuM')
