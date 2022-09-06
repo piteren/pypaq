@@ -335,7 +335,7 @@ class ZeroesProcessor:
 
     def __init__(
             self,
-            intervals :tuple=       (50,500,5000),
+            intervals: tuple=       (50,500,5000),
             tag_pfx=                'nane',     # prefix of tag in TB
             tbwr: Optional[TBwr]=   None,       # if given will put summaries to TB with intervals frequencies
     ):
@@ -349,8 +349,8 @@ class ZeroesProcessor:
     # takes next zeroes array and processes
     def process(
             self,
-            zs :np.array,
-            step :int=  None):
+            zs: np.array,
+            step: int=  None):
 
         self.single.append(np.mean(zs))
         rd = {}

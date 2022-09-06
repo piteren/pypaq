@@ -8,7 +8,7 @@
 
 from pypaq.mpython.mptools import ExSubprocess, Que, QMessage
 
-
+"""
 # TensorBoard writer
 class TBwr:
 
@@ -96,3 +96,38 @@ class TBwr:
 
     def exit(self):
         self.tb_ip.ique.put(TBwr.TB_IP.POISON_MSG)
+"""
+
+import tensorflow as tf
+
+
+# TensorBoard writer
+class TBwr:
+
+    def __init__(
+            self,
+            logdir: str,
+            set_to_CPU=     True,
+            flush_secs=     10):
+
+        # TODO: is this version CPU-GPU-config compatible??
+        # TODO: INFO: tf.summary.create_file_writer creates logdir while init, because of that self.sw init has moved to the first call of add()
+        self.sw = tf.summary.create_file_writer(
+            logdir=         logdir,
+            flush_millis=   1000 * flush_secs)
+
+    def add(self,
+            value,
+            tag: str,
+            step: int):
+        with self.sw.as_default():
+            tf.summary.scalar(
+                name=tag,
+                data=value,
+                step=step)
+
+    def flush(self):
+        self.sw.flush()
+
+    def exit(self):
+        pass

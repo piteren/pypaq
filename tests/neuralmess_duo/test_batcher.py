@@ -78,3 +78,7 @@ class TestBatcher(unittest.TestCase):
             if sA[ix] != sB[ix]: seed_is_fixed = False
         print(f'final result: seed is fixed: {seed_is_fixed}!')
         print(f' *** finished seed tests')
+
+
+if __name__ == '__main__':
+    unittest.main()
