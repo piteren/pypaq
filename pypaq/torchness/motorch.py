@@ -101,7 +101,7 @@ class MOTorch(ParaSave, nn.Module):
             self['do_TB'] = False
 
         self.model_dir = f'{self.save_topdir}/{self.name}'
-        if self.verb>0: print(f' > ToDEL dir: {self.model_dir}{" read only mode!" if self["read_only"] else ""}')
+        if self.verb>0: print(f' > MOTorch dir: {self.model_dir}{" read only mode!" if self["read_only"] else ""}')
 
         if self['do_logfile']:
             set_logger(
@@ -116,12 +116,12 @@ class MOTorch(ParaSave, nn.Module):
         dna_init = {k: dna[k] for k in dna_keys}
 
         if self.verb>0:
-            print(f'\n > ToDEL DNA sources:')
-            print(f' >> TODEL_DEFAULTS:     {MOTORCH_DEFAULTS}')
+            print(f'\n > MOTorch DNA sources:')
+            print(f' >> MOTORCH_DEFAULTS:     {MOTORCH_DEFAULTS}')
             print(f' >> DNA saved:          {dna_saved}')
             print(f' >> given kwargs:       {kwargs}')
-            print(f' ToDEL complete DNA:    {dna}')
-            print(f' ToDEL model DNA:       {dna_init}')
+            print(f' MOTorch complete DNA:    {dna}')
+            print(f' MOTorch model DNA:       {dna_init}')
 
         self._torch_module = model
         self._torch_module.__init__(self, **dna_init)
@@ -139,7 +139,7 @@ class MOTorch(ParaSave, nn.Module):
             # 'optimizer_state_dict': optimizer.state_dict(),
             'loss': 0.4
         }, f'{self.model_dir}/{self.name}.pt')
-        if self.verb>0: print(f'ToDEL {self.name} saved')
+        if self.verb>0: print(f'MOTorch {self.name} saved')
 
     def __str__(self):
         return f'{ParaSave.__str__(self)}\n\n{self._torch_module.__str__(self)}'
