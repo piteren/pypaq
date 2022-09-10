@@ -121,10 +121,9 @@ class NEModelDUO(ParaSave):
         if not tf.executing_eagerly(): warnings.warn(f'TF is NOT executing eagerly!')
 
         if name_timestamp: name += f'.{stamp()}'
-
         if verb>0: print(f'\n *** NEModelDUO {name} (type: {type(self).__name__}) *** initializes..')
 
-        # *************************************************************************************************** manage DNA
+        # ***************************************************************************************** manage (resolve) DNA
 
         # load dna from folder
         dna_saved = ParaSave.load_dna(
@@ -149,6 +148,7 @@ class NEModelDUO(ParaSave):
             'save_fn_pfx':  save_fn_pfx,
             'fwd_func':     fwd_func,
             'verb':         verb})
+
         ParaSave.__init__(self, lock_managed_params=True, **dna)
         self.check_params_sim(SPEC_KEYS + list(NEMODELDUO_DEFAULTS.keys())) # safety check
 
@@ -171,7 +171,7 @@ class NEModelDUO(ParaSave):
                 custom_name=    self.name,
                 verb=           self.verb)
 
-        dna = self.get_point()
+        dna = self.get_point()  # bake
 
         if self.verb>0:
             print(f'\n > NEModelDUO DNA sources:')
