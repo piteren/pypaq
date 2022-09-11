@@ -84,7 +84,7 @@ class TestNEModel(unittest.TestCase):
 
         # INFO: needs to run saveAB() in a subprocess cause TF elements/graphs do conflict
         saveAB()
-        NEModel.gx_saved_dna_cc(
+        NEModel.gx_saved(
             name_parent_main=           'nemodel_test_A',
             name_parent_scnd=           'nemodel_test_B',
             name_child=                 'nemodel_test_C',

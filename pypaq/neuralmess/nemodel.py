@@ -70,41 +70,21 @@ from pypaq.neuralmess_duo.batcher import Batcher
 
 # restricted keys for fwd_func DNA and return DNA (if they appear in kwargs, should be named exactly like below)
 SPEC_KEYS = [
-    'name',                                             # model name
-    'seed',                                             # seed for TF nad numpy
-    'iLR',                                              # initial learning rate (base)
-    'warm_up','ann_base','ann_step','n_wup_off',        # LR management (parameters of LR warmup and annealing)
-    'avt_SVal','avt_window','avt_max_upd','do_clip',    # gradients clipping parameters
-    'train_vars',                                       # list of variables to train (may be returned, otherwise all trainable are taken)
-    'opt_vars',                                         # list of variables returned by opt_func
-    'loss',                                             # loss
-    'acc',                                              # accuracy
-    'f1',                                               # F1
-    'opt_class',                                        # optimizer class
-    'batch_size',                                       # batch size
-    'n_batches',                                        # number of batches for train
-    'verb']                                             # fwd_func verbosity
+    'train_vars',   # list of variables to train (may be returned, otherwise all trainable are taken)
+    'opt_vars',     # list of variables returned by opt_func
+    'loss',         # loss
+    'acc',          # accuracy
+    'f1',           # F1
+]
 
 # defaults below may be given with NEModelDUO kwargs or overridden by fwd_graph attributes
 NEMODEL_DEFAULTS = {
     'seed':                 12321,                      # seed for TF and numpy
-    'opt_class':            tf.keras.optimizers.Adam,   # default optimizer of train()
     'devices':              -1,                         # check mpython.devices for details
-    # LR management (parameters of LR warmup and annealing)
-    'iLR':                  3e-4,                       # initial learning rate (base init)
-    'warm_up':              None,
-    'ann_base':             None,
-    'ann_step':             1.0,
-    'n_wup_off':            1.0,
-    # gradients clipping parameters
-    'avt_SVal':             0.1,
-    'avt_window':           100,
-    'avt_max_upd':          1.5,
-    'do_clip':              False,
-    # batches
+        # batches
     'batch_size':           64,
     'n_batches':            1000,
-    # other
+        # other
     'save_topdir':          '_models',                  # top folder of model save
     'save_fn_pfx':          'nemodel_dna',              # dna filename prefix
     'hpmser_mode':          False,                      # it will set model to be read_only and quiet when running with hpmser
@@ -162,11 +142,13 @@ def opt_graph(
         train_vars,
         gradients,
         opt_class=          tf.train.AdamOptimizer, # default optimizer, other examples: tf.train.GradientDescentOptimizer, partial(tf.train.AdamOptimizer, beta1=0.7, beta2=0.7)
-        iLR=                3e-4,
+            # LR management (parameters of LR warmup and annealing)
+        iLR=                3e-4,                   # initial learning rate (base init)
         warm_up=            None,
         ann_base=           None,
         ann_step=           1,
         n_wup_off: float=   1.0,
+            # gradients clipping parameters
         avt_SVal=           1,
         avt_window=         100,
         avt_max_upd=        1.5,
@@ -334,17 +316,40 @@ class NEModel(ParaSave):
         self.__TBwr = TBwr(logdir=self.model_dir)  # TensorBoard writer
         self._gFWD = [] # list of dicts of all FWD graphs (from all devices)
         self._graph = None
-        saver_vars = self.build_graph()
+        saver_vars = self.__build_graph()
+        if self.verb>0: print(f'{self.name} (NEModel) graph built!')
+        if self.verb>1: print(f' > self point:\n{self.get_point()}')
+        if self.verb>1: print(f' > self all fields:\n{self.get_all_fields()}')
 
-        self._session = None
-        self.__saver = None
-        self.final_init(saver_vars)
+        # create session
+        config = tf.ConfigProto(allow_soft_placement=True)
+        config.gpu_options.allow_growth = True
+        self._session = tf.Session(
+            graph=  self._graph,
+            config= config)
+
+        # create saver & load
+        # remove keys with no variables (corner case, for proper saver)
+        sKeys = list(saver_vars.keys())
+        for key in sKeys:
+            if not saver_vars[key]: saver_vars.pop(key)
+        # add saver then load
+        self.__saver = MultiSaver(
+            model_name= self.name,
+            vars=       saver_vars,
+            save_TFD=   self.save_topdir,
+            savers=     self['savers_names'],
+            session=    self._session,
+            verb=       self.verb)
+        if self['load_saver']: self.load_ckpt()
 
         self._model_data = None
         self._batcher = None
 
-    # builds graph and surroundings
-    def build_graph(self) -> dict:
+        if self.verb>0: print(f'\n > NEModel init finished..')
+
+    # builds graph (FWD & OPT) and manages surroundings
+    def __build_graph(self) -> dict:
 
         # TODO: look again @ devices
         # ****************************************************************************************** resolve devices
@@ -545,33 +550,6 @@ class NEModel(ParaSave):
 
         return saver_vars
 
-    def final_init(self, saver_vars: dict):
-
-        config = tf.ConfigProto(allow_soft_placement=True)
-        config.gpu_options.allow_growth = True
-        self._session = tf.Session(
-            graph=  self._graph,
-            config= config)
-
-        # remove keys with no variables (corner case, for proper saver)
-        sKeys = list(saver_vars.keys())
-        for key in sKeys:
-            if not saver_vars[key]: saver_vars.pop(key)
-        # add saver then load
-        self.__saver = MultiSaver(
-            model_name= self.name,
-            vars=       saver_vars,
-            save_TFD=   self.save_topdir,
-            savers=     self['savers_names'],
-            session=    self._session,
-            verb=       self.verb)
-
-        if self['load_saver']: self.load_ckpt()
-
-        if self.verb>0: print(f'{self.name} (NEModel) graph built!')
-        if self.verb>1: print(f' > self point:\n{self.get_point()}')
-        if self.verb>1: print(f' > self all fields:\n{self.get_all_fields()}')
-
     # reloads model checkpoint, updates iLR
     def load_ckpt(self):
         saver = None if type(self['load_saver']) is bool else self['load_saver']
@@ -580,7 +558,7 @@ class NEModel(ParaSave):
 
     # saves model checkpoint
     def save_ckpt(self):
-        assert not self['read_only'], f'ERR: cannot save NEModel {self.name} while model is readonly!'
+        assert not self['read_only'], f'ERR: cannot save NEModel checkpoint {self.name} while model is readonly!'
         self.__saver.save()
 
     # updates base LR (iLR) in graph - but not saves it to the checkpoint
@@ -753,7 +731,7 @@ class NEModel(ParaSave):
     def copy_saved(
             name_src: str,
             name_trg: str,
-            save_topdir_src: str,
+            save_topdir_src: str=           NEMODEL_DEFAULTS['save_topdir'],
             save_topdir_trg: Optional[str]= None,
             save_fn_pfx: str=               NEMODEL_DEFAULTS['save_fn_pfx']):
 
@@ -782,36 +760,8 @@ class NEModel(ParaSave):
                 replace_scope=  name_trg)
 
     # performs GX on saved NEModel objects (NEModel as a ParaSave and then checkpoints, without even building child objects)
-    # WARNING: it should be named 'gx_saved' cause it does more than 'gx_saved_dna' of ParaSave
     @staticmethod
-    def gx_saved_dna(
-            name_parent_main: str,
-            name_parent_scnd: str,
-            name_child: str,
-            save_topdir_parent_main: str,
-            save_topdir_parent_scnd: Optional[str] =    None,
-            save_topdir_child: Optional[str] =          None,
-            save_fn_pfx: Optional[str] =                NEMODEL_DEFAULTS['save_fn_pfx']
-    ) -> None:
-        ParaSave.gx_saved_dna(
-            name_parent_main=           name_parent_main,
-            name_parent_scnd=           name_parent_scnd,
-            name_child=                 name_child,
-            save_topdir_parent_main=    save_topdir_parent_main,
-            save_topdir_parent_scnd=    save_topdir_parent_scnd,
-            save_topdir_child=          save_topdir_child,
-            save_fn_pfx=                save_fn_pfx)
-        NEModel.gx_ckpt(
-            name_A=         name_parent_main,
-            name_B=         name_parent_scnd,
-            name_child=     name_child,
-            folder_A=       save_topdir_parent_main,
-            folder_B=       save_topdir_parent_scnd,
-            folder_child=   save_topdir_child)
-
-    # performs GX on saved NEModel objects, adds more control for ckpt GX
-    @staticmethod
-    def gx_saved_dna_cc(
+    def gx_saved(
             name_parent_main: str,
             name_parent_scnd: str,
             name_child: str,
@@ -826,8 +776,8 @@ class NEModel(ParaSave):
 
         # build NEModel and save its ckpt in a separate subprocess
         @proc_wait
-        def save(name_child:str, save_topdir:str):
-            nm = NEModel(name=name_child, save_topdir=save_topdir)
+        def save(name:str, save_topdir:str):
+            nm = NEModel(name=name, save_topdir=save_topdir)
             nm.save_ckpt()
 
         ParaSave.gx_saved_dna(
@@ -849,12 +799,16 @@ class NEModel(ParaSave):
                 folder_child=   save_topdir_child,
                 ratio=          ratio,
                 noise=          noise)
-        else: save(name_child=name_child, save_topdir=save_topdir_child or save_topdir_parent_main)
+        else: save(
+            name=           name_child,
+            save_topdir=    save_topdir_child or save_topdir_parent_main)
 
     # saves NEModel (ParaSave DNA and checkpoint)
     def save(self):
+        assert not self['read_only'], f'ERR: cannot save NEModel {self.name} while model is readonly!'
         ParaSave.save_dna(self)
         self.save_ckpt()
+        if self.verb>0: print(f'NEMmodel {self.name} saved')
 
     @property
     def gFWD(self):
@@ -868,183 +822,7 @@ class NEModel(ParaSave):
     def tbwr(self):
         return self.__TBwr
 
+
     def __str__(self):
+        # TODO: add some NEModel-specific output (name, graph info, weights)
         return ParaSave.dict_2str(self.get_point())
-
-
-# TODO: do be deleted
-"""
-# adds save management for NEModelBase, resolves attributes of NEModelBase init
-class NEModelXXX(NEModelBase, ParaSave):
-
-    def __init__(
-            self,
-            name: str,
-            name_timestamp=     False,                  # adds timestamp to model name
-            save_topdir: str=   SAVE_TOPDIR,
-            save_fn_pfx: str=   NEMODEL_DNA_PFX,
-            verb=               0,
-            **kwargs):
-
-        self.verb = verb
-        self.name = name
-        if name_timestamp: self.name += f'.{stamp()}'
-        if self.verb>0: print(f'\n *** NEModel {self.name} (type: {type(self).__name__}) *** initializes...')
-
-        self.save_topdir = save_topdir
-        self.save_fn_pfx = save_fn_pfx
-
-        # ******************************************************* collect DNA from different sources and build final DNA
-
-        dna_nemodelbase_def = get_params(NEModelBase.__init__)['with_defaults']
-        dna_self = {k: self[k] for k in self.get_all_fields()} # INFO: cannot use get_point here since self.__managed_params not established yet
-        dna_saved = ParaSave.load_dna(name=self.name, save_topdir=self.save_topdir, save_fn_pfx=self.save_fn_pfx)
-
-        # look for functions, override in proper order
-        dna_func = {}
-        for k in ['fwd_func','opt_func']:
-            val = dna_nemodelbase_def[k]            # first get from NEModelBase.__init__ defaults
-            if k in kwargs: val = kwargs[k]         # then override if given
-            if k in dna_saved: val = dna_saved[k]   # then take from saved
-            dna_func[k] = val
-        self.update(dna_func)
-
-        dna_opt_func = get_params(self.opt_func)['with_defaults'] if self.opt_func else {}
-        dna_fwd_func = get_params(self.fwd_func)['with_defaults']
-
-        if self.verb>0:
-            print(f'\n > NEModel DNA sources:')
-            print(f' >> NEModelBase init defaults: {dna_nemodelbase_def}')
-            print(f' >> OPT func defaults:         {dna_opt_func}')
-            print(f' >> FWD func defaults:         {dna_fwd_func}')
-            print(f' >> DNA saved:                 {dna_saved}')
-            print(f' >> NEModel DNA:               {dna_self}')
-            print(f' >> graph functions:           {dna_func}')
-            print(f' >> given kwargs:              {kwargs}')
-
-        self.update(dna_nemodelbase_def)                # update with NEModelBase defaults
-        self.update(dna_opt_func)                       # update with OPT func defaults
-        self.update(dna_fwd_func)                       # update with FWD func defaults
-        self.update(dna_saved)                          # update with saved DNA
-        self.update(dna_self)                           # update with early self DNA (should not be updated by any of above)
-        self.update(dna_func)                           # update with functions
-        self.update(kwargs)                             # update with given kwargs
-
-        self.__managed_params = self.get_all_fields()   # save managed params here, graph will add many params that we do not want to be managed
-        self.check_params_sim(SPEC_KEYS)                # safety check
-
-        dna = self.get_point()
-        if self.verb>0: print(f'\n > NEModel complete DNA: {dna}')
-        ParaSave.__init__(self, **dna)
-        NEModelBase.__init__(self, **dna)
-
-    def get_managed_params(self) -> List[str]: return self.__managed_params
-
-    # copies full NEModel folder (DNA & checkpoints)
-    @staticmethod
-    def copy_saved(
-            name_src: str,
-            name_trg: str,
-            save_topdir_src: str,
-            save_topdir_trg: Optional[str]= None,
-            save_fn_pfx: str=               NEMODEL_DNA_PFX):
-
-        if save_topdir_trg is None: save_topdir_trg = save_topdir_src
-
-        # copy DNA with ParaSave
-        ParaSave.copy_saved_dna(
-            name_src=           name_src,
-            name_trg=           name_trg,
-            save_topdir_src=    save_topdir_src,
-            save_topdir_trg=    save_topdir_trg,
-            save_fn_pfx=        save_fn_pfx)
-
-        # copy checkpoints
-        nm_SFD = f'{save_topdir_src}/{name_src}'
-        ckptL = [cfd for cfd in os.listdir(nm_SFD) if os.path.isdir(os.path.join(nm_SFD, cfd))]
-        if 'opt_vars' in ckptL: ckptL.remove('opt_vars')
-        for ckpt in ckptL:
-            mrg_ckpts(
-                ckptA=          ckpt,
-                ckptA_FD=       nm_SFD,
-                ckptB=          None,
-                ckptB_FD=       None,
-                ckptM=          ckpt,
-                ckptM_FD=       f'{save_topdir_trg}/{name_trg}',
-                replace_scope=  name_trg)
-
-    # performs GX on saved NEModel objects (NEModel as a ParaSave and then checkpoints, without even building child objects)
-    # WARNING: it should be named 'gx_saved' cause it does more than 'gx_saved_dna' of ParaSave
-    @staticmethod
-    def gx_saved_dna(
-            name_parent_main: str,
-            name_parent_scnd: str,
-            name_child: str,
-            save_topdir_parent_main: str,                                   # ParaSave top directory
-            save_topdir_parent_scnd: Optional[str] =    None,               # ParaSave top directory of parent scnd
-            save_topdir_child: Optional[str] =          None,               # ParaSave top directory of child
-            save_fn_pfx: Optional[str] =                NEMODEL_DNA_PFX     # ParaSave dna filename prefix
-    ) -> None:
-        ParaSave.gx_saved_dna(
-            name_parent_main=           name_parent_main,
-            name_parent_scnd=           name_parent_scnd,
-            name_child=                 name_child,
-            save_topdir_parent_main=    save_topdir_parent_main,
-            save_topdir_parent_scnd=    save_topdir_parent_scnd,
-            save_topdir_child=          save_topdir_child,
-            save_fn_pfx=                save_fn_pfx)
-        NEModel.gx_ckpt(
-            name_A=         name_parent_main,
-            name_B=         name_parent_scnd,
-            name_child=     name_child,
-            folder_A=       save_topdir_parent_main,
-            folder_B=       save_topdir_parent_scnd,
-            folder_child=   save_topdir_child)
-
-    # performs GX on saved NEModel objects, adds more control for ckpt GX
-    @staticmethod
-    def gx_saved_dna_cc(
-            name_parent_main: str,
-            name_parent_scnd: str,
-            name_child: str,
-            save_topdir_parent_main: str,                                   # ParaSave top directory
-            save_topdir_parent_scnd: Optional[str] =    None,               # ParaSave top directory of parent scnd
-            save_topdir_child: Optional[str] =          None,               # ParaSave top directory of child
-            save_fn_pfx: Optional[str] =                NEMODEL_DNA_PFX,    # ParaSave dna filename prefix
-            do_gx_ckpt=                                 True,
-            ratio: float=                               0.5,
-            noise: float=                               0.03
-    ) -> None:
-
-        # build NEModel and save its ckpt in a separate subprocess
-        @proc_wait
-        def save(name_child:str, save_topdir:str):
-            nm = NEModel(name=name_child, save_topdir=save_topdir)
-            nm.save_ckpt()
-
-        ParaSave.gx_saved_dna(
-            name_parent_main=           name_parent_main,
-            name_parent_scnd=           name_parent_scnd,
-            name_child=                 name_child,
-            save_topdir_parent_main=    save_topdir_parent_main,
-            save_topdir_parent_scnd=    save_topdir_parent_scnd,
-            save_topdir_child=          save_topdir_child,
-            save_fn_pfx=                save_fn_pfx)
-
-        if do_gx_ckpt:
-            NEModel.gx_ckpt(
-                name_A=         name_parent_main,
-                name_B=         name_parent_scnd,
-                name_child=     name_child,
-                folder_A=       save_topdir_parent_main,
-                folder_B=       save_topdir_parent_scnd,
-                folder_child=   save_topdir_child,
-                ratio=          ratio,
-                noise=          noise)
-        else: save(name_child=name_child, save_topdir=save_topdir_child or save_topdir_parent_main)
-
-    # saves NEModel (ParaSave DNA and checkpoint)
-    def save(self):
-        ParaSave.save_dna(self)
-        self.save_ckpt()
-"""
