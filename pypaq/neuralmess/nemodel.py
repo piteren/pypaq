@@ -89,7 +89,7 @@ NEMODEL_DEFAULTS = {
     'save_fn_pfx':          'nemodel_dna',              # dna filename prefix
     'hpmser_mode':          False,                      # it will set model to be read_only and quiet when running with hpmser
     'savers_names':         (None,),                    # names of savers for MultiSaver
-    'load_saver':           True,                       # Optional[bool or str] for None does not load, for True loads default
+    'load_saver':           True,                       # Optional[bool or str] for None/False does not load, for True loads default
     'read_only':            False,                      # sets model to be read only - wont save anything (wont even create self.model_dir)
     'do_logfile':           True,                       # enables saving log file in self.model_dir
     'do_TB':                True,                       # runs TensorBard, saves in self.model_dir
@@ -233,16 +233,15 @@ class NEModel(ParaSave):
 
         assert fwd_func or 'fwd_func' in dna_saved, 'ERR: cannot continue: fwd_func was not given and model has not been saved before.'
 
-        # TODO: rename variables below to 'params...' (look at torch)
-        dna_opt_func_defaults = get_params(opt_func)['with_defaults'] if opt_func else {}
-        dna_fwd_func_defaults = get_params(fwd_func)['with_defaults']  # get fwd_func defaults
+        _opt_func_params_defaults = get_params(opt_func)['with_defaults'] if opt_func else {}
+        _fwd_func_params_defaults = get_params(fwd_func)['with_defaults']  # get fwd_func defaults
 
         dna = {
             'fwd_func': fwd_func,
             'opt_func': opt_func}
         dna.update(NEMODEL_DEFAULTS)
-        dna.update(dna_opt_func_defaults)
-        dna.update(dna_fwd_func_defaults)
+        dna.update(_opt_func_params_defaults)
+        dna.update(_fwd_func_params_defaults)
         dna.update(dna_saved)
         dna.update(kwargs)                  # update with kwargs (params of FWD & OPT) given NOW by user
         dna.update({
@@ -286,15 +285,19 @@ class NEModel(ParaSave):
                     not_used_kwargs[k] = kwargs[k]
 
             print(f'\n > NEModel DNA sources:')
-            print(f' >> NEMODEL_DEFAULTS:   {NEMODEL_DEFAULTS}')
-            print(f' >> fwd_func defaults:  {dna_fwd_func_defaults}')
-            print(f' >> opt_func defaults:  {dna_opt_func_defaults}')
-            print(f' >> DNA saved:          {dna_saved}')
-            print(f' >> given kwargs:       {kwargs}')
-            print(f' >> NEModel kwargs not used by any graph : {not_used_kwargs}')
-            print(f' NEModel complete DNA:  {dna}')
+            print(f' >> NEMODEL_DEFAULTS:                   {NEMODEL_DEFAULTS}')
+            print(f' >> fwd_func defaults:                  {_fwd_func_params_defaults}')
+            print(f' >> opt_func defaults:                  {_opt_func_params_defaults}')
+            print(f' >> DNA saved:                          {dna_saved}')
+            print(f' >> given kwargs:                       {kwargs}')
+            print(f' >> NEModel kwargs not used by graphs : {not_used_kwargs}')
+            print(f' NEModel complete DNA:                  {dna}')
 
         self.__manage_devices()
+
+        # set seed
+        tf.set_random_seed(self['seed'])
+        np.random.seed(self['seed'])
 
         self._gFWD = [] # list of dicts of all FWD graphs (from all devices)
         self._graph = None
@@ -313,10 +316,9 @@ class NEModel(ParaSave):
         self.__TBwr = TBwr(logdir=self.model_dir)  # TensorBoard writer
 
         # create saver & load
-        # remove keys with no variables (corner case, for proper saver)
-        sKeys = list(saver_vars.keys())
-        for key in sKeys:
-            if not saver_vars[key]: saver_vars.pop(key)
+        sv_keys = list(saver_vars.keys())
+        for key in sv_keys:
+            if not saver_vars[key]: saver_vars.pop(key) # remove keys with no variables (corner case, for proper saver)
         # add saver then load
         self.__saver = MultiSaver(
             model_name= self.name,
@@ -332,6 +334,7 @@ class NEModel(ParaSave):
 
         if self.verb>0: print(f'\n > NEModel init finished..')
 
+    # sets CPU / GPU devices for NEModel
     def __manage_devices(self):
 
         self['devices'] = get_devices(self['devices'], verb=self.verb)
@@ -363,7 +366,6 @@ class NEModel(ParaSave):
 
         if len(self['devices'])<3: self['sep_device'] = False # SEP is available for 3 or more devices
 
-
     # builds graph (FWD & OPT) and manages surroundings
     def __build_graph(self) -> dict:
 
@@ -371,8 +373,6 @@ class NEModel(ParaSave):
         self._graph = tf.Graph()
         with self._graph.as_default():
 
-            tf.set_random_seed(self['seed']) # set graph seed
-            np.random.seed(self['seed'])
             if self.verb>0: print(f'\nNEModel set TF & NP seed to {self["seed"]}')
 
             fwd_func_dna = get_func_dna(self['fwd_func'], self.get_point())

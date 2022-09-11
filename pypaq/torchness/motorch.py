@@ -22,7 +22,7 @@ SPEC_KEYS = [
 
 # defaults below may be given with MOTorch kwargs or overridden by fwd_graph attributes
 MOTORCH_DEFAULTS = {
-    'seed':         123,                        # seed for TF and numpy
+    'seed':         123,                        # seed for torch and numpy
     # TODO:
     #'opt_class':    tf.keras.optimizers.Adam,   # default optimizer of train()
     'devices':      'GPU:0',                    # for TF1 we used '/device:CPU:0'
@@ -40,6 +40,7 @@ MOTORCH_DEFAULTS = {
     # other
     'save_topdir':  '_models',                  # top folder of model save
     'save_fn_pfx':  'todel_dna',           # dna filename prefix
+    'load_ckpt':    True,                       # (bool) loads checkpoint (if saved earlier)
     'hpmser_mode':  False,                      # it will set model to be read_only and quiet when running with hpmser
     'read_only':    False,                      # sets model to be read only - wont save anything (wont even create self.model_dir)
     'do_logfile':   True,                       # enables saving log file in self.model_dir
@@ -61,11 +62,9 @@ class MOTorch(ParaSave, nn.Module):
 
         name = model.__class__.__name__ if not name else name
         if name_timestamp: name += f'.{stamp()}'
-        print(name)
-
         if verb>0: print(f'\n *** MOTorch {name} (type: {type(self).__name__}) *** initializes..')
 
-        # *************************************************************************************************** manage DNA
+        # ************************************************************************* manage (resolve) DNA & init ParaSave
 
         # load dna from folder
         dna_saved = ParaSave.load_dna(
@@ -73,12 +72,12 @@ class MOTorch(ParaSave, nn.Module):
             save_topdir=    save_topdir,
             save_fn_pfx=    save_fn_pfx)
 
-        _init_params_dict = get_params(model.__init__)
-        _init_params_dict_defaults = _init_params_dict['with_defaults']   # get init params defaults
+        _model_init_params = get_params(model.__init__)
+        _model_init_params_defaults = _model_init_params['with_defaults']   # get init params defaults
 
-        dna = {}
+        dna = {'model': model}
         dna.update(MOTORCH_DEFAULTS)
-        dna.update(_init_params_dict_defaults)
+        dna.update(_model_init_params_defaults)
         dna.update(dna_saved)
         dna.update(kwargs)          # update with kwargs given NOW by user
         dna.update({
@@ -110,35 +109,70 @@ class MOTorch(ParaSave, nn.Module):
                 verb=           self.verb)
 
         dna = self.get_point()
-        dna_keys = _init_params_dict['without_defaults'] + list(_init_params_dict['with_defaults'].keys())
-        print(dna_keys)
-        dna_keys.remove('self')
-        dna_init = {k: dna[k] for k in dna_keys}
+        dna_model_keys = _model_init_params['without_defaults'] + list(_model_init_params['with_defaults'].keys())
+        dna_model_keys.remove('self')
+        dna_model = {k: dna[k] for k in dna_model_keys}
 
         if self.verb>0:
+
+            not_used_kwargs = {}
+            for k in kwargs:
+                if k not in get_func_dna(model.__init__, dna):
+                    not_used_kwargs[k] = kwargs[k]
+
             print(f'\n > MOTorch DNA sources:')
-            print(f' >> MOTORCH_DEFAULTS:     {MOTORCH_DEFAULTS}')
-            print(f' >> DNA saved:          {dna_saved}')
-            print(f' >> given kwargs:       {kwargs}')
-            print(f' MOTorch complete DNA:    {dna}')
-            print(f' MOTorch model DNA:       {dna_init}')
+            print(f' >> MOTORCH_DEFAULTS:                  {MOTORCH_DEFAULTS}')
+            print(f' >> model init defaults:               {_model_init_params_defaults}')
+            print(f' >> DNA saved:                         {dna_saved}')
+            print(f' >> given kwargs:                      {kwargs}')
+            print(f' >> MOTorch kwargs not used by model : {not_used_kwargs}')
+            print(f' MOTorch model DNA:                    {dna_model}')
+            print(f' MOTorch complete DNA:                 {dna}')
+
+        # TODO: manage devices
+
+        torch.manual_seed(self['seed'])
+        torch.cuda.manual_seed(self['seed'])
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        # https://pytorch.org/docs/stable/notes/randomness.html
 
         self._torch_module = model
-        self._torch_module.__init__(self, **dna_init)
+        self._torch_module.__init__(self, **dna_model)
+
+        if self['load_ckpt']:
+            try:
+                self._load_ckpt()
+                if self.verb>0: print(f' > TOModel checkpoint loaded..')
+            except Exception as e:
+                if self.verb>0: print(f' > TOModel checkpoint NOT loaded ({e})..')
+
+        if self.verb>0: print(f'\n > MOTorch init finished..')
 
     def forward(self, *args, **kwargs):
         return self._torch_module.forward(self, *args, **kwargs)
 
+    # reloads model checkpoint
+    def _load_ckpt(self):
+        # TODO: load all that has been saved
+        checkpoint = torch.load(f'{self.model_dir}/{self.name}.pt')
+        self._torch_module.load_state_dict(self, checkpoint['model_state_dict'])
+
+    # saves model checkpoint
+    def _save_ckpt(self):
+        # TODO: decide what to save
+        torch.save({
+            #'epoch': 5,
+            'model_state_dict': self._torch_module.state_dict(self),
+            # 'optimizer_state_dict': optimizer.state_dict(),
+            #'loss': 0.4
+        }, f'{self.model_dir}/{self.name}.pt')
+
+    # saves MOTorch (ParaSave DNA and checkpoint)
     def save(self):
         assert not self['read_only'], 'ERR: read only MOTorch cannot be saved!'
         self.save_dna()
-        # TODO: decide what to save
-        torch.save({
-            'epoch': 5,
-            'model_state_dict': self._torch_module.state_dict(self),
-            # 'optimizer_state_dict': optimizer.state_dict(),
-            'loss': 0.4
-        }, f'{self.model_dir}/{self.name}.pt')
+        self._save_ckpt()
         if self.verb>0: print(f'MOTorch {self.name} saved')
 
     def __str__(self):
