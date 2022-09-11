@@ -279,41 +279,23 @@ class NEModel(ParaSave):
                 verb=           self.verb)
 
         if self.verb>0:
+
+            not_used_kwargs = {}
+            for k in kwargs:
+                if k not in get_func_dna(self['opt_func'], dna) and k not in get_func_dna(self['fwd_func'], dna):
+                    not_used_kwargs[k] = kwargs[k]
+
             print(f'\n > NEModel DNA sources:')
             print(f' >> NEMODEL_DEFAULTS:   {NEMODEL_DEFAULTS}')
             print(f' >> fwd_func defaults:  {dna_fwd_func_defaults}')
             print(f' >> opt_func defaults:  {dna_opt_func_defaults}')
             print(f' >> DNA saved:          {dna_saved}')
             print(f' >> given kwargs:       {kwargs}')
+            print(f' >> NEModel kwargs not used by any graph : {not_used_kwargs}')
             print(f' NEModel complete DNA:  {dna}')
 
-        # TODO: code below probably should be deleted, ONLY not_used_kwargs is quite useful to print out
-        """
-        # add OPT & FWD defaults under current self (it is assumed that current self + kwargs should be on top)
-        
-        self.update(get_params(self.opt_func)['with_defaults'] if self.opt_func else {})
-        self.update(get_params(self.fwd_func)['with_defaults'])
-        self.update(dna_self)
-        self.update(kwargs)
+        self.__manage_devices()
 
-        # prepare OPT & FWD func dna
-        dna = self.get_point()
-        self.__opt_func_dna = get_func_dna(self.opt_func, dna)
-        self.__fwd_func_dna = get_func_dna(self.fwd_func, dna)
-
-        # check for kwargs not valid for fwd_func nor opt_func
-        not_used_kwargs = {}
-        for k in kwargs:
-            if k not in self.__fwd_func_dna and k not in self.__opt_func_dna:
-                not_used_kwargs[k] = kwargs[k]
-
-        if self.verb>0:
-            print(f'\n > NEModelBase opt_func_dna : {self.__opt_func_dna}')
-            print(f' > NEModelBase fwd_func_dna : {self.__fwd_func_dna}')
-            print(f' > NEModelBase kwargs not used by any graph : {not_used_kwargs}')
-        """
-
-        self.__TBwr = TBwr(logdir=self.model_dir)  # TensorBoard writer
         self._gFWD = [] # list of dicts of all FWD graphs (from all devices)
         self._graph = None
         saver_vars = self.__build_graph()
@@ -327,6 +309,8 @@ class NEModel(ParaSave):
         self._session = tf.Session(
             graph=  self._graph,
             config= config)
+
+        self.__TBwr = TBwr(logdir=self.model_dir)  # TensorBoard writer
 
         # create saver & load
         # remove keys with no variables (corner case, for proper saver)
@@ -348,27 +332,26 @@ class NEModel(ParaSave):
 
         if self.verb>0: print(f'\n > NEModel init finished..')
 
-    # builds graph (FWD & OPT) and manages surroundings
-    def __build_graph(self) -> dict:
-
-        # TODO: look again @ devices
-        # ****************************************************************************************** resolve devices
+    def __manage_devices(self):
 
         self['devices'] = get_devices(self['devices'], verb=self.verb)
 
-        # mask GPU devices
-        ids = []
         devices_other = []
         devices_gpu = []
         for device in self['devices']:
             if 'GPU' in device: devices_gpu.append(device)
             else: devices_other.append(device)
+
+        # prepare ids & rewrite GPU devices
+        ids = []
         if devices_gpu:
+            devices_gpu = [f'/device:GPU:{ix}' for ix in range(len(devices_gpu))]
             ids = [dev[12:] for dev in devices_gpu]
-            devices_gpu = [f'/device:GPU:{ix}' for ix in range(len(devices_gpu))] # rewrite GPU devices
+
         self['devices'] = devices_other + devices_gpu
+
         if self.verb>0: print(f' > masking GPU devices: {ids}')
-        mask_cuda(ids)
+        mask_cuda(ids) # mask GPU devices
 
         # report devices
         if self.verb>0:
@@ -379,6 +362,10 @@ class NEModel(ParaSave):
             else:                               print(f'NEModel builds multi-dev setup for {len(self["devices"])} devices')
 
         if len(self['devices'])<3: self['sep_device'] = False # SEP is available for 3 or more devices
+
+
+    # builds graph (FWD & OPT) and manages surroundings
+    def __build_graph(self) -> dict:
 
         # build FWD graph(s) >> manage variables >> build OPT graph
         self._gFWD = [] # list of dicts of all FWD graphs (from all devices)
