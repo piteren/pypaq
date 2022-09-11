@@ -7,14 +7,14 @@ from pypaq.neuralmess.nemodel import NEModel, fwd_graph
 
 NEMODEL_DIR = f'{flush_tmp_dir()}/nemodel'
 
+DNA = {'seq_len':20, 'emb_num':33, 'seed':111}
+
 
 class TestNEModel(unittest.TestCase):
 
     def test_init(self):
 
         flush_tmp_dir()
-
-        dna = {'seq_len':20, 'emb_num':33, 'seed':111}
 
         nnm = NEModel(
             name=           'nemodel_test_A',
@@ -23,7 +23,7 @@ class TestNEModel(unittest.TestCase):
             save_topdir=    NEMODEL_DIR,
             do_logfile=     False,  # INFO: unittests crashes with logger
             verb=           1,
-            **dna)
+            **DNA)
         nnm.save_ckpt()
         self.assertTrue(nnm['opt_func'] is None and nnm['iLR'] == 0.003)
 
@@ -33,7 +33,7 @@ class TestNEModel(unittest.TestCase):
             save_topdir=    NEMODEL_DIR,
             do_logfile=     False,  # INFO: unittests crashes with logger
             verb=           1,
-            **dna)
+            **DNA)
         self.assertTrue(nnm['opt_func'] is not None and nnm['iLR']==0.003 and 'loss' in nnm)
         nnm.save_ckpt()
 
@@ -43,7 +43,7 @@ class TestNEModel(unittest.TestCase):
             save_topdir=    NEMODEL_DIR,
             do_logfile=     False,      # INFO: unittests crashes with logger
             verb=           1,
-            **dna)
+            **DNA)
         self.assertTrue(nnm['seed']==111 and nnm['iLR']==0.003 and 'loss' in nnm)
         self.assertTrue('loss' not in nnm.get_managed_params())
         nnm.save()
@@ -63,23 +63,21 @@ class TestNEModel(unittest.TestCase):
 
         @proc_wait
         def saveAB():
-            dna = {'seq_len':20, 'emb_num':33, 'seed':111}
             nnm = NEModel(
                 name=           'nemodel_test_A',
                 fwd_func=       fwd_graph,
                 save_topdir=    NEMODEL_DIR,
                 do_logfile=     False,      # INFO: unittests crashes with logger
                 verb=           1,
-                **dna)
+                **DNA)
             nnm.save()
-            dna = {'seq_len':20, 'emb_num':33, 'seed':111}
             nnm = NEModel(
                 name=           'nemodel_test_B',
                 fwd_func=       fwd_graph,
                 save_topdir=    NEMODEL_DIR,
                 do_logfile=     False,      # INFO: unittests crashes with logger
                 verb=           1,
-                **dna)
+                **DNA)
             nnm.save()
 
         # INFO: needs to run saveAB() in a subprocess cause TF elements/graphs do conflict

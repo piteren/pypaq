@@ -244,7 +244,7 @@ class NEModel(ParaSave):
         dna.update(dna_opt_func_defaults)
         dna.update(dna_fwd_func_defaults)
         dna.update(dna_saved)
-        dna.update(kwargs)                  # update with kwargs given NOW by user
+        dna.update(kwargs)                  # update with kwargs (params of FWD & OPT) given NOW by user
         dna.update({
             'name':         name,
             'save_topdir':  save_topdir,
@@ -368,7 +368,6 @@ class NEModel(ParaSave):
     def __build_graph(self) -> dict:
 
         # build FWD graph(s) >> manage variables >> build OPT graph
-        self._gFWD = [] # list of dicts of all FWD graphs (from all devices)
         self._graph = tf.Graph()
         with self._graph.as_default():
 
@@ -467,7 +466,6 @@ class NEModel(ParaSave):
 
                     # log gradients
                     if self.verb>0:
-                        nGrad = len(tower['gradients'])
 
                         # None_as_gradient case
                         device = 'UNKNOWN'
@@ -476,7 +474,7 @@ class NEModel(ParaSave):
                                 device = t.device
                                 break
 
-                        print(f' > gradients for {ix} tower got {nGrad} tensors ({device})')
+                        print(f' > gradients for {ix} tower got {len(tower["gradients"])} tensors ({device})')
                         if self.verb>1:
                             print('NEModel variables and their gradients:')
                             for gix in range(len(tower['gradients'])):
@@ -487,7 +485,7 @@ class NEModel(ParaSave):
 
                 self['gradients'] = self._gFWD[0]['gradients']
 
-                # None @gradients check
+                # check for None @ gradients
                 none_grads = 0
                 for grad in self['gradients']:
                     if grad is None: none_grads += 1
@@ -523,7 +521,7 @@ class NEModel(ParaSave):
 
                     opt_func_dna = get_func_dna(self['opt_func'], self.get_point())
 
-                    with tf.device(self["devices"][0]):
+                    with tf.device(self['devices'][0]):
 
                         opt_graph_return_dict = self['opt_func'](
                             train_vars=     train_vars,
