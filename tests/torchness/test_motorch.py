@@ -5,6 +5,7 @@ from typing import Dict
 import unittest
 
 from pypaq.torchness.motorch import MOTorch
+from pypaq.torchness.layers import LayDense
 
 
 class LinModel(nn.Module):
@@ -13,7 +14,7 @@ class LinModel(nn.Module):
             self,
             in_shape: tuple= (784, 10)):
         nn.Module.__init__(self)
-        self.lin = nn.Linear(*in_shape)
+        self.lin = LayDense(*in_shape)
 
     def forward(self, xb) -> Dict:
         return {'logits': self.lin(xb)}
