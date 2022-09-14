@@ -64,3 +64,9 @@ class TF_Dropout(torch.nn.Module):
             output = output * f_drop
 
         return output
+
+
+class Attn(torch.nn.Module):
+
+    def __init__(self):
+        super(Attn, self).__init__()
