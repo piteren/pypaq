@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from typing import Dict, Optional
+from typing import Optional
 
 from pypaq.lipytools.little_methods import stamp, get_params, get_func_dna
 from pypaq.lipytools.logger import set_logger
@@ -9,7 +9,6 @@ from pypaq.pms.parasave import ParaSave
 
 # restricted keys for fwd_func DNA and return DNA (if they appear in kwargs, should be named exactly like below)
 SPEC_KEYS = [
-    'name',         # model name
     'train_vars',   # list of variables to train (may be returned, otherwise all trainable are taken)
     'opt_vars',     # list of variables returned by opt_func
     'loss',         # loss
@@ -39,7 +38,7 @@ MOTORCH_DEFAULTS = {
     'do_clip':      False,
     # other
     'save_topdir':  '_models',                  # top folder of model save
-    'save_fn_pfx':  'todel_dna',           # dna filename prefix
+    'save_fn_pfx':  'todel_dna',                # dna filename prefix
     'load_ckpt':    True,                       # (bool) loads checkpoint (if saved earlier)
     'hpmser_mode':  False,                      # it will set model to be read_only and quiet when running with hpmser
     'read_only':    False,                      # sets model to be read only - wont save anything (wont even create self.model_dir)
@@ -47,6 +46,7 @@ MOTORCH_DEFAULTS = {
     'do_TB':        True}                       # runs TensorBard, saves in self.model_dir
 
 
+class MOTorchException(Exception): pass
 
 class MOTorch(ParaSave, nn.Module):
 
@@ -60,7 +60,12 @@ class MOTorch(ParaSave, nn.Module):
             verb=                   0,
             **kwargs):
 
-        name = model.__class__.__name__ if not name else name
+        # hpmser_mode - very early override, ..hpmser_mode==True will not be saved ever, so the only way to set it is to get it with kwargs
+        if kwargs.get('hpmser_mode', False):
+            verb = 0
+            kwargs['read_only'] = True
+
+        name = model.__name__ if not name else name
         if name_timestamp: name += f'.{stamp()}'
         if verb>0: print(f'\n *** MOTorch {name} (type: {type(self).__name__}) *** initializes..')
 
@@ -89,12 +94,7 @@ class MOTorch(ParaSave, nn.Module):
         ParaSave.__init__(self, lock_managed_params=True, **dna)
         self.check_params_sim(SPEC_KEYS + list(MOTORCH_DEFAULTS.keys())) # safety check
 
-        # hpmser_mode - early override
-        if self['hpmser_mode']:
-            self.verb = 0
-            self['read_only'] = True
-
-        # read only - early override
+        # read only - override
         if self['read_only']:
             self['do_logfile'] = False
             self['do_TB'] = False
@@ -137,8 +137,8 @@ class MOTorch(ParaSave, nn.Module):
         torch.backends.cudnn.benchmark = False
         # https://pytorch.org/docs/stable/notes/randomness.html
 
-        self._torch_module = model
-        self._torch_module.__init__(self, **dna_model)
+        self._torch_model = model
+        self._torch_model.__init__(self, **dna_model)
 
         if self['load_ckpt']:
             try:
@@ -150,30 +150,30 @@ class MOTorch(ParaSave, nn.Module):
         if self.verb>0: print(f'\n > MOTorch init finished..')
 
     def forward(self, *args, **kwargs):
-        return self._torch_module.forward(self, *args, **kwargs)
+        return self._torch_model.forward(self, *args, **kwargs)
 
     # reloads model checkpoint
     def _load_ckpt(self):
         # TODO: load all that has been saved
         checkpoint = torch.load(f'{self.model_dir}/{self.name}.pt')
-        self._torch_module.load_state_dict(self, checkpoint['model_state_dict'])
+        self._torch_model.load_state_dict(self, checkpoint['model_state_dict'])
 
     # saves model checkpoint
     def _save_ckpt(self):
         # TODO: decide what to save
         torch.save({
             #'epoch': 5,
-            'model_state_dict': self._torch_module.state_dict(self),
+            'model_state_dict': self._torch_model.state_dict(self),
             # 'optimizer_state_dict': optimizer.state_dict(),
             #'loss': 0.4
         }, f'{self.model_dir}/{self.name}.pt')
 
     # saves MOTorch (ParaSave DNA and checkpoint)
     def save(self):
-        assert not self['read_only'], 'ERR: read only MOTorch cannot be saved!'
+        if self['read_only']: raise MOTorchException('ERR: read only MOTorch cannot be saved!')
         self.save_dna()
         self._save_ckpt()
         if self.verb>0: print(f'MOTorch {self.name} saved')
 
     def __str__(self):
-        return f'{ParaSave.__str__(self)}\n\n{self._torch_module.__str__(self)}'
+        return f'{ParaSave.__str__(self)}\n\n{self._torch_model.__str__(self)}'

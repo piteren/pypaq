@@ -133,7 +133,7 @@ class ParaSave(SubGX):
             s += ParaSave.dict_2str(dna)
             file.write(s)
 
-    # loads, next overrides parameters from kwargs and saves new ParaSave DNA
+    # loads, next overrides parameters from given kwargs and saves new ParaSave DNA
     @staticmethod
     def oversave(
             name: str,
