@@ -180,6 +180,7 @@ class TestMOTor(unittest.TestCase):
 
         model = MOTorch(
             model=          LinModel,
+            save_topdir=    NEMODEL_DIR,
             do_logfile=     False)
         model.save()
 
@@ -197,6 +198,7 @@ class TestMOTor(unittest.TestCase):
 
         model = MOTorch(
             model=          LinModel,
+            save_topdir=    NEMODEL_DIR,
             in_shape=       (256, 10),
             name_timestamp= True,
             seed=           121,
@@ -208,11 +210,12 @@ class TestMOTor(unittest.TestCase):
         model.save()
 
         loaded_model = MOTorch(
-            model=      LinModel,
-            name=       name,
-            seed=       123, # although different seed, model will load checkpoint
-            do_logfile= False,
-            verb=       0)
+            model=          LinModel,
+            save_topdir=    NEMODEL_DIR,
+            name=           name,
+            seed=           123, # although different seed, model will load checkpoint
+            do_logfile=     False,
+            verb=           0)
         out2 = loaded_model(tns)
         print(out2)
         # print(loaded_model)
