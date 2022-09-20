@@ -30,7 +30,7 @@ def gelu(x):
     cdf = 0.5 * (1.0 + tf.tanh((np.sqrt(2 / np.pi) * (x + 0.044715 * tf.pow(x, 3)))))
     return x * cdf
 
-# scales learning rate with warmUp and annealing (after warmUp)
+# scales learning rate with warm-up and annealing (after warm-up)
 def lr_scaler(
         iLR,                        # initial learning rate
         g_step: tf.Tensor=  None,   # global step tf.variable of tf.int type, for None creates one
@@ -67,7 +67,7 @@ def lr_scaler(
         'scaled_LR':    lR,
         'g_step':       g_step}
 
-# gradient clipping method (by clip_value or AVT algorithm)
+# gradient clipping function (by clip_value or AVT algorithm)
 def grad_clipper_AVT(
         gradients,                  # gradients to clip
         clip_value=     None,       # clipping value, for None clips with avt

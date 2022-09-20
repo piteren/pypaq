@@ -7,6 +7,7 @@ import unittest
 from tests.envy import flush_tmp_dir
 
 from pypaq.torchness.motorch import MOTorch, MOTorchException
+from pypaq.torchness.layers import LayDense
 
 NEMODEL_DIR = f'{flush_tmp_dir()}/motorch'
 
@@ -17,7 +18,7 @@ class LinModel(nn.Module):
             self,
             in_shape: tuple= (784, 10)):
         nn.Module.__init__(self)
-        self.lin = nn.Linear(*in_shape)
+        self.lin = LayDense(*in_shape)
 
     def forward(self, xb) -> Dict:
         return {'logits': self.lin(xb)}
@@ -30,7 +31,7 @@ class LinModelSeed(nn.Module):
             in_shape: tuple=    (784, 10),
             seed=               111):
         nn.Module.__init__(self)
-        self.lin = nn.Linear(*in_shape)
+        self.lin = LayDense(*in_shape)
 
     def forward(self, xb) -> Dict:
         return {'logits': self.lin(xb)}
