@@ -135,6 +135,7 @@ class TestMOTor(unittest.TestCase):
 
         model = MOTorch(
             model=          LinModelSeed,
+            save_topdir=    NEMODEL_DIR,
             do_logfile=     False,
             in_shape=       (24,24))
         print(model['seed'])        # MOTORCH_DEFAULTS overridden with nn.Module defaults
@@ -143,6 +144,7 @@ class TestMOTor(unittest.TestCase):
 
         model = MOTorch(
             model=          LinModelSeed,
+            save_topdir=    NEMODEL_DIR,
             seed=           212,
             do_logfile=     False)
         print(model['in_shape'])    # loaded from save
