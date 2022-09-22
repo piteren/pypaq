@@ -11,6 +11,7 @@ import csv
 import inspect
 import json
 import os
+from pathlib import Path
 import pickle
 import random
 import shutil
@@ -188,7 +189,7 @@ def print_nested_dict(dc: dict, ind_scale=2, line_limit=200):
 
 # prepares folder, creates or flushes
 def prep_folder(
-        folder_path :str,           # folder path
+        folder_path: Union[str, Path],  # folder path
         flush_non_empty=    False):
     if flush_non_empty and os.path.isdir(folder_path): shutil.rmtree(folder_path)
     os.makedirs(folder_path, exist_ok=True)

@@ -5,6 +5,7 @@ from typing import Optional
 from pypaq.lipytools.little_methods import stamp, get_params, get_func_dna
 from pypaq.lipytools.logger import set_logger
 from pypaq.pms.parasave import ParaSave
+from pypaq.mpython.devices import get_devices
 
 
 # restricted keys for fwd_func DNA and return DNA (if they appear in kwargs, should be named exactly like below)
@@ -24,7 +25,7 @@ MOTORCH_DEFAULTS = {
     'seed':         123,                        # seed for torch and numpy
     # TODO:
     #'opt_class':    tf.keras.optimizers.Adam,   # default optimizer of train()
-    'devices':      'GPU:0',                    # for TF1 we used '/device:CPU:0'
+    'devices':      -1,                         # : DevicesParam (check pypaq.mpython.devices)
     # LR management (parameters of LR warmup and annealing)
     'iLR':          3e-4,                       # initial learning rate (base init)
     'warm_up':      None,
@@ -46,7 +47,9 @@ MOTORCH_DEFAULTS = {
     'do_TB':        True}                       # runs TensorBard, saves in self.model_dir
 
 
-class MOTorchException(Exception): pass
+class MOTorchException(Exception):
+    pass
+
 
 class MOTorch(ParaSave, nn.Module):
 
@@ -129,7 +132,17 @@ class MOTorch(ParaSave, nn.Module):
             print(f' MOTorch model DNA:                    {dna_model}')
             print(f' MOTorch complete DNA:                 {dna}')
 
-        # TODO: manage devices
+        # *********************************************************************************************** manage devices
+
+        if self.verb>0: print(f'\n > MOTorch resolves devices, given: {self["devices"]}, torch.cuda.is_available(): {torch.cuda.is_available()}')
+
+        self['devices'] = get_devices(
+            devices=    self['devices'],
+            namespace=  'torch',
+            verb=       self.verb-1)
+        if self.verb>0: print(f' > MOTorch will use devices: {self["devices"]}')
+        # TODO: by now supported is only first given device
+        self.torch_dev = torch.device(self['devices'][0])
 
         torch.manual_seed(self['seed'])
         torch.cuda.manual_seed(self['seed'])
@@ -139,6 +152,7 @@ class MOTorch(ParaSave, nn.Module):
 
         self._torch_model = model
         self._torch_model.__init__(self, **dna_model)
+        self.to(self.torch_dev)
 
         if self['load_ckpt']:
             try:
@@ -150,6 +164,8 @@ class MOTorch(ParaSave, nn.Module):
         if self.verb>0: print(f'\n > MOTorch init finished..')
 
     def forward(self, *args, **kwargs):
+        args = [a.to(self.torch_dev) for a in args]
+        kwargs = {k: kwargs[k].to(self.torch_dev) for k in kwargs}
         return self._torch_model.forward(self, *args, **kwargs)
 
     # reloads model checkpoint

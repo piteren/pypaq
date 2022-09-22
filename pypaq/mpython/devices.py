@@ -42,10 +42,17 @@ def report_cuda():
 
 def get_devices(
         devices: DevicesParam=  -1,
-        tf2_naming=             False,
+        namespace: str=         'TF1',
         verb=                   1) -> List[str]:
 
-    device_pfx = '/device:' if not tf2_naming else ''
+    if namespace not in ['TF1','TF2','torch']:
+        raise NameError('Wrong namespace, supported are: TF1, TF2 or torch')
+
+    device_pfx = '/device:'
+    if namespace in ['TF2','torch']: device_pfx = ''
+
+    cpu_pfx = 'cpu' if 'TF' not in namespace else 'CPU'
+    gpu_pfx = 'cuda' if 'TF' not in namespace else 'GPU'
 
     # all CPU case
     if devices == 'all': devices = [None] * sys_res_nfo()['cpu_count']
@@ -93,10 +100,10 @@ def get_devices(
 
     # prepare final list
     final_devices = []
-    final_devices += [f'{device_pfx}CPU:0'] * len(devices_CPU)
+    final_devices += [f'{device_pfx}{cpu_pfx}:0'] * len(devices_CPU)
     if devices_int:
         if verb>0: report_cuda()
-        for dev in devices_int: final_devices.append(f'{device_pfx}GPU:{dev}')
+        for dev in devices_int: final_devices.append(f'{device_pfx}{gpu_pfx}:{dev}')
 
     if verb>0: print(f'\nget_devices is returning {len(final_devices)} devices: {final_devices}')
     return final_devices
