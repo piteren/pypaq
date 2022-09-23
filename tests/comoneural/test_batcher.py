@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from pypaq.neuralmess_duo.batcher import Batcher, BATCHING_TYPES
+from pypaq.comoneural.batcher import Batcher, BATCHING_TYPES
 from pypaq.lipytools.stats import msmx
 
 
@@ -18,9 +18,8 @@ class TestBatcher(unittest.TestCase):
 
             samples = np.arange(num_samples)
             np.random.shuffle(samples)
-            samples = samples.tolist()
 
-            labels = np.random.choice(2, num_samples).tolist()
+            labels = np.random.choice(2, num_samples)
 
             data = {
                 'samples':  samples,
@@ -53,9 +52,8 @@ class TestBatcher(unittest.TestCase):
 
         samples = np.arange(c_size)
         np.random.shuffle(samples)
-        samples = samples.tolist()
 
-        labels = np.random.choice(2, c_size).tolist()
+        labels = np.random.choice(2, c_size)
 
         data = {
             'samples': samples,

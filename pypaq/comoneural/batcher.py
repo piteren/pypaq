@@ -3,6 +3,9 @@
  2020 (c) piteren
 
     NN Batcher
+        takes data and prepares batches
+        data for training, validation or testing is a dict: {key: np.array or torch.tensor}
+        batch is prepared from each key
 
 """
 
@@ -15,11 +18,15 @@ BATCHING_TYPES = [
     'random_cov']   # random sampling with full coverage of data
 
 
+class BatcherException(Exception):
+    pass
+
+
 class Batcher:
 
     def __init__(
             self,
-            data_TR: dict,              # {key: np.array or list}, batch is prepared from each key
+            data_TR: dict,
             data_VL: dict=      None,
             data_TS: dict=      None,
             batch_size: int=    16,
@@ -31,14 +38,16 @@ class Batcher:
         self.verb = verb
         self.seed_counter = seed
 
-        assert batching_type in BATCHING_TYPES, f'ERR: unknown batching_type'
+        if batching_type not in BATCHING_TYPES:
+            raise BatcherException('ERR: unknown batching_type!')
+
         self.btype = batching_type
 
         self._data_keys = sorted(list(data_TR.keys()))
 
-        self._data_TR = {k: np.asarray(data_TR[k]) for k in self._data_keys} # as numpy
-        self._data_VL = {k: np.asarray(data_VL[k]) for k in self._data_keys} if data_VL else None
-        self._data_TS = {k: np.asarray(data_TS[k]) for k in self._data_keys} if data_TS else None
+        self._data_TR = data_TR
+        self._data_VL = data_VL
+        self._data_TS = data_TS
         self._data_len_TR = self._data_TR[self._data_keys[0]].shape[0]
 
         self._batch_size = None
@@ -46,6 +55,9 @@ class Batcher:
         self._bs_mul = bs_mul
 
         self._data_ixmap = []
+
+        self._VL_batches = None
+        self._TS_batches = None
 
         if verb>0:
             print(f'\nBatcher initialized with {self._data_len_TR} samples of data in keys:')
@@ -71,7 +83,8 @@ class Batcher:
             self._data_ixmap += new_ixmap
 
     def set_batch_size(self, bs: int):
-        assert not self._data_len_TR < bs, 'ERR: cannot set batch size larger than data!'
+        if bs > self._data_len_TR:
+            raise BatcherException('ERR: cannot set batch size larger than given TR data!')
         self._batch_size = bs
 
     def get_batch(self) -> dict:
@@ -96,10 +109,18 @@ class Batcher:
             counter += 1
         return split
 
+
     def get_VL_batches(self) -> list:
-        assert self._data_VL, 'ERR: cannot prepare VL batches - data nat given'
-        return Batcher.__split_data(self._data_VL, self._batch_size * self._bs_mul)
+        if self._VL_batches is None:
+            if self._data_VL is None:
+                raise BatcherException('ERR: cannot prepare VL batches - data nat given')
+            self._VL_batches =  Batcher.__split_data(self._data_VL, self._batch_size * self._bs_mul)
+        return self._VL_batches
+
 
     def get_TS_batches(self) -> list:
-        assert self._data_TS, 'ERR: cannot prepare VL batches - data nat given'
-        return Batcher.__split_data(self._data_TS, self._batch_size * self._bs_mul)
+        if self._TS_batches is None:
+            if self._data_TS is None:
+                raise BatcherException('ERR: cannot prepare TS batches - data nat given')
+            self._TS_batches = Batcher.__split_data(self._data_TS, self._batch_size * self._bs_mul)
+        return self._TS_batches

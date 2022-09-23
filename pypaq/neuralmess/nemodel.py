@@ -65,7 +65,7 @@ from pypaq.neuralmess.get_tf import tf
 from pypaq.neuralmess.base_elements import num_var_floats, lr_scaler, gc_loss_reductor, log_vars, mrg_ckpts, TBwr
 from pypaq.neuralmess.layers import lay_dense
 from pypaq.neuralmess.multi_saver import MultiSaver
-from pypaq.neuralmess_duo.batcher import Batcher
+from pypaq.comoneural.batcher import Batcher
 
 
 # restricted keys for fwd_func DNA and return DNA (if they appear in kwargs, should be named exactly like below)
@@ -80,10 +80,10 @@ SPEC_KEYS = [
 # defaults below may be given with NEModelDUO kwargs or overridden by fwd_graph attributes
 NEMODEL_DEFAULTS = {
     'seed':                 12321,                      # seed for TF and numpy
-    'devices':              -1,                         # check mpython.devices for details
-        # batches
-    'batch_size':           64,
-    'n_batches':            1000,
+    'devices':              -1,                         # : DevicesParam (check pypaq.mpython.devices)
+        # training
+    'batch_size':           64,                         # training batch size
+    'n_batches':            1000,                       # default length of training
         # other
     'save_topdir':          '_models',                  # top folder of model save
     'save_fn_pfx':          'nemodel_dna',              # dna filename prefix
@@ -621,17 +621,21 @@ class NEModel(ParaSave):
         warnings.warn('NEModel.build_feed() should be overridden!')
         return {}
 
-
+    # TODO: refactor according to MOTorch train concept
+    #  - load_data()
     # training method, saves max
     def train(
             self,
-            test_freq=          100,    # number of batches between tests, model SHOULD BE tested while training
-            mov_avg_factor=     0.1,
-            save=               True):  # allows to save model while training
+            n_batches: Optional[int]=   None,
+            test_freq=                  100,    # number of batches between tests, model SHOULD BE tested while training
+            mov_avg_factor=             0.1,
+            save=                       True    # allows to save model while training
+    ):
 
         self.pre_train()
 
         if self.verb>0: print(f'{self.name} - training starts')
+        if n_batches is None: n_batches = self['n_batches']  # take default
         batch_IX = 0
         tr_lssL = []
         tr_accL = []
@@ -639,13 +643,13 @@ class NEModel(ParaSave):
         ts_acc_mav = MovAvg(mov_avg_factor)
 
         ts_results = []
-        ts_bIX = [bIX for bIX in range(self['n_batches']+1) if not bIX % test_freq] # batch indexes when test will be performed
+        ts_bIX = [bIX for bIX in range(n_batches+1) if not bIX % test_freq] # batch indexes when test will be performed
         assert ts_bIX, 'ERR: model SHOULD BE tested while training!'
         ten_factor = int(0.1*len(ts_bIX)) # number of tests for last 10% of training
         if ten_factor < 1: ten_factor = 1 # we need at least one result
         if self['hpmser_mode']: ts_bIX = ts_bIX[-ten_factor:]
 
-        while batch_IX < self['n_batches']:
+        while batch_IX < n_batches:
             batch_IX += 1
             batch = self._batcher.get_batch()
 

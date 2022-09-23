@@ -42,7 +42,7 @@ class TestMOTor(unittest.TestCase):
     def test_base_creation_call(self):
 
         model = MOTorch(
-            model=      LinModel,
+            module=     LinModel,
             do_logfile= False,
             verb=       1)
         print(model)
@@ -59,18 +59,18 @@ class TestMOTor(unittest.TestCase):
     def test_name_stamp(self):
 
         model = MOTorch(
-            model=      LinModel,
+            module=     LinModel,
             do_logfile= False)
         self.assertTrue(model['name'] == 'LinModel')
 
         model = MOTorch(
-            model=      LinModel,
+            module=     LinModel,
             name=       'LinTest',
             do_logfile= False)
         self.assertTrue(model['name'] == 'LinTest')
 
         model = MOTorch(
-            model=          LinModel,
+            module=         LinModel,
             name_timestamp= True,
             do_logfile=     False)
         self.assertTrue(model['name'] != 'LinModel')
@@ -79,7 +79,7 @@ class TestMOTor(unittest.TestCase):
     def test_ParaSave(self):
 
         model = MOTorch(
-            model=          LinModel,
+            module=         LinModel,
             save_topdir=    NEMODEL_DIR,
             do_logfile=     False,
             in_shape=       (12,12))
@@ -87,21 +87,21 @@ class TestMOTor(unittest.TestCase):
 
         # this model will not load
         model = MOTorch(
-            model=          LinModel,
+            module=         LinModel,
             do_logfile=     False)
         print(model['in_shape'])
         self.assertTrue(model['in_shape'][0] != 12)
 
         # this model will load from NEMODEL_DIR
         model = MOTorch(
-            model=          LinModel,
+            module=         LinModel,
             save_topdir=    NEMODEL_DIR,
             do_logfile=     False)
         print(model['in_shape'])
         self.assertTrue(model['in_shape'][0] == 12)
 
         model = MOTorch(
-            model=          LinModel,
+            module=         LinModel,
             name_timestamp= True,
             save_topdir=    NEMODEL_DIR,
             do_logfile=     False,
@@ -110,7 +110,7 @@ class TestMOTor(unittest.TestCase):
         print(model['name'])
 
         model = MOTorch(
-            model=          LinModel,
+            module=         LinModel,
             name=           model['name'],
             save_topdir=    NEMODEL_DIR,
             do_logfile=     False)
@@ -119,7 +119,7 @@ class TestMOTor(unittest.TestCase):
     def test_params_resolution(self):
 
         model = MOTorch(
-            model=          LinModel,
+            module=         LinModel,
             do_logfile=     False)
         print(model['seed'])        # value from MOTORCH_DEFAULTS
         print(model['in_shape'])    # value from nn.Module defaults
@@ -127,14 +127,14 @@ class TestMOTor(unittest.TestCase):
         self.assertTrue(model['in_shape'] == (784,10))
 
         model = MOTorch(
-            model=          LinModel,
+            module=         LinModel,
             do_logfile=     False,
             seed=           151)
         print(model['seed'])        # MOTORCH_DEFAULTS overridden with kwargs
         self.assertTrue(model['seed'] == 151)
 
         model = MOTorch(
-            model=          LinModelSeed,
+            module=         LinModelSeed,
             save_topdir=    NEMODEL_DIR,
             do_logfile=     False,
             in_shape=       (24,24))
@@ -143,7 +143,7 @@ class TestMOTor(unittest.TestCase):
         model.save()
 
         model = MOTorch(
-            model=          LinModelSeed,
+            module=         LinModelSeed,
             save_topdir=    NEMODEL_DIR,
             seed=           212,
             do_logfile=     False)
@@ -159,7 +159,7 @@ class TestMOTor(unittest.TestCase):
         tns = tns.float()
 
         model = MOTorch(
-            model=      LinModel,
+            module=     LinModel,
             seed=       121,
             do_logfile= False)
         out1 = model(tns)
@@ -167,25 +167,25 @@ class TestMOTor(unittest.TestCase):
         print(out1)
 
         model = MOTorch(
-            model=      LinModel,
+            module=     LinModel,
             seed=       121,
             do_logfile= False)
         out2 = model(tns)
         print(model['seed'])
         print(out2)
 
-        self.assertTrue(np.sum(out1['logits'].detach().numpy()) == np.sum(out2['logits'].detach().numpy()))
+        self.assertTrue(np.sum(out1['logits'].cpu().detach().numpy()) == np.sum(out2['logits'].cpu().detach().numpy()))
 
     def test_read_only(self):
 
         model = MOTorch(
-            model=          LinModel,
+            module=         LinModel,
             save_topdir=    NEMODEL_DIR,
             do_logfile=     False)
         model.save()
 
         model = MOTorch(
-            model=          LinModel,
+            module=         LinModel,
             read_only=      True,
             do_logfile=     False)
         self.assertRaises(MOTorchException, model.save)
@@ -197,7 +197,7 @@ class TestMOTor(unittest.TestCase):
         tns = tns.float()
 
         model = MOTorch(
-            model=          LinModel,
+            module=         LinModel,
             save_topdir=    NEMODEL_DIR,
             in_shape=       (256, 10),
             name_timestamp= True,
@@ -210,7 +210,7 @@ class TestMOTor(unittest.TestCase):
         model.save()
 
         loaded_model = MOTorch(
-            model=          LinModel,
+            module=         LinModel,
             save_topdir=    NEMODEL_DIR,
             name=           name,
             seed=           123, # although different seed, model will load checkpoint
@@ -220,12 +220,12 @@ class TestMOTor(unittest.TestCase):
         print(out2)
         # print(loaded_model)
 
-        self.assertTrue(np.sum(out1['logits'].detach().numpy()) == np.sum(out2['logits'].detach().numpy()))
+        self.assertTrue(np.sum(out1['logits'].cpu().detach().numpy()) == np.sum(out2['logits'].cpu().detach().numpy()))
 
     def test_hpmser_mode(self):
 
         model = MOTorch(
-            model=          LinModel,
+            module=         LinModel,
             hpmser_mode=    True,
             do_logfile=     False,
             verb=           1)
