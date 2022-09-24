@@ -1,3 +1,4 @@
+from abc import abstractmethod, ABC
 import torch
 from typing import Optional
 
@@ -53,12 +54,23 @@ MOTORCH_DEFAULTS = {
 class MOTorchException(Exception):
     pass
 
+# torch.nn.Module to be implemented with forward & loss methods
+class Module(ABC, torch.nn.Module):
 
-class MOTorch(ParaSave):
+    @abstractmethod
+    def forward(self, *args, **kwargs):
+        raise NotImplementedError
+
+    @abstractmethod
+    def loss(self, *args, **kwargs) -> torch.Tensor:
+        raise NotImplementedError
+
+# extends Module (torch.nn.Module) with ParaSave and many others
+class MOTorch(ParaSave, Module):
 
     def __init__(
             self,
-            module: type(torch.nn.Module),
+            module: type(Module),
             name: Optional[str]=    None,
             name_timestamp=         False,      # adds timestamp to the model name
             save_topdir=            MOTORCH_DEFAULTS['save_topdir'],
@@ -71,7 +83,9 @@ class MOTorch(ParaSave):
             verb = 0
             kwargs['read_only'] = True
 
-        name = module.__name__ if not name else name
+        self.module = module
+
+        name = self.module.__name__ if not name else name
         if name_timestamp: name += f'.{stamp()}'
         if verb>0: print(f'\n *** MOTorch {name} (type: {type(self).__name__}) *** initializes..')
 
@@ -83,10 +97,10 @@ class MOTorch(ParaSave):
             save_topdir=    save_topdir,
             save_fn_pfx=    save_fn_pfx)
 
-        _module_init_params = get_params(module.__init__)
+        _module_init_params = get_params(self.module.__init__)
         _module_init_params_defaults = _module_init_params['with_defaults']   # get init params defaults
 
-        dna = {'module': module}
+        dna = {}
         dna.update(MOTORCH_DEFAULTS)
         dna.update(_module_init_params_defaults)
         dna.update(dna_saved)
@@ -123,7 +137,7 @@ class MOTorch(ParaSave):
 
             not_used_kwargs = {}
             for k in kwargs:
-                if k not in get_func_dna(module.__init__, dna):
+                if k not in get_func_dna(self.module.__init__, dna):
                     not_used_kwargs[k] = kwargs[k]
 
             print(f'\n > MOTorch DNA sources:')
@@ -147,8 +161,8 @@ class MOTorch(ParaSave):
         torch.backends.cudnn.benchmark = False
         # https://pytorch.org/docs/stable/notes/randomness.html
 
-        self.module = module(**dna_module)
-        self.module.to(self.torch_dev)
+        self.module.__init__(self, **dna_module)
+        self.to(self.torch_dev)
 
         if self['load_ckpt']:
             try:
@@ -171,7 +185,7 @@ class MOTorch(ParaSave):
         # TODO: by now supported is only first given device
         return torch.device(self['devices'][0])
 
-    def __call__(
+    def __torch_dev(
             self,
             *args,
             to_torch=   True,  # converts given data to torch.Tensors
@@ -183,7 +197,27 @@ class MOTorch(ParaSave):
         if to_devices:
             args = [a.to(self.torch_dev) for a in args]
             kwargs = {k: kwargs[k].to(self.torch_dev) for k in kwargs}
-        return self.module.forward(*args, **kwargs)
+        return args, kwargs
+
+
+    def forward(
+            self,
+            *args,
+            to_torch=   True,  # converts given data to torch.Tensors
+            to_devices= True,  # moves tensors to devices
+            **kwargs):
+        args, kwargs = self.__torch_dev(*args, to_torch=to_torch, to_devices=to_devices, **kwargs)
+        return self.module.forward(self, *args, **kwargs)
+
+
+    def loss(
+            self,
+            *args,
+            to_torch=   True,  # converts given data to torch.Tensors
+            to_devices= True,  # moves tensors to devices
+            **kwargs):
+        args, kwargs = self.__torch_dev(*args, to_torch=to_torch, to_devices=to_devices, **kwargs)
+        return self.module.loss(self, *args, **kwargs)
 
     # **************************************************************************************** baseline training methods
 
@@ -237,16 +271,16 @@ class MOTorch(ParaSave):
         if ten_factor < 1: ten_factor = 1 # we need at least one result
         if self['hpmser_mode']: ts_bIX = ts_bIX[-ten_factor:]
 
-        opt = torch.optim.SGD(self.module.parameters(), lr=0.5)
+        opt = torch.optim.SGD(self.parameters(), lr=0.5)
         scheduler = ScaledLR(opt, warm_up=500)
-        grad_clipper = GradClipperAVT(module=self.module)
+        grad_clipper = GradClipperAVT(module=self)
 
         while batch_IX < n_batches:
             batch_IX += 1
             batch = self._batcher.get_batch()
 
             print(batch)
-            loss = self.module.loss(**batch) # TODO: i dont like it <-
+            loss = self.loss(**batch) # TODO: i dont like it <-
 
             loss.backward()                 # update gradients
             gnD = grad_clipper.clip()       # clip gradients
@@ -319,14 +353,14 @@ class MOTorch(ParaSave):
     def _load_ckpt(self):
         # TODO: load all that has been saved
         checkpoint = torch.load(f'{self.model_dir}/{self.name}.pt')
-        self.module.load_state_dict(checkpoint['model_state_dict'])
+        self.load_state_dict(checkpoint['model_state_dict'])
 
     # saves model checkpoint
     def _save_ckpt(self):
         # TODO: decide what to save
         torch.save({
             #'epoch': 5,
-            'model_state_dict': self.module.state_dict(),
+            'model_state_dict': self.state_dict(),
             # 'optimizer_state_dict': optimizer.state_dict(),
             #'loss': 0.4
         }, f'{self.model_dir}/{self.name}.pt')
@@ -339,4 +373,4 @@ class MOTorch(ParaSave):
         if self.verb>0: print(f'MOTorch {self.name} saved')
 
     def __str__(self):
-        return f'{ParaSave.__str__(self)}\n\n{self.module.__str__()}'
+        return f'{ParaSave.__str__(self)}\n\n{self.module.__str__(self)}'

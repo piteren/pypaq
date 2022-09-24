@@ -6,13 +6,13 @@ import unittest
 
 from tests.envy import flush_tmp_dir
 
-from pypaq.torchness.motorch import MOTorch, MOTorchException
+from pypaq.torchness.motorch import MOTorch, Module, MOTorchException
 from pypaq.torchness.layers import LayDense
 
 NEMODEL_DIR = f'{flush_tmp_dir()}/motorch'
 
 
-class LinModel(nn.Module):
+class LinModel(Module):
 
     def __init__(
             self,
@@ -20,21 +20,23 @@ class LinModel(nn.Module):
         nn.Module.__init__(self)
         self.lin = LayDense(*in_shape)
 
-    def forward(self, xb) -> Dict:
-        return {'logits': self.lin(xb)}
+    def forward(self, inp) -> Dict:
+        return {'logits': self.lin(inp)}
+
+    def loss(self, inp, lbl) -> torch.Tensor:
+        logits = self(inp)['logits']
+        loss_func = torch.nn.functional.cross_entropy
+        loss = loss_func(logits, lbl)   # calculate loss
+        return loss
 
 
-class LinModelSeed(nn.Module):
+class LinModelSeed(LinModel):
 
     def __init__(
             self,
             in_shape: tuple=    (784, 10),
             seed=               111):
-        nn.Module.__init__(self)
-        self.lin = LayDense(*in_shape)
-
-    def forward(self, xb) -> Dict:
-        return {'logits': self.lin(xb)}
+        LinModel.__init__(self, in_shape=in_shape)
 
 
 class TestMOTor(unittest.TestCase):
@@ -48,13 +50,19 @@ class TestMOTor(unittest.TestCase):
         print(model)
 
         inp = np.random.random((5, 784))
-        tns = torch.tensor(inp)
-        tns = tns.float()
+        inp = torch.tensor(inp)
+        inp = inp.float()
 
-        out = model(tns)
+        lbl = np.random.randint(0,9,5)
+
+        out = model(inp)
         print(out)
         logits = out['logits']
         self.assertTrue(logits.shape[0]==5 and logits.shape[1]==10)
+
+        loss = model.loss(inp, lbl)
+        print(type(loss))
+        print(loss)
 
     def test_name_stamp(self):
 
