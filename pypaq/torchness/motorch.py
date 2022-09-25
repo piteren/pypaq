@@ -82,8 +82,8 @@ class MOTorch(ParaSave, Module):
             module: type(Module),
             name: Optional[str]=        None,
             name_timestamp=             False,      # adds timestamp to the model name
-            save_topdir: Optional[str]= None,
-            save_fn_pfx: Optional[str]= None,
+            save_topdir: str=           SAVE_TOPDIR,
+            save_fn_pfx: str=           SAVE_FN_PFX,
             verb=                       0,
             **kwargs):
 
@@ -99,9 +99,6 @@ class MOTorch(ParaSave, Module):
         if verb>0: print(f'\n *** MOTorch {name} (type: {type(self).__name__}) *** initializes..')
 
         # ************************************************************************* manage (resolve) DNA & init ParaSave
-
-        if not save_topdir: save_topdir = self.SAVE_TOPDIR
-        if not save_fn_pfx: save_fn_pfx = self.SAVE_FN_PFX
 
         # load dna from folder
         dna_saved = ParaSave.load_dna(

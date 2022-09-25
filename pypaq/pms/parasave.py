@@ -39,7 +39,7 @@ class ParaSave(SubGX):
 
         self.name = name
 
-        if save_fn_pfx is None: save_fn_pfx = self.SAVE_FN_PFX
+        if save_fn_pfx is None: save_fn_pfx = ParaSave.SAVE_FN_PFX
 
         if assert_saved:
             obj_FN = ParaSave.__obj_fn(name, save_topdir, save_fn_pfx)

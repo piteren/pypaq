@@ -60,6 +60,7 @@ from pypaq.lipytools.little_methods import short_scin, stamp, get_params, get_fu
 from pypaq.lipytools.moving_average import MovAvg
 from pypaq.mpython.devices import mask_cuda, get_devices
 from pypaq.mpython.mpdecor import proc_wait
+from pypaq.pms.base_types import POINT
 from pypaq.pms.parasave import ParaSave
 from pypaq.neuralmess.get_tf import tf
 from pypaq.neuralmess.base_elements import num_var_floats, lr_scaler, gc_loss_reductor, log_vars, mrg_ckpts, TBwr
@@ -85,8 +86,6 @@ NEMODEL_DEFAULTS = {
     'batch_size':           64,                         # training batch size
     'n_batches':            1000,                       # default length of training
         # other
-    'save_topdir':          '_models',                  # top folder of model save
-    'save_fn_pfx':          'nemodel_dna',              # dna filename prefix
     'hpmser_mode':          False,                      # it will set model to be read_only and quiet when running with hpmser
     'savers_names':         (None,),                    # names of savers for MultiSaver
     'load_saver':           True,                       # Optional[bool or str] for None/False does not load, for True loads default
@@ -209,14 +208,17 @@ def opt_graph(
 # NEModel Base class, implements most features (but not saving)
 class NEModel(ParaSave):
 
+    SAVE_TOPDIR = '_models'
+    SAVE_FN_PFX = 'nemodel_dna' # filename (DNA) prefix
+
     def __init__(
             self,
             name: str,
             name_timestamp=                 False,      # adds timestamp to model name
             fwd_func: Optional[Callable]=   None,       # function building graph (from inputs to loss) - may be not given if model already saved
             opt_func: Optional[Callable]=   opt_graph,  # default function building optimization (OPT) graph (from train_vars & gradients to optimizer)
-            save_topdir=                    NEMODEL_DEFAULTS['save_topdir'],
-            save_fn_pfx=                    NEMODEL_DEFAULTS['save_fn_pfx'],
+            save_topdir: str=               SAVE_TOPDIR,
+            save_fn_pfx: str=               SAVE_FN_PFX,
             verb=                           0,
             **kwargs):                                  # here go params of FWD & OPT functions
 
@@ -567,37 +569,6 @@ class NEModel(ParaSave):
         if self['do_TB']: self.__TBwr.add(value=value, tag=tag, step=step)
         else: warnings.warn(f'NEModel {self.name} cannot log TensorBoard since do_TB flag is False!')
 
-    # GX for two NEModel checkpoints
-    @staticmethod
-    def gx_ckpt(
-            name_A: str,                        # name parent A
-            name_B: str,                        # name parent B
-            name_child: str,                    # name child
-            folder_A: str=                  NEMODEL_DEFAULTS['save_topdir'],
-            folder_B: Optional[str]=        None,
-            folder_child: Optional[str]=    None,
-            ratio: float=                   0.5,
-            noise: float=                   0.03):
-
-        if not folder_B: folder_B = folder_A
-        if not folder_child: folder_child = folder_A
-
-        mfd = f'{folder_A}/{name_A}'
-        ckptL = [dI for dI in os.listdir(mfd) if os.path.isdir(os.path.join(mfd,dI))]
-        if 'opt_vars' in ckptL: ckptL.remove('opt_vars')
-
-        for ckpt in ckptL:
-            mrg_ckpts(
-                ckptA=          ckpt,
-                ckptA_FD=       f'{folder_A}/{name_A}/',
-                ckptB=          ckpt,
-                ckptB_FD=       f'{folder_B}/{name_B}/',
-                ckptM=          ckpt,
-                ckptM_FD=       f'{folder_child}/{name_child}/',
-                replace_scope=  name_child,
-                ratio=          ratio,
-                noise=          noise)
-
     # **************************************************************************************** baseline training methods
 
     # loads model data for training, dict should have at least 'train':{} for Batcher
@@ -715,14 +686,71 @@ class NEModel(ParaSave):
             acc_acc.append(acc)
         return sum(acc_acc)/len(acc_acc), sum(acc_loss)/len(acc_loss)
 
+    # ************************************* update ParaSave functionality (mostly to override SAVE_TOPDIR & SAVE_FN_PFX)
+
+    @staticmethod
+    def load_dna(
+            name: str,
+            save_topdir: str=   SAVE_TOPDIR,
+            save_fn_pfx: str=   SAVE_FN_PFX) -> POINT:
+        return ParaSave.load_dna(
+            name=           name,
+            save_topdir=    save_topdir,
+            save_fn_pfx=    save_fn_pfx)
+
+    @staticmethod
+    def oversave(
+            name: str,
+            save_topdir: str=   SAVE_TOPDIR,
+            save_fn_pfx: str=   SAVE_FN_PFX,
+            **kwargs):
+        return ParaSave.oversave(
+            name=           name,
+            save_topdir=    save_topdir,
+            save_fn_pfx=    save_fn_pfx,
+            **kwargs)
+
+    @staticmethod
+    def copy_saved_dna(
+            name_src: str,
+            name_trg: str,
+            save_topdir_src: str=           SAVE_TOPDIR,
+            save_topdir_trg: Optional[str]= None,
+            save_fn_pfx: str=               SAVE_FN_PFX):
+        return ParaSave.copy_saved_dna(
+            name_src=           name_src,
+            name_trg=           name_trg,
+            save_topdir_src=    save_topdir_src,
+            save_topdir_trg=    save_topdir_trg,
+            save_fn_pfx=        save_fn_pfx)
+
+    @staticmethod
+    def gx_saved_dna(
+            name_parent_main: str,
+            name_parent_scnd: Optional[str],
+            name_child: str,
+            save_topdir_parent_main: str=           SAVE_TOPDIR,
+            save_topdir_parent_scnd: Optional[str]= None,
+            save_topdir_child: Optional[str]=       None,
+            save_fn_pfx: str=                       SAVE_FN_PFX,
+    ) -> None:
+        return ParaSave.gx_saved_dna(
+            name_parent_main=           name_parent_main,
+            name_parent_scnd=           name_parent_scnd,
+            name_child=                 name_child,
+            save_topdir_parent_main=    save_topdir_parent_main,
+            save_topdir_parent_scnd=    save_topdir_parent_scnd,
+            save_topdir_child=          save_topdir_child,
+            save_fn_pfx=                save_fn_pfx)
+
     # copies full NEModel folder (DNA & checkpoints)
     @staticmethod
     def copy_saved(
             name_src: str,
             name_trg: str,
-            save_topdir_src: str=           NEMODEL_DEFAULTS['save_topdir'],
+            save_topdir_src: str=           SAVE_TOPDIR,
             save_topdir_trg: Optional[str]= None,
-            save_fn_pfx: str=               NEMODEL_DEFAULTS['save_fn_pfx']):
+            save_fn_pfx: str=               SAVE_FN_PFX):
 
         if save_topdir_trg is None: save_topdir_trg = save_topdir_src
 
@@ -748,16 +776,47 @@ class NEModel(ParaSave):
                 ckptM_FD=       f'{save_topdir_trg}/{name_trg}',
                 replace_scope=  name_trg)
 
+    # GX for two NEModel checkpoints
+    @staticmethod
+    def gx_ckpt(
+            name_A: str,                        # name parent A
+            name_B: str,                        # name parent B
+            name_child: str,                    # name child
+            folder_A: str=                  SAVE_TOPDIR,
+            folder_B: Optional[str]=        None,
+            folder_child: Optional[str]=    None,
+            ratio: float=                   0.5,
+            noise: float=                   0.03):
+
+        if not folder_B: folder_B = folder_A
+        if not folder_child: folder_child = folder_A
+
+        mfd = f'{folder_A}/{name_A}'
+        ckptL = [dI for dI in os.listdir(mfd) if os.path.isdir(os.path.join(mfd,dI))]
+        if 'opt_vars' in ckptL: ckptL.remove('opt_vars')
+
+        for ckpt in ckptL:
+            mrg_ckpts(
+                ckptA=          ckpt,
+                ckptA_FD=       f'{folder_A}/{name_A}/',
+                ckptB=          ckpt,
+                ckptB_FD=       f'{folder_B}/{name_B}/',
+                ckptM=          ckpt,
+                ckptM_FD=       f'{folder_child}/{name_child}/',
+                replace_scope=  name_child,
+                ratio=          ratio,
+                noise=          noise)
+
     # performs GX on saved NEModel objects (NEModel as a ParaSave and then checkpoints, without even building child objects)
     @staticmethod
     def gx_saved(
             name_parent_main: str,
-            name_parent_scnd: str,
+            name_parent_scnd: Optional[str],                # if not given makes GX only with main parent
             name_child: str,
-            save_topdir_parent_main: str,
+            save_topdir_parent_main: str=               SAVE_TOPDIR,
             save_topdir_parent_scnd: Optional[str] =    None,
             save_topdir_child: Optional[str] =          None,
-            save_fn_pfx: Optional[str] =                NEMODEL_DEFAULTS['save_fn_pfx'],
+            save_fn_pfx: Optional[str] =                SAVE_FN_PFX,
             do_gx_ckpt=                                 True,
             ratio: float=                               0.5,
             noise: float=                               0.03
@@ -781,7 +840,7 @@ class NEModel(ParaSave):
         if do_gx_ckpt:
             NEModel.gx_ckpt(
                 name_A=         name_parent_main,
-                name_B=         name_parent_scnd,
+                name_B=         name_parent_scnd or name_parent_main,
                 name_child=     name_child,
                 folder_A=       save_topdir_parent_main,
                 folder_B=       save_topdir_parent_scnd,
