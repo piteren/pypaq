@@ -1,3 +1,10 @@
+"""
+    MOTorch
+
+    By default, after init MOTorch is set to train.mode=False. MOTorch manages its train.mode by itself.
+
+"""
+
 from abc import abstractmethod, ABC
 import torch
 from typing import Optional
@@ -173,7 +180,11 @@ class MOTorch(ParaSave, Module):
 
         self._batcher = None
 
-        if self.verb>0: print(f'\n > MOTorch init finished..')
+        self.__set_training(False)
+
+        if self.verb>0:
+            print(f'\n > set MOTorch train.mode to False..')
+            print(f'\n > MOTorch init finished!')
 
     # sets CPU / GPU devices for MOTorch
     def __manage_devices(self):
@@ -185,6 +196,7 @@ class MOTorch(ParaSave, Module):
         # TODO: by now supported is only first given device
         return torch.device(self['devices'][0])
 
+    # converts all values given with args & kwargs to tensors and moves to self.torch_dev (device)
     def __torch_dev(
             self,
             *args,
@@ -199,25 +211,46 @@ class MOTorch(ParaSave, Module):
             kwargs = {k: kwargs[k].to(self.torch_dev) for k in kwargs}
         return args, kwargs
 
+    # sets self (as nn.Module) training.mode
+    def __set_training(self, mode: bool):
+        torch.nn.Module.train(self, mode=mode)
 
+    # runs forward on nn.Module (with current nn.Module.training.mode)
+    # INFO: since MOTorch is a nn.Module call of forward() should be avoided, instead use just MOTorch.__call__()
     def forward(
             self,
             *args,
             to_torch=   True,  # converts given data to torch.Tensors
             to_devices= True,  # moves tensors to devices
+            set_training: Optional[bool]=   None,  # for not None sets training mode for torch.nn.Module, allows to calculate loss with training/evaluating module mode
             **kwargs):
+        if set_training is not None:
+            self.__set_training(set_training)
+            print(f'@@@ while preparing to FWD set module training to {set_training}')
         args, kwargs = self.__torch_dev(*args, to_torch=to_torch, to_devices=to_devices, **kwargs)
-        return self.module.forward(self, *args, **kwargs)
+        out = self.module.forward(self, *args, **kwargs)
+        if set_training is not None:
+            self.__set_training(False)
+            print('@@@ after calculation of FWD set module training to False (default)')
+        return out
 
-
+    # runs loss calculation on nn.Module
     def loss(
             self,
             *args,
-            to_torch=   True,  # converts given data to torch.Tensors
-            to_devices= True,  # moves tensors to devices
+            to_torch=                       True,  # converts given data to torch.Tensors
+            to_devices=                     True,  # moves tensors to devices
+            set_training: Optional[bool]=   None,  # for not None sets training mode for torch.nn.Module, allows to calculate loss with training/evaluating module mode
             **kwargs):
+        if set_training is not None:
+            self.__set_training(set_training)
+            print(f'@@@ while preparing to LOSS set module training to {set_training}')
         args, kwargs = self.__torch_dev(*args, to_torch=to_torch, to_devices=to_devices, **kwargs)
-        return self.module.loss(self, *args, **kwargs)
+        loss = self.module.loss(self, *args, **kwargs)
+        if set_training is not None:
+            self.__set_training(False)
+            print('@@@ after calculation of LOSS set module training to False (default)')
+        return loss
 
     # **************************************************************************************** baseline training methods
 
@@ -257,6 +290,10 @@ class MOTorch(ParaSave, Module):
         if not self._batcher: raise MOTorchException('MOTorch has not been given data for training, use load_data() or give it while training!')
 
         if self.verb>0: print(f'{self.name} - training starts')
+
+        self.__set_training(True)
+        # TODO: remember to set train.mode to False while evaluating and back to True just after
+
         if n_batches is None: n_batches = self['n_batches']  # take default
         batch_IX = 0
         tr_lssL = []
@@ -278,16 +315,17 @@ class MOTorch(ParaSave, Module):
         while batch_IX < n_batches:
             batch_IX += 1
             batch = self._batcher.get_batch()
+            #print(batch)
 
-            print(batch)
-            loss = self.loss(**batch) # TODO: i dont like it <-
+            loss = self.loss(**batch)
 
             loss.backward()                 # update gradients
             gnD = grad_clipper.clip()       # clip gradients
-            print(gnD)
             opt.step()                      # apply optimizer
             opt.zero_grad()                 # clear gradients
             scheduler.step()                # apply LR scheduler
+
+            print(f' > loss: {loss:.4f}, gn: {gnD["gg_norm"]:.4f}, gn_avt: {gnD["gg_avt_norm"]:.4f}')
 
             """
             feed = self.build_feed(batch)
@@ -341,13 +379,15 @@ class MOTorch(ParaSave, Module):
         return ts_wval
         """
 
+        self.__set_training(False)
 
     # tests model
     def test(self, data=None):
 
         if data is not None: self.load_data(data)
         if not self._batcher: raise MOTorchException('MOTorch has not been given data for testing, use load_data() or give it while testing!')
-
+        # TODO: implement
+        raise NotImplementedError
 
     # reloads model checkpoint
     def _load_ckpt(self):

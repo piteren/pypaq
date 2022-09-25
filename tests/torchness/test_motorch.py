@@ -16,12 +16,17 @@ class LinModel(Module):
 
     def __init__(
             self,
-            in_shape: tuple= (784, 10)):
+            in_drop=    0.0,
+            in_shape=   784,
+            out_shape=  10):
         nn.Module.__init__(self)
-        self.lin = LayDense(*in_shape)
+        self.in_drop_lay = torch.nn.Dropout(p=in_drop) if in_drop>0 else None
+        self.lin = LayDense(in_features=in_shape, out_features=out_shape)
 
     def forward(self, inp) -> Dict:
-        return {'logits': self.lin(inp)}
+        if self.in_drop_lay is not None: inp = self.in_drop_lay(inp)
+        logits = self.lin(inp)
+        return {'logits': logits}
 
     def loss(self, inp, lbl) -> torch.Tensor:
         logits = self(inp)['logits']
@@ -34,9 +39,15 @@ class LinModelSeed(LinModel):
 
     def __init__(
             self,
-            in_shape: tuple=    (784, 10),
-            seed=               111):
-        LinModel.__init__(self, in_shape=in_shape)
+            in_drop=    0.0,
+            in_shape=   784,
+            out_shape=  10,
+            seed=       111):
+        LinModel.__init__(
+            self,
+            in_drop=    in_drop,
+            in_shape=   in_shape,
+            out_shape=  out_shape)
 
 
 class TestMOTor(unittest.TestCase):
@@ -61,7 +72,45 @@ class TestMOTor(unittest.TestCase):
         self.assertTrue(logits.shape[0]==5 and logits.shape[1]==10)
 
         loss = model.loss(inp, lbl)
-        print(type(loss))
+        print(loss)
+        self.assertTrue(type(loss) is torch.Tensor)
+
+
+    def test_inherited_interfaces(self):
+
+        model = MOTorch(
+            module=     LinModel,
+            do_logfile= False,
+            verb=       0)
+        print(model.parameters())
+        model.float()
+        print(model.state_dict())
+        print(model.get_point())
+
+
+    def test_training_mode(self):
+
+        model = MOTorch(
+            module=     LinModel,
+            in_drop=    0.8,
+            do_logfile= False,
+            verb=       0)
+        print(model.training)
+
+        inp = np.random.random((5, 784))
+        inp = torch.tensor(inp)
+        inp = inp.float()
+
+        lbl = np.random.randint(0, 9, 5)
+
+        out = model(inp)
+        print(out)
+        loss = model.loss(inp, lbl)
+        print(loss)
+
+        out = model(inp, set_training=True)
+        print(out)
+        loss = model.loss(inp, lbl, set_training=True)
         print(loss)
 
     def test_name_stamp(self):
@@ -84,13 +133,15 @@ class TestMOTor(unittest.TestCase):
         self.assertTrue(model['name'] != 'LinModel')
         self.assertTrue({d for d in '0123456789'} & set([l for l in model['name']]))
 
+
     def test_ParaSave(self):
 
         model = MOTorch(
             module=         LinModel,
             save_topdir=    NEMODEL_DIR,
             do_logfile=     False,
-            in_shape=       (12,12))
+            in_shape=       12,
+            out_shape=      12)
         model.save()
 
         # this model will not load
@@ -98,7 +149,7 @@ class TestMOTor(unittest.TestCase):
             module=         LinModel,
             do_logfile=     False)
         print(model['in_shape'])
-        self.assertTrue(model['in_shape'][0] != 12)
+        self.assertTrue(model['in_shape'] != 12)
 
         # this model will load from NEMODEL_DIR
         model = MOTorch(
@@ -106,14 +157,15 @@ class TestMOTor(unittest.TestCase):
             save_topdir=    NEMODEL_DIR,
             do_logfile=     False)
         print(model['in_shape'])
-        self.assertTrue(model['in_shape'][0] == 12)
+        self.assertTrue(model['in_shape'] == 12)
 
         model = MOTorch(
             module=         LinModel,
             name_timestamp= True,
             save_topdir=    NEMODEL_DIR,
             do_logfile=     False,
-            in_shape=       (12,12))
+            in_shape=       12,
+            out_shape=      12)
         model.save()
         print(model['name'])
 
@@ -122,7 +174,8 @@ class TestMOTor(unittest.TestCase):
             name=           model['name'],
             save_topdir=    NEMODEL_DIR,
             do_logfile=     False)
-        self.assertTrue(model['in_shape'][0] == 12)
+        self.assertTrue(model['in_shape'] == 12)
+
 
     def test_params_resolution(self):
 
@@ -132,7 +185,7 @@ class TestMOTor(unittest.TestCase):
         print(model['seed'])        # value from MOTORCH_DEFAULTS
         print(model['in_shape'])    # value from nn.Module defaults
         self.assertTrue(model['seed'] == 123)
-        self.assertTrue(model['in_shape'] == (784,10))
+        self.assertTrue(model['in_shape'] == 784)
 
         model = MOTorch(
             module=         LinModel,
@@ -145,7 +198,8 @@ class TestMOTor(unittest.TestCase):
             module=         LinModelSeed,
             save_topdir=    NEMODEL_DIR,
             do_logfile=     False,
-            in_shape=       (24,24))
+            in_shape=       24,
+            out_shape=      24)
         print(model['seed'])        # MOTORCH_DEFAULTS overridden with nn.Module defaults
         self.assertTrue(model['seed'] == 111)
         model.save()
@@ -157,8 +211,9 @@ class TestMOTor(unittest.TestCase):
             do_logfile=     False)
         print(model['in_shape'])    # loaded from save
         print(model['seed'])        # saved overridden with kwargs
-        self.assertTrue(model['in_shape'] == (24, 24))
+        self.assertTrue(model['in_shape'] == 24)
         self.assertTrue(model['seed'] == 212)
+
 
     def test_seed_of_torch(self):
 
@@ -184,6 +239,7 @@ class TestMOTor(unittest.TestCase):
 
         self.assertTrue(np.sum(out1['logits'].cpu().detach().numpy()) == np.sum(out2['logits'].cpu().detach().numpy()))
 
+
     def test_read_only(self):
 
         model = MOTorch(
@@ -198,6 +254,7 @@ class TestMOTor(unittest.TestCase):
             do_logfile=     False)
         self.assertRaises(MOTorchException, model.save)
 
+
     def test_save_load(self):
 
         inp = np.random.random((5, 256))
@@ -207,7 +264,8 @@ class TestMOTor(unittest.TestCase):
         model = MOTorch(
             module=         LinModel,
             save_topdir=    NEMODEL_DIR,
-            in_shape=       (256, 10),
+            in_shape=       256,
+            out_shape=      10,
             name_timestamp= True,
             seed=           121,
             do_logfile=     False,
@@ -229,6 +287,7 @@ class TestMOTor(unittest.TestCase):
         # print(loaded_model)
 
         self.assertTrue(np.sum(out1['logits'].cpu().detach().numpy()) == np.sum(out2['logits'].cpu().detach().numpy()))
+
 
     def test_hpmser_mode(self):
 
