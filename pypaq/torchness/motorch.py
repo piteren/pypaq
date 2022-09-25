@@ -12,6 +12,7 @@ from typing import Optional
 from pypaq.lipytools.little_methods import stamp, get_params, get_func_dna
 from pypaq.lipytools.moving_average import MovAvg
 from pypaq.lipytools.logger import set_logger
+from pypaq.pms.base_types import POINT
 from pypaq.pms.parasave import ParaSave
 from pypaq.mpython.devices import get_devices
 from pypaq.comoneural.batcher import Batcher
@@ -49,8 +50,6 @@ MOTORCH_DEFAULTS = {
     'avt_max_upd':  1.5,
     'do_clip':      False,
     # other
-    'save_topdir':  '_models',                  # top folder of model save
-    'save_fn_pfx':  'todel_dna',                # dna filename prefix
     'load_ckpt':    True,                       # (bool) loads checkpoint (if saved earlier)
     'hpmser_mode':  False,                      # it will set model to be read_only and quiet when running with hpmser
     'read_only':    False,                      # sets model to be read only - wont save anything (wont even create self.model_dir)
@@ -75,14 +74,17 @@ class Module(ABC, torch.nn.Module):
 # extends Module (torch.nn.Module) with ParaSave and many others
 class MOTorch(ParaSave, Module):
 
+    SAVE_TOPDIR = '_models'
+    SAVE_FN_PFX = 'motorch_dna' # filename (DNA) prefix
+
     def __init__(
             self,
             module: type(Module),
-            name: Optional[str]=    None,
-            name_timestamp=         False,      # adds timestamp to the model name
-            save_topdir=            MOTORCH_DEFAULTS['save_topdir'],
-            save_fn_pfx=            MOTORCH_DEFAULTS['save_fn_pfx'],
-            verb=                   0,
+            name: Optional[str]=        None,
+            name_timestamp=             False,      # adds timestamp to the model name
+            save_topdir: Optional[str]= None,
+            save_fn_pfx: Optional[str]= None,
+            verb=                       0,
             **kwargs):
 
         # hpmser_mode - very early override, ..hpmser_mode==True will not be saved ever, so the only way to set it is to get it with kwargs
@@ -97,6 +99,9 @@ class MOTorch(ParaSave, Module):
         if verb>0: print(f'\n *** MOTorch {name} (type: {type(self).__name__}) *** initializes..')
 
         # ************************************************************************* manage (resolve) DNA & init ParaSave
+
+        if not save_topdir: save_topdir = self.SAVE_TOPDIR
+        if not save_fn_pfx: save_fn_pfx = self.SAVE_FN_PFX
 
         # load dna from folder
         dna_saved = ParaSave.load_dna(
@@ -195,6 +200,63 @@ class MOTorch(ParaSave, Module):
         if self.verb>0: print(f' > MOTorch will use devices: {self["devices"]}')
         # TODO: by now supported is only first given device
         return torch.device(self['devices'][0])
+
+    # ************************************* update ParaSave functionality (mostly to override SAVE_TOPDIR & SAVE_FN_PFX)
+
+    @staticmethod
+    def load_dna(
+            name: str,
+            save_topdir: str=   SAVE_TOPDIR,
+            save_fn_pfx: str=   SAVE_FN_PFX) -> POINT:
+        return ParaSave.load_dna(
+            name=           name,
+            save_topdir=    save_topdir,
+            save_fn_pfx=    save_fn_pfx)
+
+    @staticmethod
+    def oversave(
+            name: str,
+            save_topdir: str=   SAVE_TOPDIR,
+            save_fn_pfx: str=   SAVE_FN_PFX,
+            **kwargs):
+        return ParaSave.oversave(
+            name=           name,
+            save_topdir=    save_topdir,
+            save_fn_pfx=    save_fn_pfx,
+            **kwargs)
+
+    @staticmethod
+    def copy_saved_dna(
+            name_src: str,
+            name_trg: str,
+            save_topdir_src: str=           SAVE_TOPDIR,
+            save_topdir_trg: Optional[str]= None,
+            save_fn_pfx: str=               SAVE_FN_PFX):
+        return ParaSave.copy_saved_dna(
+            name_src=           name_src,
+            name_trg=           name_trg,
+            save_topdir_src=    save_topdir_src,
+            save_topdir_trg=    save_topdir_trg,
+            save_fn_pfx=        save_fn_pfx)
+
+    @staticmethod
+    def gx_saved_dna(
+            name_parent_main: str,
+            name_parent_scnd: Optional[str],
+            name_child: str,
+            save_topdir_parent_main: str=           SAVE_TOPDIR,
+            save_topdir_parent_scnd: Optional[str]= None,
+            save_topdir_child: Optional[str]=       None,
+            save_fn_pfx: str=                       SAVE_FN_PFX,
+    ) -> None:
+        return ParaSave.gx_saved_dna(
+            name_parent_main=           name_parent_main,
+            name_parent_scnd=           name_parent_scnd,
+            name_child=                 name_child,
+            save_topdir_parent_main=    save_topdir_parent_main,
+            save_topdir_parent_scnd=    save_topdir_parent_scnd,
+            save_topdir_child=          save_topdir_child,
+            save_fn_pfx=                save_fn_pfx)
 
     # converts all values given with args & kwargs to tensors and moves to self.torch_dev (device)
     def __torch_dev(

@@ -23,7 +23,7 @@ from typing import Optional
 
 from pypaq.pms.base_types import P_VAL, POINT, PSDD
 
-NO_REF = '___NO-REF___'
+NO_REF = '__NO-REF__'
 
 
 # Parameters Space Class

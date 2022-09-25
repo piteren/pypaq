@@ -9,7 +9,7 @@ from tests.envy import flush_tmp_dir
 from pypaq.torchness.motorch import MOTorch, Module, MOTorchException
 from pypaq.torchness.layers import LayDense
 
-NEMODEL_DIR = f'{flush_tmp_dir()}/motorch'
+MOTORCH_DIR = f'{flush_tmp_dir()}/motorch'
 
 
 class LinModel(Module):
@@ -113,6 +113,7 @@ class TestMOTor(unittest.TestCase):
         loss = model.loss(inp, lbl, set_training=True)
         print(loss)
 
+
     def test_name_stamp(self):
 
         model = MOTorch(
@@ -138,11 +139,33 @@ class TestMOTor(unittest.TestCase):
 
         model = MOTorch(
             module=         LinModel,
-            save_topdir=    NEMODEL_DIR,
+            save_topdir=    MOTORCH_DIR,
             do_logfile=     False,
             in_shape=       12,
-            out_shape=      12)
+            out_shape=      12,
+            verb=           1)
+        pms = model.get_managed_params()
+        print(pms)
         model.save()
+
+        model.oversave(
+            name=           model["name"],
+            save_topdir=    MOTORCH_DIR,
+            seed=           252)
+
+        # this will not load
+        dna = model.load_dna(name=model["name"])
+        print(dna)
+        self.assertFalse(dna)
+
+        dna = model.load_dna(
+            name=           model["name"],
+            save_topdir=    MOTORCH_DIR)
+        print(dna)
+        for p in pms:
+            self.assertTrue(p in dna)
+
+        self.assertTrue(dna["seed"]==252)
 
         # this model will not load
         model = MOTorch(
@@ -154,7 +177,7 @@ class TestMOTor(unittest.TestCase):
         # this model will load from NEMODEL_DIR
         model = MOTorch(
             module=         LinModel,
-            save_topdir=    NEMODEL_DIR,
+            save_topdir=    MOTORCH_DIR,
             do_logfile=     False)
         print(model['in_shape'])
         self.assertTrue(model['in_shape'] == 12)
@@ -162,7 +185,7 @@ class TestMOTor(unittest.TestCase):
         model = MOTorch(
             module=         LinModel,
             name_timestamp= True,
-            save_topdir=    NEMODEL_DIR,
+            save_topdir=    MOTORCH_DIR,
             do_logfile=     False,
             in_shape=       12,
             out_shape=      12)
@@ -172,9 +195,42 @@ class TestMOTor(unittest.TestCase):
         model = MOTorch(
             module=         LinModel,
             name=           model['name'],
-            save_topdir=    NEMODEL_DIR,
+            save_topdir=    MOTORCH_DIR,
             do_logfile=     False)
         self.assertTrue(model['in_shape'] == 12)
+
+        model.copy_saved_dna(
+            name_src=           model["name"],
+            name_trg=           'CopiedPS',
+            save_topdir_src=    MOTORCH_DIR)
+
+        model.gx_saved_dna(
+            name_parent_main=           model["name"],
+            name_parent_scnd=           None,
+            save_topdir_parent_main=    MOTORCH_DIR,
+            name_child=                 'GXed')
+
+        psdd = {'seed': [0,1000]}
+        model = MOTorch(
+            module=         LinModel,
+            name=           'GXLin',
+            save_topdir=    MOTORCH_DIR,
+            psdd=           psdd,
+            do_logfile=     False)
+
+        print(model.gxable)
+        print(model['psdd'])
+        print(model['seed'])
+        dna = model.gx_dna(
+            parent_main=    model,
+            prob_noise=     0.0,
+            prob_axis=      0.0)
+        print(dna['seed'])
+        dna = model.gx_dna(
+            parent_main=    model,
+            prob_noise=     1.0,
+            prob_axis=      1.0)
+        print(dna['seed'])
 
 
     def test_params_resolution(self):
@@ -196,7 +252,7 @@ class TestMOTor(unittest.TestCase):
 
         model = MOTorch(
             module=         LinModelSeed,
-            save_topdir=    NEMODEL_DIR,
+            save_topdir=    MOTORCH_DIR,
             do_logfile=     False,
             in_shape=       24,
             out_shape=      24)
@@ -206,7 +262,7 @@ class TestMOTor(unittest.TestCase):
 
         model = MOTorch(
             module=         LinModelSeed,
-            save_topdir=    NEMODEL_DIR,
+            save_topdir=    MOTORCH_DIR,
             seed=           212,
             do_logfile=     False)
         print(model['in_shape'])    # loaded from save
@@ -244,7 +300,7 @@ class TestMOTor(unittest.TestCase):
 
         model = MOTorch(
             module=         LinModel,
-            save_topdir=    NEMODEL_DIR,
+            save_topdir=    MOTORCH_DIR,
             do_logfile=     False)
         model.save()
 
@@ -263,7 +319,7 @@ class TestMOTor(unittest.TestCase):
 
         model = MOTorch(
             module=         LinModel,
-            save_topdir=    NEMODEL_DIR,
+            save_topdir=    MOTORCH_DIR,
             in_shape=       256,
             out_shape=      10,
             name_timestamp= True,
@@ -277,7 +333,7 @@ class TestMOTor(unittest.TestCase):
 
         loaded_model = MOTorch(
             module=         LinModel,
-            save_topdir=    NEMODEL_DIR,
+            save_topdir=    MOTORCH_DIR,
             name=           name,
             seed=           123, # although different seed, model will load checkpoint
             do_logfile=     False,

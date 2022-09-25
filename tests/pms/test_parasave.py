@@ -1,32 +1,28 @@
 import unittest
 
-from tests.envy import get_tmp_dir
+from tests.envy import flush_tmp_dir
 
-from pypaq.lipytools.little_methods import prep_folder
 from pypaq.pms.parasave import ParaSave
 
-PARASAVE_DIR = f'{get_tmp_dir()}/parasave'
+PARASAVE_DIR = f'{flush_tmp_dir()}/parasave'
 
-_DNA = {
+DNA = {
     'name': 'pio',
     'a':    1,
     'b':    2,
     'c':    'nap'}
-_PSDD = {
+PSDD = {
     'a':    [0,100],
     'b':    [0.0,10]}
 
 
 class TestParaSave(unittest.TestCase):
 
-    def setUp(self) -> None:
-        prep_folder(PARASAVE_DIR, flush_non_empty=True)
-
     def test_base(self):
 
         # build A and try to save
         psa_dna = {}
-        psa_dna.update(_DNA)
+        psa_dna.update(DNA)
         psa_dna['name'] = 'psa'
         psa = ParaSave(**psa_dna)
         print(psa.get_point())
@@ -37,7 +33,7 @@ class TestParaSave(unittest.TestCase):
 
         # build and save A
         psa_dna = {}
-        psa_dna.update(_DNA)
+        psa_dna.update(DNA)
         psa_dna['name'] = 'psa'
         psa = ParaSave(save_topdir=PARASAVE_DIR, **psa_dna)
         print(psa.get_point())
@@ -49,7 +45,7 @@ class TestParaSave(unittest.TestCase):
         psa = ParaSave(name='psa', save_topdir=PARASAVE_DIR)
         print(psa.get_point())
         self.assertTrue(psa['a'] == 2)
-        psa['psdd'].update(_PSDD)
+        psa['psdd'].update(PSDD)
         print(psa.get_point())
         psa.save_dna()
 

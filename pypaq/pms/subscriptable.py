@@ -18,7 +18,6 @@
 """
 
 from copy import deepcopy
-import itertools
 from typing import List, Optional, Union, Dict
 
 from pypaq.textools.text_metrics import lev_dist
@@ -146,8 +145,11 @@ class SubGX(Subscriptable):
             parent_main: "SubGX",
             parent_scnd: Optional["SubGX"]= None,
             name_child: Optional[str]=      None,
-            **kwargs                                # here PaSpa.sample_point_GX params may be given
-    ) -> POINT:
+            prob_mix=                       0.5,
+            prob_noise=                     0.3,
+            noise_scale=                    0.1,
+            prob_axis=                      0.1,
+            prob_diff_axis=                 0.3) -> POINT:
 
         assert SubGX.families_compatible(parent_main, parent_scnd), 'ERR: families not compatible'
 
@@ -170,9 +172,13 @@ class SubGX(Subscriptable):
         dna_scnd_psdd = {k: dna_scnd[k] for k in psdd_merged} if dna_scnd is not None else None
 
         point_gx = paspa_merged.sample_point_GX(
-            point_main= dna_main_psdd,
-            point_scnd= dna_scnd_psdd,
-            **kwargs)
+            point_main=     dna_main_psdd,
+            point_scnd=     dna_scnd_psdd,
+            prob_mix=       prob_mix,
+            prob_noise=     prob_noise,
+            noise_scale=    noise_scale,
+            prob_axis=      prob_axis,
+            prob_diff_axis= prob_diff_axis)
 
         # dna_child is based on parent_main with updated values of point_gx
         dna_child: POINT = deepcopy(dna_main)

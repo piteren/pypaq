@@ -18,25 +18,28 @@ from pypaq.lipytools.little_methods import prep_folder, w_pickle, r_pickle, stam
 from pypaq.pms.base_types import POINT
 from pypaq.pms.subscriptable import SubGX
 
-SAVE_FN_PFX = 'dna' # filename (DNA) prefix
-OBJ_SUFFIX = '.dct' # dna obj(pickle) filename suffix
-TXT_SUFFIX = '.txt' # dna text filename suffix
-
 
 class ParaSave(SubGX):
+
+    SAVE_TOPDIR = None
+    SAVE_FN_PFX = 'dna' # filename (DNA) prefix
+    OBJ_SUFFIX = '.dct' # dna obj(pickle) filename suffix
+    TXT_SUFFIX = '.txt' # dna text filename suffix
 
     def __init__(
             self,
             name:str,
-            save_topdir: Optional[str]= None,        # ParaSave top directory, when not given folders functionality (load/save) is not accessible
-            save_fn_pfx: str=           SAVE_FN_PFX, # default ParaSave filename (DNA) prefix
-            gxable: bool or None=       None,        # None sets to default - True, it may override default and save by setting it to True/False
-            assert_saved=               False,       # for True asserts that ParaSave has been already saved in save_topdir
-            lock_managed_params=        False,       # locks _managed_params to only those known while init
+            save_topdir: Optional[str]= SAVE_TOPDIR,    # ParaSave top directory, when not given folders functionality (load/save) is not accessible
+            save_fn_pfx: str=           None,           # ParaSave filename (DNA) prefix
+            gxable: bool or None=       None,           # None sets to default - True, it may override default and save by setting it to True/False
+            assert_saved=               False,          # for True asserts that ParaSave has been already saved in save_topdir
+            lock_managed_params=        False,          # locks _managed_params to only those known while init
             verb=                       0,
             **kwargs):
 
         self.name = name
+
+        if save_fn_pfx is None: save_fn_pfx = self.SAVE_FN_PFX
 
         if assert_saved:
             obj_FN = ParaSave.__obj_fn(name, save_topdir, save_fn_pfx)
@@ -82,24 +85,24 @@ class ParaSave(SubGX):
     def __obj_fn(
             name: str,
             save_topdir: str,
-            save_fn_pfx: Optional[str]= SAVE_FN_PFX):
-        return f'{ParaSave.__full_dir(name, save_topdir)}/{save_fn_pfx}{OBJ_SUFFIX}'
+            save_fn_pfx: str):
+        return f'{ParaSave.__full_dir(name, save_topdir)}/{save_fn_pfx}{ParaSave.OBJ_SUFFIX}'
 
     @staticmethod
     def __txt_fn(
             name: str,
             save_topdir: str,
-            save_fn_pfx: Optional[str]= SAVE_FN_PFX):
-        return f'{ParaSave.__full_dir(name, save_topdir)}/{save_fn_pfx}{TXT_SUFFIX}'
+            save_fn_pfx: str):
+        return f'{ParaSave.__full_dir(name, save_topdir)}/{save_fn_pfx}{ParaSave.TXT_SUFFIX}'
 
     # loads ParaSave DNA from folder
     @staticmethod
     def load_dna(
             name: str,
-            save_topdir: Optional[str],
-            save_fn_pfx: Optional[str]= SAVE_FN_PFX) -> POINT:
-        if save_topdir is None: return {}
-        obj_FN = ParaSave.__obj_fn(name, save_topdir, save_fn_pfx)
+            save_topdir: str=   SAVE_TOPDIR,
+            save_fn_pfx: str=   SAVE_FN_PFX) -> POINT:
+        #if save_topdir is None: return {}
+        obj_FN = ParaSave.__obj_fn(name, save_topdir, save_fn_pfx or ParaSave.SAVE_FN_PFX)
         if os.path.isfile(obj_FN):
             dna: POINT = r_pickle(obj_FN)
             return dna
@@ -137,8 +140,8 @@ class ParaSave(SubGX):
     @staticmethod
     def oversave(
             name: str,
-            save_topdir: Optional[str],
-            save_fn_pfx: Optional[str]= SAVE_FN_PFX,
+            save_topdir: str=   SAVE_TOPDIR,
+            save_fn_pfx: str=   SAVE_FN_PFX,
             **kwargs):
         psc = ParaSave(
             name=           name,
@@ -152,11 +155,9 @@ class ParaSave(SubGX):
     def copy_saved_dna(
             name_src: str,
             name_trg: str,
-            save_topdir_src: str,
-            save_topdir_trg: Optional[str] =    None,
-            save_fn_pfx: Optional[str] =        SAVE_FN_PFX):
-
-        if save_topdir_trg is None: save_topdir_trg = save_topdir_src
+            save_topdir_src: str=           SAVE_TOPDIR,
+            save_topdir_trg: Optional[str]= None,
+            save_fn_pfx: str=               SAVE_FN_PFX):
 
         ps_src = ParaSave(
             name=           name_src,
@@ -166,7 +167,7 @@ class ParaSave(SubGX):
 
         ps_trg = ParaSave(
             name=           name_trg,
-            save_topdir=    save_topdir_trg,
+            save_topdir=    save_topdir_trg or save_topdir_src,
             save_fn_pfx=    save_fn_pfx)
 
         dna_src = ps_src.get_point()
@@ -178,12 +179,12 @@ class ParaSave(SubGX):
     @staticmethod
     def gx_saved_dna(
             name_parent_main: str,
-            name_parent_scnd: Optional[str],                            # if not given makes GX only with main parent
+            name_parent_scnd: Optional[str],                        # if not given makes GX only with main parent
             name_child: str,
-            save_topdir_parent_main: str,                               # ParaSave top directory
-            save_topdir_parent_scnd: Optional[str] =    None,           # ParaSave top directory of parent scnd
-            save_topdir_child: Optional[str] =          None,           # ParaSave top directory of child
-            save_fn_pfx: Optional[str] =                SAVE_FN_PFX,    # ParaSave dna filename prefix
+            save_topdir_parent_main: str=           SAVE_TOPDIR,    # ParaSave top directory
+            save_topdir_parent_scnd: Optional[str]= None,           # ParaSave top directory of parent scnd
+            save_topdir_child: Optional[str]=       None,           # ParaSave top directory of child
+            save_fn_pfx: str=                       SAVE_FN_PFX,    # ParaSave dna filename prefix
     ) -> None:
 
         if not save_topdir_parent_scnd: save_topdir_parent_scnd = save_topdir_parent_main
@@ -222,18 +223,25 @@ class ParaSave(SubGX):
             parent_main: "ParaSave",
             parent_scnd: Optional["ParaSave"]=  None,
             name_child: Optional[str]=          None,
-            **kwargs                                # here PaSpa.sample_point_GX params may be given
-    ) -> POINT:
+            prob_mix=                           0.5,
+            prob_noise=                         0.3,
+            noise_scale=                        0.1,
+            prob_axis=                          0.1,
+            prob_diff_axis=                     0.3) -> POINT:
         not_gxable_parents = []
         if not parent_main.gxable: not_gxable_parents.append(parent_main)
         if parent_scnd and not parent_scnd.gxable: not_gxable_parents.append(parent_scnd)
-        if not_gxable_parents: warnings.warn('There are not gxable parents, cannot GX!')
+        if not_gxable_parents: warnings.warn('There are not-gxable parents, cannot GX!')
         else:
             return SubGX.gx_dna(
                 parent_main=    parent_main,
                 parent_scnd=    parent_scnd,
                 name_child=     name_child,
-                **kwargs)
+                prob_mix=       prob_mix,
+                prob_noise=     prob_noise,
+                noise_scale=    noise_scale,
+                prob_axis=      prob_axis,
+                prob_diff_axis= prob_diff_axis)
 
     # returns difference in POINT of saved VS self
     def _get_diff_saved(self) -> POINT:
