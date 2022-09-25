@@ -356,6 +356,5 @@ class TestMOTor(unittest.TestCase):
         self.assertRaises(MOTorchException, model.save)
 
 
-
 if __name__ == '__main__':
     unittest.main()

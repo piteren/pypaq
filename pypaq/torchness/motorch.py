@@ -50,7 +50,6 @@ MOTORCH_DEFAULTS = {
     'avt_max_upd':  1.5,
     'do_clip':      False,
     # other
-    'load_ckpt':    True,                       # (bool) loads checkpoint (if saved earlier)
     'hpmser_mode':  False,                      # it will set model to be read_only and quiet when running with hpmser
     'read_only':    False,                      # sets model to be read only - wont save anything (wont even create self.model_dir)
     'do_logfile':   True,                       # enables saving log file in self.model_dir
@@ -173,12 +172,11 @@ class MOTorch(ParaSave, Module):
         self.module.__init__(self, **dna_module)
         self.to(self.torch_dev)
 
-        if self['load_ckpt']:
-            try:
-                self._load_ckpt()
-                if self.verb>0: print(f' > TOModel checkpoint loaded..')
-            except Exception as e:
-                if self.verb>0: print(f' > TOModel checkpoint NOT loaded ({e})..')
+        try:
+            self.load_ckpt()
+            if self.verb>0: print(f' > TOModel checkpoint loaded from {self.__get_ckpt_path()}')
+        except Exception as e:
+            if self.verb>0: print(f' > TOModel checkpoint NOT loaded ({e})..')
 
         self._batcher = None
 
@@ -448,27 +446,30 @@ class MOTorch(ParaSave, Module):
         # TODO: implement
         raise NotImplementedError
 
+    def __get_ckpt_path(self) -> str:
+        return f'{self.model_dir}/{self.name}.pt'
+
     # reloads model checkpoint
-    def _load_ckpt(self):
+    def load_ckpt(self):
         # TODO: load all that has been saved
-        checkpoint = torch.load(f'{self.model_dir}/{self.name}.pt')
+        checkpoint = torch.load(self.__get_ckpt_path())
         self.load_state_dict(checkpoint['model_state_dict'])
 
     # saves model checkpoint
-    def _save_ckpt(self):
+    def save_ckpt(self):
         # TODO: decide what to save
         torch.save({
             #'epoch': 5,
             'model_state_dict': self.state_dict(),
             # 'optimizer_state_dict': optimizer.state_dict(),
             #'loss': 0.4
-        }, f'{self.model_dir}/{self.name}.pt')
+        }, self.__get_ckpt_path())
 
     # saves MOTorch (ParaSave DNA and checkpoint)
     def save(self):
         if self['read_only']: raise MOTorchException('ERR: read only MOTorch cannot be saved!')
         self.save_dna()
-        self._save_ckpt()
+        self.save_ckpt()
         if self.verb>0: print(f'MOTorch {self.name} saved')
 
     def __str__(self):
