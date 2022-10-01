@@ -51,7 +51,7 @@
 
 import numpy as np
 import os
-from typing import Optional, Callable, Tuple
+from typing import Optional, Callable, Tuple, Dict
 import warnings
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -108,6 +108,7 @@ def fwd_graph(
         seed: int=      321,
         iLR=            0.003):
     with tf.variable_scope(name):
+
         in_PH = tf.placeholder(
             name=           'in_PH',
             dtype=          tf.int32,
@@ -122,19 +123,27 @@ def fwd_graph(
             dtype=      tf.float32)
 
         feats = tf.nn.embedding_lookup(params=emb, ids=in_PH)
+
         logits = lay_dense(
             input=      feats,
             units=      n_labels,
             name=       'logits',
             seed=       seed)
+
         loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
             labels= labels_PH,
             logits= logits)
+
+        pred = tf.argmax(logits, axis=-1)
+
+        acc = tf.reduce_mean(tf.cast(tf.equal(tf.cast(pred, dtype=tf.int32), labels_PH), dtype=tf.float32))
+
     return {
         'in_PH':    in_PH,
         'emb':      emb,
         'logits':   logits,
-        'loss':     loss}
+        'loss':     loss,
+        'acc':      acc}
 
 # default OPT function (optimization graph), should be used in most scenarios
 def opt_graph(
@@ -204,6 +213,9 @@ def opt_graph(
     rd.update(loss_reductorD)
     return rd
 
+
+class NEModelException(Exception):
+    pass
 
 # NEModel Base class, implements most features (but not saving)
 class NEModel(ParaSave):
@@ -331,7 +343,6 @@ class NEModel(ParaSave):
             verb=       self.verb)
         if self['load_saver']: self.load_ckpt()
 
-        self._model_data = None
         self._batcher = None
 
         if self.verb>0: print(f'\n > NEModel init finished..')
@@ -571,18 +582,15 @@ class NEModel(ParaSave):
 
     # **************************************************************************************** baseline training methods
 
-    # loads model data for training, dict should have at least 'train':{} for Batcher
-    def load_model_data(self) -> dict:
-        warnings.warn('NEModel.load_model_data() should be overridden!')
-        return {}
+    # loads data to Batcher
+    def load_data(self, data: Dict):
 
-    # pre (before) training method - may be overridden
-    def pre_train(self):
-        self._model_data = self.load_model_data()
+        if 'train' not in data: raise NEModelException('given data should be a dict with at least "train" key present!')
+
         self._batcher = Batcher(
-            data_TR=        self._model_data['train'],
-            data_VL=        self._model_data['valid'] if 'valid' in self._model_data else None,
-            data_TS=        self._model_data['test'] if 'test' in self._model_data else None,
+            data_TR=        data['train'],
+            data_VL=        data['valid'] if 'valid' in data else None,
+            data_TS=        data['test'] if 'test' in data else None,
             batch_size=     self['batch_size'],
             batching_type=  'random_cov',
             verb=           self.verb)
@@ -597,13 +605,15 @@ class NEModel(ParaSave):
     # training method, saves max
     def train(
             self,
+            data=                       None,
             n_batches: Optional[int]=   None,
             test_freq=                  100,    # number of batches between tests, model SHOULD BE tested while training
             mov_avg_factor=             0.1,
             save=                       True    # allows to save model while training
     ) -> float:
 
-        self.pre_train()
+        if data is not None: self.load_data(data)
+        if not self._batcher: raise NEModelException('NEModel has not been given data for training, use load_data() or give it while training!')
 
         if self.verb>0: print(f'{self.name} - training starts')
         if n_batches is None: n_batches = self['n_batches']  # take default
@@ -680,7 +690,7 @@ class NEModel(ParaSave):
         lossL = []
         accL = []
         for batch in batches:
-            feed = self.build_feed(batch, train=False)
+            feed = self.build_feed(batch)
             fetches = [self['loss'], self['acc']]
             loss, acc = self._session.run(fetches, feed)
             lossL.append(loss)
