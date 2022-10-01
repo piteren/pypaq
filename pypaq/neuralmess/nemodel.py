@@ -51,7 +51,7 @@
 
 import numpy as np
 import os
-from typing import Optional, Callable
+from typing import Optional, Callable, Tuple
 import warnings
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -601,7 +601,7 @@ class NEModel(ParaSave):
             test_freq=                  100,    # number of batches between tests, model SHOULD BE tested while training
             mov_avg_factor=             0.1,
             save=                       True    # allows to save model while training
-    ):
+    ) -> float:
 
         self.pre_train()
 
@@ -657,15 +657,15 @@ class NEModel(ParaSave):
                     if not self['read_only'] and save: self.save_ckpt() # model is saved for max_ts_acc
 
         # weighted test value for last 10% test results
-        ts_results = ts_results[-ten_factor:]
         ts_wval = 0
         weight = 1
         sum_weight = 0
-        for tr in ts_results:
+        for tr in ts_results[-ten_factor:]:
             ts_wval += tr*weight
             sum_weight += weight
             weight += 1
         ts_wval /= sum_weight
+
         if self['do_TB']: self.log_TB(value=ts_wval, tag='ts/ts_wval', step=batch_IX)
         if self.verb>0:
             print(f'model {self.name} finished training')
@@ -674,17 +674,18 @@ class NEModel(ParaSave):
 
         return ts_wval
 
-    def test(self):
+    # tests model, returns accuracy and loss (average)
+    def test(self) -> Tuple[float,float]:
         batches = self._batcher.get_TS_batches()
-        acc_loss = []
-        acc_acc = []
+        lossL = []
+        accL = []
         for batch in batches:
             feed = self.build_feed(batch, train=False)
             fetches = [self['loss'], self['acc']]
             loss, acc = self._session.run(fetches, feed)
-            acc_loss.append(loss)
-            acc_acc.append(acc)
-        return sum(acc_acc)/len(acc_acc), sum(acc_loss)/len(acc_loss)
+            lossL.append(loss)
+            accL.append(acc)
+        return sum(accL)/len(accL), sum(lossL)/len(lossL)
 
     # ************************************* update ParaSave functionality (mostly to override SAVE_TOPDIR & SAVE_FN_PFX)
 

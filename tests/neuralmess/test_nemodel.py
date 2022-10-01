@@ -57,6 +57,13 @@ class TestNEModel(unittest.TestCase):
             verb=           0)
         self.assertTrue(nnm['seq_len']==20 and nnm['emb_num']==33)
 
+
+    def test_train(self):
+
+        flush_tmp_dir()
+        raise NotImplementedError
+
+
     def test_GX(self):
 
         flush_tmp_dir()
