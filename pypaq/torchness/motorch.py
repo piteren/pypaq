@@ -291,7 +291,9 @@ class MOTorch(ParaSave, Module):
     # **************************************************************************************** baseline training methods
 
     # loads data to Batcher
-    def load_data(self, data):
+    def load_data(self, data: Dict):
+
+        if 'train' not in data: raise MOTorchException('given data should be a dict with at least "train" key present!')
 
         # eventually convert to torch.Tensors and move to device
         data_td = {}
