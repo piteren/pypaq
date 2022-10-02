@@ -106,7 +106,7 @@ def fwd_graph(
         emb_width: int= 100,
         n_labels: int=  2,
         seed: int=      321,
-        iLR=            0.003):
+        baseLR=         0.003):
     with tf.variable_scope(name):
 
         in_PH = tf.placeholder(
@@ -151,7 +151,7 @@ def opt_graph(
         gradients,
         opt_class=          tf.train.AdamOptimizer, # default optimizer, other examples: tf.train.GradientDescentOptimizer, partial(tf.train.AdamOptimizer, beta1=0.7, beta2=0.7)
             # LR management (parameters of LR warmup and annealing)
-        iLR=                3e-4,                   # initial learning rate (base init)
+        baseLR=             3e-4,                   # base learning rate
         warm_up=            None,
         ann_base=           None,
         ann_step=           1,
@@ -170,15 +170,15 @@ def opt_graph(
         initializer=    tf.constant_initializer(0),
         dtype=          tf.int32)
 
-    iLR_var = tf.get_variable(  # base LR variable
-        name=           'iLR',
+    baseLR_var = tf.get_variable(  # base LR variable
+        name=           'baseLR',
         shape=          [],
         trainable=      False,
-        initializer=    tf.constant_initializer(iLR),
+        initializer=    tf.constant_initializer(baseLR),
         dtype=          tf.float32)
 
     scaled_LR = lr_scaler(
-        iLR=            iLR_var,
+        baseLR=         baseLR_var,
         g_step=         g_step,
         warm_up=        warm_up,
         ann_base=       ann_base,
@@ -207,7 +207,7 @@ def opt_graph(
     rd = {}
     rd.update({
         'g_step':       g_step,
-        'iLR_var':      iLR_var,
+        'baseLR_var':   baseLR_var,
         'scaled_LR':    scaled_LR,
         'opt_vars':     opt_vars})
     rd.update(loss_reductorD)
@@ -548,28 +548,28 @@ class NEModel(ParaSave):
 
         return saver_vars
 
-    # reloads model checkpoint, updates iLR
+    # reloads model checkpoint, updates baseLR
     def load_ckpt(self):
         saver = None if type(self['load_saver']) is bool else self['load_saver']
         self.__saver.load(saver=saver)
-        if 'iLR' in self: self.update_LR(self['iLR'])
+        if 'baseLR' in self: self.update_baseLR(self['baseLR'])
 
     # saves model checkpoint
     def save_ckpt(self):
         assert not self['read_only'], f'ERR: cannot save NEModel checkpoint {self.name} while model is readonly!'
         self.__saver.save()
 
-    # updates base LR (iLR) in graph - but not saves it to the checkpoint
-    def update_LR(self, lr: Optional):
-        if 'iLR_var' not in self:
+    # updates baseLR in graph - but not saves it to the checkpoint
+    def update_baseLR(self, lr: Optional):
+        if 'baseLR_var' not in self:
             if self.verb>1: print('NEModel: There is no LR variable in graph to update')
         else:
             if lr is not None:
-                old = self['iLR']
-                self['iLR'] = lr
-                if self.verb>1: print(f'NEModel {self.name} updated iLR from {old} to {self["iLR"]}')
-            self._session.run(tf.assign(ref=self['iLR_var'], value=self['iLR']))
-            if self.verb>1: print(f'NEModel {self.name} updated iLR_var (graph variable) with iLR: {self["iLR"]}')
+                old = self['baseLR']
+                self['baseLR'] = lr
+                if self.verb>1: print(f'NEModel {self.name} updated baseLR from {old} to {self["baseLR"]}')
+            self._session.run(tf.assign(ref=self['baseLR_var'], value=self['baseLR']))
+            if self.verb>1: print(f'NEModel {self.name} updated baseLR_var (graph variable) with baseLR: {self["baseLR"]}')
 
     # logs value to TB
     def log_TB(

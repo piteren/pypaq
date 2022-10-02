@@ -32,7 +32,7 @@ def gelu(x):
 
 # scales learning rate with warm-up and annealing (after warm-up)
 def lr_scaler(
-        iLR,                        # initial learning rate
+        baseLR,                     # base learning rate
         g_step: tf.Tensor=  None,   # global step tf.variable of tf.int type, for None creates one
         warm_up: int=       1000,   # warmup steps, None or 0 turns-off
         ann_base: float=    0.999,  # annealing base, None or 1 for turn-off
@@ -40,8 +40,8 @@ def lr_scaler(
         n_wup_off: float=   2.0,    # N warmUp offset of annealing
         verb=               0):
 
-    if verb > 0: print(f'*** lr_scaler *** initial LR: {iLR}')
-    iLR = tf.convert_to_tensor(iLR)
+    if verb > 0: print(f'*** lr_scaler *** baseLR: {baseLR}')
+    baseLR = tf.convert_to_tensor(baseLR)
 
     # create global step variable if not given
     if g_step is None:
@@ -54,10 +54,10 @@ def lr_scaler(
 
     g_step_fl = tf.cast(g_step, dtype=tf.float32)
     if warm_up is None: warm_up = 0
-    lR = iLR
+    lR = baseLR
     if warm_up:
         ratioWm = tf.reduce_min([g_step_fl, warm_up]) / warm_up # warmUp ratio
-        lR = iLR * ratioWm # learning rate with warmup
+        lR = baseLR * ratioWm # learning rate with warmup
         if verb > 0: print(f'applied warmUp ({warm_up}) to lR')
     if ann_base is not None and ann_base != 1:
         gStep_offs = tf.reduce_max([0, g_step_fl - warm_up * n_wup_off]) # offset by warmUpSteps

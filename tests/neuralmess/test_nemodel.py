@@ -81,7 +81,7 @@ class TestNEModel(unittest.TestCase):
             verb=           1,
             **DNA)
         nnm.save_ckpt()
-        self.assertTrue(nnm['opt_func'] is None and nnm['iLR'] == 0.003)
+        self.assertTrue(nnm['opt_func'] is None and nnm['baseLR'] == 0.003)
 
         nnm = NEModel(
             name=           'nemodel_test_B',
@@ -90,7 +90,7 @@ class TestNEModel(unittest.TestCase):
             do_logfile=     False,  # INFO: unittests crashes with logger
             verb=           1,
             **DNA)
-        self.assertTrue(nnm['opt_func'] is not None and nnm['iLR']==0.003 and 'loss' in nnm)
+        self.assertTrue(nnm['opt_func'] is not None and nnm['baseLR']==0.003 and 'loss' in nnm)
         nnm.save_ckpt()
 
         nnm = NEModel(
@@ -100,7 +100,7 @@ class TestNEModel(unittest.TestCase):
             do_logfile=     False,      # INFO: unittests crashes with logger
             verb=           1,
             **DNA)
-        self.assertTrue(nnm['seed']==111 and nnm['iLR']==0.003 and 'loss' in nnm)
+        self.assertTrue(nnm['seed']==111 and nnm['baseLR']==0.003 and 'loss' in nnm)
         self.assertTrue('loss' not in nnm.get_managed_params())
         nnm.save()
 
