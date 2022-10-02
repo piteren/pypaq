@@ -29,7 +29,7 @@ class ScaledLR(torch.optim.lr_scheduler._LRScheduler):
 
     def get_lr(self):
 
-        lrs = np.array(self.base_lrs) # self.base_lrs keeps [iLR] of groups
+        lrs = np.array(self.base_lrs) # self.base_lrs keeps [baseLR] of groups
         if self.warm_up:
             wm_ratio = min(self._step_count, self.warm_up) / self.warm_up
             lrs *= wm_ratio

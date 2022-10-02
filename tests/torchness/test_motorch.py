@@ -31,10 +31,10 @@ class LinModel(Module):
         return {'logits': logits}
 
     def loss_acc(self, inp, lbl) -> Dict:
-        logits = self(inp)['logits']
-        loss = self.loss_func(logits, lbl)
-        acc = self.accuracy(logits, lbl)  # using baseline
-        return {'loss':loss, 'acc':acc}
+        out = self(inp)
+        out['loss'] = self.loss_func(out['logits'], lbl)
+        out['acc'] = self.accuracy(out['logits'], lbl)  # using baseline
+        return out
 
 
 class LinModelSeed(LinModel):
@@ -62,10 +62,7 @@ class TestMOTor(unittest.TestCase):
             verb=       1)
         print(model)
 
-        inp = np.random.random((5, 784))
-        inp = torch.tensor(inp)
-        inp = inp.float()
-
+        inp = np.random.random((5,784)).astype(np.float32)
         lbl = np.random.randint(0,9,5)
 
         out = model(inp)
@@ -79,6 +76,12 @@ class TestMOTor(unittest.TestCase):
         print(loss, acc)
         self.assertTrue(type(loss) is torch.Tensor)
         self.assertTrue(type(acc) is float)
+
+        for _ in range(5):
+            out = model.backward(inp, lbl)
+            loss = out['loss']
+            acc = out['acc']
+            print(loss, acc)
 
 
     def test_inherited_interfaces(self):
@@ -102,11 +105,8 @@ class TestMOTor(unittest.TestCase):
             verb=       0)
         print(model.training)
 
-        inp = np.random.random((5, 784))
-        inp = torch.tensor(inp)
-        inp = inp.float()
-
-        lbl = np.random.randint(0, 9, 5)
+        inp = np.random.random((5,784)).astype(np.float32)
+        lbl = np.random.randint(0,9,5)
 
         out = model(inp)
         print(out)
@@ -280,15 +280,13 @@ class TestMOTor(unittest.TestCase):
 
     def test_seed_of_torch(self):
 
-        inp = np.random.random((5, 784))
-        tns = torch.tensor(inp)
-        tns = tns.float()
-
         model = MOTorch(
             module=     LinModel,
             seed=       121,
             do_logfile= False)
-        out1 = model(tns)
+
+        inp = np.random.random((5,784)).astype(np.float32)
+        out1 = model(inp)
         print(model['seed'])
         print(out1)
 
@@ -296,7 +294,8 @@ class TestMOTor(unittest.TestCase):
             module=     LinModel,
             seed=       121,
             do_logfile= False)
-        out2 = model(tns)
+
+        out2 = model(inp)
         print(model['seed'])
         print(out2)
 
@@ -320,10 +319,6 @@ class TestMOTor(unittest.TestCase):
 
     def test_save_load(self):
 
-        inp = np.random.random((5, 256))
-        tns = torch.tensor(inp)
-        tns = tns.float()
-
         model = MOTorch(
             module=         LinModel,
             save_topdir=    MOTORCH_DIR,
@@ -334,7 +329,10 @@ class TestMOTor(unittest.TestCase):
             do_logfile=     False,
             verb=           0)
         name = model.name
-        out1 = model(tns)
+
+        inp = np.random.random((5, 256)).astype(np.float32)
+
+        out1 = model(inp)
         print(out1)
         model.save()
 
@@ -345,7 +343,8 @@ class TestMOTor(unittest.TestCase):
             seed=           123, # although different seed, model will load checkpoint
             do_logfile=     False,
             verb=           0)
-        out2 = loaded_model(tns)
+
+        out2 = loaded_model(inp)
         print(out2)
         # print(loaded_model)
 

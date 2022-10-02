@@ -41,7 +41,7 @@ MOTORCH_DEFAULTS = {
     #'opt_class':    tf.keras.optimizers.Adam,   # default optimizer of train()
 
         # LR management (parameters of LR warmup and annealing)
-    'iLR':          3e-4,                       # initial learning rate (base init)
+    'baseLR':       3e-4,                       # base learning rate
     'warm_up':      None,
     'ann_base':     None,
     'ann_step':     1.0,
@@ -77,7 +77,7 @@ class Module(ABC, torch.nn.Module):
         pred = np.argmax(logits, axis=-1)
         return float(np.average(pred == labels))
 
-    # returned dict should have at least 'loss' and 'acc' keys (loss & accuracy or any other (increasing) performance float)
+    # returned dict should contain forward() Dict + 'loss' & 'acc' keys (accuracy or any other (increasing) performance float)
     @abstractmethod
     def loss_acc(self, *args, **kwargs) -> Dict:
         raise NotImplementedError
@@ -190,6 +190,10 @@ class MOTorch(ParaSave, Module):
 
         self._batcher = None
 
+        self.opt = torch.optim.SGD(self.parameters(), lr=self['baseLR'])
+        self.scheduler = ScaledLR(self.opt, warm_up=self['warm_up'])
+        self.grad_clipper = GradClipperAVT(module=self)
+
         self.__set_training(False)
 
         if self.verb>0:
@@ -209,7 +213,7 @@ class MOTorch(ParaSave, Module):
         # TODO: by now supported is only the first given device
         return torch.device(self['devices'][0])
 
-
+    # returns path of checkpoint pickle file
     def __get_ckpt_path(self) -> str:
         return f'{self.model_dir}/{self.name}.pt'
 
@@ -250,37 +254,60 @@ class MOTorch(ParaSave, Module):
     def __set_training(self, mode: bool):
         torch.nn.Module.train(self, mode=mode)
 
-    # runs forward on nn.Module (with current nn.Module.training.mode)
+    # runs forward on nn.Module (with current nn.Module.training.mode - by default not training)
     # INFO: since MOTorch is a nn.Module call of forward() should be avoided, instead use just MOTorch.__call__()
     def forward(
             self,
             *args,
-            to_torch=   True,  # converts given data to torch.Tensors
-            to_devices= True,  # moves tensors to devices
-            set_training: Optional[bool]=   None,  # for not None sets training mode for torch.nn.Module, allows to calculate loss with training/evaluating module mode
-            **kwargs):
+            to_torch=   True,                       # converts given data to torch.Tensors
+            to_devices= True,                       # moves tensors to devices
+            set_training: Optional[bool]=   None,   # for not None forces given training mode for torch.nn.Module
+            **kwargs) -> Dict:
         if set_training is not None: self.__set_training(set_training)
         args, kwargs = self.__torch_dev(*args, to_torch=to_torch, to_devices=to_devices, **kwargs)
         out = self.module.forward(self, *args, **kwargs)
-        if set_training is not None: self.__set_training(False) # eventually roll back to default
+        if set_training: self.__set_training(False) # eventually roll back to default
         return out
 
-    # runs loss calculation on nn.Module
+    # runs loss calculation on nn.Module (with current nn.Module.training.mode - by default not training)
     def loss_acc(
             self,
             *args,
-            to_torch=                       True,  # converts given data to torch.Tensors
-            to_devices=                     True,  # moves tensors to devices
-            set_training: Optional[bool]=   None,  # for not None sets training mode for torch.nn.Module, allows to calculate loss with training/evaluating module mode
+            to_torch=                       True,   # converts given data to torch.Tensors
+            to_devices=                     True,   # moves tensors to devices
+            set_training: Optional[bool]=   None,   # for not None forces given training mode for torch.nn.Module
             **kwargs) -> Dict:
-        if set_training is not None:
-            self.__set_training(set_training)
-            print(f'@@@ while preparing to LOSS set module training to {set_training}')
+        if set_training is not None: self.__set_training(set_training)
         args, kwargs = self.__torch_dev(*args, to_torch=to_torch, to_devices=to_devices, **kwargs)
         out = self.module.loss_acc(self, *args, **kwargs)
-        if set_training is not None:
-            self.__set_training(False)
-            print('@@@ after calculation of LOSS set module training to False (default)')
+        if set_training: self.__set_training(False) # eventually roll back to default
+        return out
+
+    # runs loss calculation + update of nn.Module (by default with training.mode = True)
+    def backward(
+            self,
+            *args,
+            to_torch=           True,   # converts given data to torch.Tensors
+            to_devices=         True,   # moves tensors to devices
+            set_training: bool= True,
+            **kwargs) -> Dict:
+
+        out = self.loss_acc(
+            *args,
+            to_torch=       to_torch,
+            to_devices=     to_devices,
+            set_training=   set_training,
+            **kwargs)
+
+        out['loss'].backward()          # update gradients
+        gnD = self.grad_clipper.clip()  # clip gradients
+        self.opt.step()                 # apply optimizer
+        self.opt.zero_grad()            # clear gradients
+        self.scheduler.step()           # apply LR scheduler
+
+        out['currentLR'] = self.scheduler.get_last_lr()[0] # INFO: we take currentLR of first group
+        out.update(gnD)
+
         return out
 
     # logs value to TB
@@ -353,36 +380,23 @@ class MOTorch(ParaSave, Module):
         if ten_factor < 1: ten_factor = 1 # we need at least one result
         if self['hpmser_mode']: ts_bIX = ts_bIX[-ten_factor:]
 
-        opt = torch.optim.SGD(self.parameters(), lr=0.5)
-        scheduler = ScaledLR(opt, warm_up=500)
-        grad_clipper = GradClipperAVT(module=self)
-
         while batch_IX < n_batches:
 
+            out = self.backward(
+                to_torch=   False,
+                to_devices= False,
+                **self._batcher.get_batch())
             batch_IX += 1
-            batch = self._batcher.get_batch()
-            #print(batch)
-
-            out = self.loss_acc(**batch)
-            loss = out['loss']
-            acc = out['acc']
-
-            loss.backward()                 # update gradients
-            gnD = grad_clipper.clip()       # clip gradients
-            opt.step()                      # apply optimizer
-            opt.zero_grad()                 # clear gradients
-            scheduler.step()                # apply LR scheduler
-
-            #print(f' > loss: {loss:.4f}, gn: {gnD["gg_norm"]:.4f}, gn_avt: {gnD["gg_avt_norm"]:.4f}')
 
             if self['do_TB'] or self.verb>0:
                 if self['do_TB']:
-                    self.log_TB(value=loss,               tag='tr/loss',    step=batch_IX)
-                    self.log_TB(value=acc,                tag='tr/acc',     step=batch_IX)
-                    self.log_TB(value=gnD["gg_norm"],     tag='tr/gn',      step=batch_IX)
-                    self.log_TB(value=gnD["gg_avt_norm"], tag='tr/gn_avt',  step=batch_IX)
-                tr_lssL.append(loss)
-                tr_accL.append(acc)
+                    self.log_TB(value=out['loss'],        tag='tr/loss',    step=batch_IX)
+                    self.log_TB(value=out['acc'],         tag='tr/acc',     step=batch_IX)
+                    self.log_TB(value=out['gg_norm'],     tag='tr/gn',      step=batch_IX)
+                    self.log_TB(value=out['gg_avt_norm'], tag='tr/gn_avt',  step=batch_IX)
+                    self.log_TB(value=out['currentLR'],   tag='tr/cLR',     step=batch_IX)
+                tr_lssL.append(out['loss'])
+                tr_accL.append(out['acc'])
 
             if batch_IX in ts_bIX:
 
