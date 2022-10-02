@@ -6,6 +6,7 @@
 """
 
 from abc import abstractmethod, ABC
+import numpy as np
 import torch
 from typing import Optional, Tuple, Dict
 import warnings
@@ -67,6 +68,14 @@ class Module(ABC, torch.nn.Module):
     @abstractmethod
     def forward(self, *args, **kwargs) -> Dict:
         raise NotImplementedError
+
+    # baseline accuracy implementation for logits & lables
+    @staticmethod
+    def accuracy(logits:torch.Tensor, labels:torch.Tensor) -> float:
+        logits = logits.detach().cpu().numpy()
+        labels = labels.cpu().numpy()
+        pred = np.argmax(logits, axis=-1)
+        return float(np.average(pred == labels))
 
     # returned dict should have at least 'loss' and 'acc' keys (loss & accuracy or any other (increasing) performance float)
     @abstractmethod

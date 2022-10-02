@@ -18,21 +18,23 @@ class LinModel(Module):
             self,
             in_drop=    0.0,
             in_shape=   784,
-            out_shape=  10):
+            out_shape=  10,
+            loss_func=  torch.nn.functional.cross_entropy):
         nn.Module.__init__(self)
         self.in_drop_lay = torch.nn.Dropout(p=in_drop) if in_drop>0 else None
         self.lin = LayDense(in_features=in_shape, out_features=out_shape)
+        self.loss_func = loss_func
 
     def forward(self, inp) -> Dict:
         if self.in_drop_lay is not None: inp = self.in_drop_lay(inp)
         logits = self.lin(inp)
         return {'logits': logits}
 
-    def loss(self, inp, lbl) -> torch.Tensor:
+    def loss_acc(self, inp, lbl) -> Dict:
         logits = self(inp)['logits']
-        loss_func = torch.nn.functional.cross_entropy
-        loss = loss_func(logits, lbl)   # calculate loss
-        return loss
+        loss = self.loss_func(logits, lbl)
+        acc = self.accuracy(logits, lbl)  # using baseline
+        return {'loss':loss, 'acc':acc}
 
 
 class LinModelSeed(LinModel):
@@ -71,9 +73,12 @@ class TestMOTor(unittest.TestCase):
         logits = out['logits']
         self.assertTrue(logits.shape[0]==5 and logits.shape[1]==10)
 
-        loss = model.loss(inp, lbl)
-        print(loss)
+        out = model.loss_acc(inp, lbl)
+        loss = out['loss']
+        acc = out['acc']
+        print(loss, acc)
         self.assertTrue(type(loss) is torch.Tensor)
+        self.assertTrue(type(acc) is float)
 
 
     def test_inherited_interfaces(self):
@@ -105,12 +110,14 @@ class TestMOTor(unittest.TestCase):
 
         out = model(inp)
         print(out)
-        loss = model.loss(inp, lbl)
+        out = model.loss_acc(inp, lbl)
+        loss = out['loss']
         print(loss)
 
         out = model(inp, set_training=True)
         print(out)
-        loss = model.loss(inp, lbl, set_training=True)
+        out = model.loss_acc(inp, lbl, set_training=True)
+        loss = out['loss']
         print(loss)
 
 
