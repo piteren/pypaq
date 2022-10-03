@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+from torch.utils.tensorboard import SummaryWriter
 from typing import Optional
 
 
@@ -18,14 +19,15 @@ class ScaledLR(torch.optim.lr_scheduler._LRScheduler):
             ann_step: float=            1.0,    # annealing step, higher value speeds up annealing
             n_wup_off: float=           2.0,    # number of warm-up durations to start annealing
             last_epoch=                 -1,
-            verbose=                    False):
+            verb=                       0):
 
+        self.verb = verb
         self.warm_up = warm_up or 0
         self.ann_base = ann_base
         self.ann_step = ann_step
         self.n_wup_off = n_wup_off
 
-        super(ScaledLR, self).__init__(optimizer, last_epoch, verbose)
+        super(ScaledLR, self).__init__(optimizer, last_epoch, verbose=self.verb>0)
 
     def get_lr(self):
 
@@ -33,14 +35,14 @@ class ScaledLR(torch.optim.lr_scheduler._LRScheduler):
         if self.warm_up:
             wm_ratio = min(self._step_count, self.warm_up) / self.warm_up
             lrs *= wm_ratio
-            if self.verbose: print(f'applied warmUp ({self.warm_up}) to lR')
+            if self.verb>0: print(f'applied warmUp ({self.warm_up}) to lR')
 
         if self.ann_base is not None and self.ann_base != 1.0:
             steps_offs = max(0, self._step_count - self.warm_up * self.n_wup_off)
             lrs *= self.ann_base ** (steps_offs * self.ann_step)
-            if self.verbose: print(f'applied annealing to lR ({self.ann_base:.5f},{self.ann_step:.5f})')
+            if self.verb>0: print(f'applied annealing to lR ({self.ann_base:.5f},{self.ann_step:.5f})')
 
-        if self.verbose: print(f'ScaledLR scheduler step: {self._step_count} lrs: {lrs.tolist()}')
+        if self.verb>0: print(f'ScaledLR scheduler step: {self._step_count} lrs: {lrs.tolist()}')
         return lrs.tolist()
 
     def _get_closed_form_lr(self):
@@ -111,3 +113,29 @@ class GradClipperAVT:
         return {
             'gg_norm':      gg_norm,
             'gg_avt_norm':  self.gg_avt_norm}
+
+# TensorBoard writer
+class TBwr:
+
+    def __init__(
+            self,
+            logdir: str,
+            flush_secs= 10):
+        self.logdir = logdir
+        self.flush_secs = flush_secs
+        # INFO: SummaryWriter creates logdir while init, because of that self.sw init has moved here (in the first call of add)
+        self.sw = None
+
+    def add(self,
+            value,
+            tag: str,
+            step: int):
+
+        if not self.sw:
+            self.sw = SummaryWriter(
+                log_dir=    self.logdir,
+                flush_secs= self.flush_secs)
+
+        self.sw.add_scalar(tag, value, step)
+
+    def flush(self): self.sw.flush()

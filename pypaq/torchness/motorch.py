@@ -18,7 +18,7 @@ from pypaq.pms.base_types import POINT
 from pypaq.pms.parasave import ParaSave
 from pypaq.mpython.devices import get_devices
 from pypaq.comoneural.batcher import Batcher
-from pypaq.torchness.base_elements import ScaledLR, GradClipperAVT
+from pypaq.torchness.base_elements import ScaledLR, GradClipperAVT, TBwr
 
 
 # restricted keys for fwd_func DNA and return DNA (if they appear in kwargs, should be named exactly like below)
@@ -37,21 +37,20 @@ MOTORCH_DEFAULTS = {
         # training
     'batch_size':   64,                         # training batch size
     'n_batches':    1000,                       # default length of training
-    # TODO:
-    #'opt_class':    tf.keras.optimizers.Adam,   # default optimizer of train()
-
-        # LR management (parameters of LR warmup and annealing)
-    'baseLR':       3e-4,                       # base learning rate
+    'opt_class':    torch.optim.Adam,           # default optimizer
+        # LR management (check pypaq.torchness.base_elements.ScaledLR)
+    'baseLR':       3e-4,
     'warm_up':      None,
     'ann_base':     None,
     'ann_step':     1.0,
     'n_wup_off':    1.0,
-    # gradients clipping parameters
+        # gradients clipping parameters (check pypaq.torchness.base_elements.GradClipperAVT)
+    'clip_value':   None,
     'avt_SVal':     0.1,
     'avt_window':   100,
     'avt_max_upd':  1.5,
     'do_clip':      False,
-    # other
+        # other
     'hpmser_mode':  False,                      # it will set model to be read_only and quiet when running with hpmser
     'read_only':    False,                      # sets model to be read only - wont save anything (wont even create self.model_dir)
     'do_logfile':   True,                       # enables saving log file in self.model_dir
@@ -77,7 +76,7 @@ class Module(ABC, torch.nn.Module):
         pred = np.argmax(logits, axis=-1)
         return float(np.average(pred == labels))
 
-    # returned dict should contain forward() Dict + 'loss' & 'acc' keys (accuracy or any other (increasing) performance float)
+    # returned dict updates forward() Dict with loss & acc keys (accuracy or any other (increasing) performance float)
     @abstractmethod
     def loss_acc(self, *args, **kwargs) -> Dict:
         raise NotImplementedError
@@ -162,11 +161,11 @@ class MOTorch(ParaSave, Module):
 
             print(f'\n > MOTorch DNA sources:')
             print(f' >> MOTORCH_DEFAULTS:                  {MOTORCH_DEFAULTS}')
-            print(f' >> model init defaults:               {_module_init_params_defaults}')
+            print(f' >> Module init defaults:              {_module_init_params_defaults}')
             print(f' >> DNA saved:                         {dna_saved}')
             print(f' >> given kwargs:                      {kwargs}')
             print(f' >> MOTorch kwargs not used by model : {not_used_kwargs}')
-            print(f' MOTorch model DNA:                    {dna_module}')
+            print(f' Module DNA:                           {dna_module}')
             print(f' MOTorch complete DNA:                 {dna}')
 
         # *********************************************************************************************** manage devices
@@ -188,11 +187,30 @@ class MOTorch(ParaSave, Module):
         except Exception as e:
             if self.verb>0: print(f'\n > TOModel checkpoint NOT loaded ({e})..')
 
+        self.__TBwr = TBwr(logdir=self.model_dir)  # TensorBoard writer
+
         self._batcher = None
 
-        self.opt = torch.optim.SGD(self.parameters(), lr=self['baseLR'])
-        self.scheduler = ScaledLR(self.opt, warm_up=self['warm_up'])
-        self.grad_clipper = GradClipperAVT(module=self)
+        self.opt = self['opt_class'](
+            params= self.parameters(),
+            lr=     self['baseLR'])
+
+        self.scheduler = ScaledLR(
+            optimizer=  self.opt,
+            warm_up=    self['warm_up'],
+            ann_base=   self['ann_base'],
+            ann_step=   self['ann_step'],
+            n_wup_off=  self['n_wup_off'],
+            verb=       self.verb-1)
+
+        self.grad_clipper = GradClipperAVT(
+            module=         self,
+            clip_value=     self['clip_value'],
+            avt_SVal=       self['avt_SVal'],
+            avt_window=     self['avt_window'],
+            avt_max_upd=    self['avt_max_upd'],
+            do_clip=        self['do_clip'],
+            verb=           self.verb-1)
 
         self.__set_training(False)
 
@@ -317,12 +335,8 @@ class MOTorch(ParaSave, Module):
             tag: str,
             step: int):
 
-        # TODO: implement
-        """
         if self['do_TB']: self.__TBwr.add(value=value, tag=tag, step=step)
         else: warnings.warn(f'NEModel {self.name} cannot log TensorBoard since do_TB flag is False!')
-        """
-        pass
 
     # **************************************************************************************** baseline training methods
 

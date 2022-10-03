@@ -149,15 +149,16 @@ def fwd_graph(
 def opt_graph(
         train_vars,
         gradients,
-        opt_class=          tf.train.AdamOptimizer, # default optimizer, other examples: tf.train.GradientDescentOptimizer, partial(tf.train.AdamOptimizer, beta1=0.7, beta2=0.7)
-            # LR management (parameters of LR warmup and annealing)
-        baseLR=             3e-4,                   # base learning rate
+        opt_class=          tf.train.AdamOptimizer,
+            # LR management (check pypaq.neuralmess.base_elements.lr_scaler)
+        baseLR=             3e-4,
         warm_up=            None,
         ann_base=           None,
-        ann_step=           1,
+        ann_step=           1.0,
         n_wup_off: float=   1.0,
-            # gradients clipping parameters
-        avt_SVal=           1,
+            # gradients clipping parameters (check pypaq.neuralmess.base_elements.gc_loss_reductor)
+        clip_value=         None,
+        avt_SVal=           0.1,
         avt_window=         100,
         avt_max_upd=        1.5,
         do_clip=            False,
@@ -192,6 +193,7 @@ def opt_graph(
         vars=           train_vars,
         g_step=         g_step,
         gradients=      gradients,
+        clip_value=     clip_value,
         avt_SVal=       avt_SVal,
         avt_window=     avt_window,
         avt_max_upd=    avt_max_upd,
