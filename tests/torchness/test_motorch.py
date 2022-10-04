@@ -351,6 +351,92 @@ class TestMOTor(unittest.TestCase):
         self.assertTrue(np.sum(out1['logits'].cpu().detach().numpy()) == np.sum(out2['logits'].cpu().detach().numpy()))
 
 
+    def test_copy_saved(self):
+
+        model = MOTorch(
+            module=         LinModel,
+            save_topdir=    MOTORCH_DIR,
+            in_shape=       256,
+            out_shape=      10,
+            name_timestamp= True,
+            seed=           121,
+            do_logfile=     False,
+            verb=           0)
+        name = model.name
+        print(model)
+        model.save()
+
+        name_copied = f'{name}_copied'
+        MOTorch.copy_saved(
+            name_src=           name,
+            name_trg=           name_copied,
+            save_topdir_src=    MOTORCH_DIR)
+
+        model = MOTorch(
+            module=         LinModel,
+            name=           name_copied,
+            save_topdir=    MOTORCH_DIR)
+        print(model)
+
+
+    def test_gx_ckpt(self):
+
+        model = MOTorch(
+            module=         LinModel,
+            save_topdir=    MOTORCH_DIR,
+            name_timestamp= True,
+            do_logfile=     False,
+            seed=           121,
+            verb=           0)
+        name_A = model.name
+        model.save()
+
+        model = MOTorch(
+            module=         LinModel,
+            save_topdir=    MOTORCH_DIR,
+            name_timestamp= True,
+            do_logfile=     False,
+            seed=           121,
+            verb=           0)
+        name_B = model.name
+        model.save()
+
+        MOTorch.gx_ckpt(
+            name_A=         name_A,
+            name_B=         name_B,
+            name_child=     f'{name_A}_GXed',
+            save_topdir_A=  MOTORCH_DIR)
+
+
+    def test_gx_saved(self):
+
+        model = MOTorch(
+            module=         LinModel,
+            save_topdir=    MOTORCH_DIR,
+            name_timestamp= True,
+            do_logfile=     False,
+            seed=           121,
+            verb=           0)
+        name_A = model.name
+        model.save()
+
+        model = MOTorch(
+            module=         LinModel,
+            save_topdir=    MOTORCH_DIR,
+            name_timestamp= True,
+            do_logfile=     False,
+            seed=           121,
+            verb=           0)
+        name_B = model.name
+        model.save()
+
+        MOTorch.gx_saved(
+            name_parent_main=           name_A,
+            name_parent_scnd=           name_B,
+            name_child=                 f'{name_A}_GXed',
+            save_topdir_parent_main=    MOTORCH_DIR)
+
+
     def test_hpmser_mode(self):
 
         model = MOTorch(

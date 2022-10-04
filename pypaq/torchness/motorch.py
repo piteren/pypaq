@@ -7,18 +7,19 @@
 
 from abc import abstractmethod, ABC
 import numpy as np
+import shutil
 import torch
 from typing import Optional, Tuple, Dict
 import warnings
 
-from pypaq.lipytools.little_methods import stamp, get_params, get_func_dna
+from pypaq.lipytools.little_methods import stamp, get_params, get_func_dna, prep_folder
 from pypaq.lipytools.moving_average import MovAvg
 from pypaq.lipytools.logger import set_logger
 from pypaq.pms.base_types import POINT
 from pypaq.pms.parasave import ParaSave
 from pypaq.mpython.devices import get_devices
 from pypaq.comoneural.batcher import Batcher
-from pypaq.torchness.base_elements import ScaledLR, GradClipperAVT, TBwr
+from pypaq.torchness.base_elements import ScaledLR, GradClipperAVT, TBwr, mrg_ckpts
 
 
 # restricted keys for fwd_func DNA and return DNA (if they appear in kwargs, should be named exactly like below)
@@ -111,7 +112,7 @@ class MOTorch(ParaSave, Module):
         # ************************************************************************* manage (resolve) DNA & init ParaSave
 
         # load dna from folder
-        dna_saved = ParaSave.load_dna(
+        dna_saved = MOTorch.load_dna(
             name=           name,
             save_topdir=    save_topdir,
             save_fn_pfx=    save_fn_pfx)
@@ -231,9 +232,14 @@ class MOTorch(ParaSave, Module):
         # TODO: by now supported is only the first given device
         return torch.device(self['devices'][0])
 
+    # returns path of checkpoint pickle file given some data
+    @staticmethod
+    def __get_ckpt_path_static(model_dir:str, model_name:str) -> str:
+        return f'{model_dir}/{model_name}.pt'
+
     # returns path of checkpoint pickle file
     def __get_ckpt_path(self) -> str:
-        return f'{self.model_dir}/{self.name}.pt'
+        return self.__get_ckpt_path_static(self.model_dir, self.name)
 
     # reloads model checkpoint
     def load_ckpt(self):
@@ -533,6 +539,110 @@ class MOTorch(ParaSave, Module):
             save_topdir_child=          save_topdir_child,
             save_fn_pfx=                save_fn_pfx)
 
+    # copies just checkpoint
+    @staticmethod
+    def copy_checkpoint(
+            name_src: str,
+            name_trg: str,
+            save_topdir_src: str=           SAVE_TOPDIR,
+            save_topdir_trg: Optional[str]= None):
+        if not save_topdir_trg: save_topdir_trg = save_topdir_src
+        shutil.copyfile(
+            src=    MOTorch.__get_ckpt_path_static(f'{save_topdir_src}/{name_src}', name_src),
+            dst=    MOTorch.__get_ckpt_path_static(f'{save_topdir_trg}/{name_trg}', name_trg))
+
+    # copies full MOTorch folder (DNA & checkpoints)
+    @staticmethod
+    def copy_saved(
+            name_src: str,
+            name_trg: str,
+            save_topdir_src: str=           SAVE_TOPDIR,
+            save_topdir_trg: Optional[str]= None,
+            save_fn_pfx: str=               SAVE_FN_PFX):
+
+        if save_topdir_trg is None: save_topdir_trg = save_topdir_src
+
+        # copy DNA
+        MOTorch.copy_saved_dna(
+            name_src=           name_src,
+            name_trg=           name_trg,
+            save_topdir_src=    save_topdir_src,
+            save_topdir_trg=    save_topdir_trg,
+            save_fn_pfx=        save_fn_pfx)
+
+        # copy checkpoint
+        MOTorch.copy_checkpoint(
+            name_src=           name_src,
+            name_trg=           name_trg,
+            save_topdir_src=    save_topdir_src,
+            save_topdir_trg=    save_topdir_trg)
+
+    # GX for two MOTorch checkpoints
+    @staticmethod
+    def gx_ckpt(
+            name_A: str,                            # name parent A
+            name_B: str,                            # name parent B
+            name_child: str,                        # name child
+            save_topdir_A: str=                 SAVE_TOPDIR,
+            save_topdir_B: Optional[str]=       None,
+            save_topdir_child: Optional[str]=   None,
+            ratio: float=                       0.5,
+            noise: float=                       0.03):
+
+        if not save_topdir_B: save_topdir_B = save_topdir_A
+        if not save_topdir_child: save_topdir_child = save_topdir_A
+        model_dir_child = f'{save_topdir_child}/{name_child}'
+        prep_folder(model_dir_child)
+
+        mrg_ckpts(
+            ckptA=          MOTorch.__get_ckpt_path_static(f'{save_topdir_A}/{name_A}', name_A),
+            ckptB=          MOTorch.__get_ckpt_path_static(f'{save_topdir_B}/{name_B}', name_B),
+            ckptM=          MOTorch.__get_ckpt_path_static(model_dir_child, name_child),
+            ratio=          ratio,
+            noise=          noise)
+
+
+    # performs GX on saved MOTorch objects (MOTorch as a ParaSave and then checkpoints, without even building child objects)
+    @staticmethod
+    def gx_saved(
+            name_parent_main: str,
+            name_parent_scnd: Optional[str],                # if not given makes GX only with main parent
+            name_child: str,
+            save_topdir_parent_main: str=               SAVE_TOPDIR,
+            save_topdir_parent_scnd: Optional[str] =    None,
+            save_topdir_child: Optional[str] =          None,
+            save_fn_pfx: Optional[str] =                SAVE_FN_PFX,
+            do_gx_ckpt=                                 True,
+            ratio: float=                               0.5,
+            noise: float=                               0.03
+    ) -> None:
+
+        MOTorch.gx_saved_dna(
+            name_parent_main=           name_parent_main,
+            name_parent_scnd=           name_parent_scnd,
+            name_child=                 name_child,
+            save_topdir_parent_main=    save_topdir_parent_main,
+            save_topdir_parent_scnd=    save_topdir_parent_scnd,
+            save_topdir_child=          save_topdir_child,
+            save_fn_pfx=                save_fn_pfx)
+
+        if do_gx_ckpt:
+            MOTorch.gx_ckpt(
+                name_A=             name_parent_main,
+                name_B=             name_parent_scnd or name_parent_main,
+                name_child=         name_child,
+                save_topdir_A=      save_topdir_parent_main,
+                save_topdir_B=      save_topdir_parent_scnd,
+                save_topdir_child=  save_topdir_child,
+                ratio=              ratio,
+                noise=              noise)
+        else:
+            MOTorch.copy_checkpoint(
+                name_src=           name_parent_main,
+                name_trg=           name_child,
+                save_topdir_src=    save_topdir_parent_main,
+                save_topdir_trg=    save_topdir_child)
+
     # saves MOTorch (ParaSave DNA and checkpoint)
     def save(self):
         if self['read_only']: raise MOTorchException('ERR: read only MOTorch cannot be saved!')
@@ -540,6 +650,9 @@ class MOTorch(ParaSave, Module):
         self.save_ckpt()
         if self.verb>0: print(f'MOTorch {self.name} saved')
 
+    @property
+    def tbwr(self):
+        return self.__TBwr
 
     def __str__(self):
-        return f'{ParaSave.__str__(self)}\n\n{self.module.__str__(self)}'
+        return f'{self.name}\n{self.module.__str__(self)}\n{ParaSave.__str__(self)}\n'
