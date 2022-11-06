@@ -33,18 +33,18 @@ SPEC_KEYS = [
 
 # defaults below may be given with MOTorch kwargs or overridden by fwd_graph attributes
 MOTORCH_DEFAULTS = {
-    'seed':         123,                        # seed for torch and numpy
+    'seed':         123,                # seed for torch and numpy
     'devices':      -1,                         # : DevicesParam (check pypaq.mpython.devices)
         # training
-    'batch_size':   64,                         # training batch size
-    'n_batches':    1000,                       # default length of training
-    'opt_class':    torch.optim.Adam,           # default optimizer
+    'batch_size':   64,                 # training batch size
+    'n_batches':    1000,               # default length of training
+    'opt_class':    torch.optim.Adam,   # default optimizer
         # LR management (check pypaq.torchness.base_elements.ScaledLR)
     'baseLR':       3e-4,
     'warm_up':      None,
     'ann_base':     None,
     'ann_step':     1.0,
-    'n_wup_off':    1.0,
+    'n_wup_off':    2.0,
         # gradients clipping parameters (check pypaq.torchness.base_elements.GradClipperAVT)
     'clip_value':   None,
     'avt_SVal':     0.1,
@@ -52,10 +52,10 @@ MOTORCH_DEFAULTS = {
     'avt_max_upd':  1.5,
     'do_clip':      False,
         # other
-    'hpmser_mode':  False,                      # it will set model to be read_only and quiet when running with hpmser
-    'read_only':    False,                      # sets model to be read only - wont save anything (wont even create self.model_dir)
-    'do_logfile':   True,                       # enables saving log file in self.model_dir
-    'do_TB':        True}                       # runs TensorBard, saves in self.model_dir
+    'hpmser_mode':  False,              # it will set model to be read_only and quiet when running with hpmser
+    'read_only':    False,              # sets model to be read only - wont save anything (wont even create self.model_dir)
+    'do_logfile':   True,               # enables saving log file in self.model_dir
+    'do_TB':        True}               # runs TensorBard, saves in self.model_dir
 
 
 class MOTorchException(Exception):
@@ -71,7 +71,9 @@ class Module(ABC, torch.nn.Module):
 
     # baseline accuracy implementation for logits & lables
     @staticmethod
-    def accuracy(logits:torch.Tensor, labels:torch.Tensor) -> float:
+    def accuracy(
+            logits: torch.Tensor,
+            labels: torch.Tensor) -> float:
         logits = logits.detach().cpu().numpy()
         labels = labels.cpu().numpy()
         pred = np.argmax(logits, axis=-1)
@@ -132,7 +134,7 @@ class MOTorch(ParaSave, Module):
             'verb':         verb})
 
         ParaSave.__init__(self, lock_managed_params=True, **dna)
-        self.check_params_sim(SPEC_KEYS + list(MOTORCH_DEFAULTS.keys())) # safety check
+        self.check_params_sim(params= SPEC_KEYS + list(MOTORCH_DEFAULTS.keys())) # safety check
 
         # read only - override
         if self['read_only']:
@@ -232,7 +234,7 @@ class MOTorch(ParaSave, Module):
         # TODO: by now supported is only the first given device
         return torch.device(self['devices'][0])
 
-    # returns path of checkpoint pickle file given some data
+    # returns path of checkpoint pickle file
     @staticmethod
     def __get_ckpt_path_static(model_dir:str, model_name:str) -> str:
         return f'{model_dir}/{model_name}.pt'
@@ -382,7 +384,7 @@ class MOTorch(ParaSave, Module):
         if data is not None: self.load_data(data)
         if not self._batcher: raise MOTorchException('MOTorch has not been given data for training, use load_data() or give it while training!')
 
-        if self.verb>0: print(f'{self.name} - training starts')
+        if self.verb>0: print(f'{self.name} - training starts [acc/loss]')
 
         self.__set_training(True)
 

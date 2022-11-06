@@ -131,7 +131,7 @@ def mrg_ckpts(
     cmsd_B = checkpoint_B['model_state_dict']
     cmsd_M = OrderedDict()
 
-    # TODO: watch out for not-float-tensors -> such should be taken from A without mix
+    # TODO: watch out for not-float-tensors -> such should be taken from A without a mix
     for k in cmsd_A:
         std_dev = float(torch.std(cmsd_A[k]))
         noise_tensor = torch.zeros_like(cmsd_A[k])
