@@ -152,7 +152,8 @@ class ParaSave(SubGX):
         psc = ParaSave(
             name=           name,
             save_topdir=    save_topdir,
-            save_fn_pfx=    save_fn_pfx)
+            save_fn_pfx=    save_fn_pfx,
+            loglevel=       30)
         psc.update(kwargs)
         psc.save_dna()
 

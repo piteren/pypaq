@@ -104,11 +104,35 @@ class MOTorch(ParaSave, Module):
         self.name = self.module.__name__ if not name else name
         if name_timestamp: self.name += f'_{stamp()}'
 
+        # ********************************************************************************************** early overrides
+
+        if kwargs.get('hpmser_mode', False):
+            loglevel = 50
+            kwargs['read_only'] = True
+
+        if kwargs.get('read_only', False):
+            kwargs['do_TB'] = False
+
+        _read_only = kwargs.get('read_only', False)
+
+        self.model_dir = f'{save_topdir}/{self.name}'
+        if not _read_only: prep_folder(self.model_dir)
+
+        if not logger:
+            logger = get_pylogger(
+                name=       self.name,
+                add_stamp=  not name_timestamp,
+                folder=     None if _read_only else self.model_dir,
+                level=      loglevel)
+
+        self.__log = logger
+        self.__log.info(f'*** MOTorch *** {self.name} (type: {type(self).__name__}) initializes..')
+
         # ************************************************************************* manage (resolve) DNA & init ParaSave
 
         # load dna from folder
         dna_saved = MOTorch.load_dna(
-            name=           name,
+            name=           self.name,
             save_topdir=    save_topdir,
             save_fn_pfx=    save_fn_pfx)
 
@@ -124,28 +148,6 @@ class MOTorch(ParaSave, Module):
             'name':         self.name,
             'save_topdir':  save_topdir,
             'save_fn_pfx':  save_fn_pfx})
-
-        # hpmser_mode -> override
-        if dna['hpmser_mode']:
-            loglevel = 50
-            dna['read_only'] = True
-
-        # read only -> override
-        if dna['read_only']:
-            dna['do_TB'] = False
-
-        self.model_dir = f'{save_topdir}/{self.name}'
-        if not dna['read_only']: prep_folder(self.model_dir)
-
-        if not logger:
-            logger = get_pylogger(
-                name=       self.name,
-                add_stamp=  not name_timestamp,
-                folder=     None if dna['read_only'] else self.model_dir,
-                level=      loglevel)
-
-        self.__log = logger
-        self.__log.info(f'*** MOTorch *** {self.name} (type: {type(self).__name__}) initializes..')
 
         ParaSave.__init__(
             self,

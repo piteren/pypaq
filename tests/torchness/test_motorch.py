@@ -10,7 +10,7 @@ from pypaq.torchness.motorch import MOTorch, Module, MOTorchException
 from pypaq.torchness.layers import LayDense
 
 MOTORCH_DIR = f'{flush_tmp_dir()}/motorch'
-
+print(f'MOTORCH_DIR: {MOTORCH_DIR}')
 
 class LinModel(Module):
 
@@ -52,14 +52,11 @@ class LinModelSeed(LinModel):
             out_shape=  out_shape)
 
 
-class TestMOTor(unittest.TestCase):
+class TestMOTorch(unittest.TestCase):
 
     def test_base_creation_call(self):
 
-        model = MOTorch(
-            module=     LinModel,
-            do_logfile= False,
-            verb=       1)
+        model = MOTorch(module=LinModel)
         print(model)
 
         inp = np.random.random((5,784)).astype(np.float32)
@@ -86,10 +83,7 @@ class TestMOTor(unittest.TestCase):
 
     def test_inherited_interfaces(self):
 
-        model = MOTorch(
-            module=     LinModel,
-            do_logfile= False,
-            verb=       0)
+        model = MOTorch(module=LinModel)
         print(model.parameters())
         model.float()
         print(model.state_dict())
@@ -100,9 +94,7 @@ class TestMOTor(unittest.TestCase):
 
         model = MOTorch(
             module=     LinModel,
-            in_drop=    0.8,
-            do_logfile= False,
-            verb=       0)
+            in_drop=    0.8)
         print(model.training)
 
         inp = np.random.random((5,784)).astype(np.float32)
@@ -123,21 +115,17 @@ class TestMOTor(unittest.TestCase):
 
     def test_name_stamp(self):
 
-        model = MOTorch(
-            module=     LinModel,
-            do_logfile= False)
+        model = MOTorch(module=LinModel)
         self.assertTrue(model['name'] == 'LinModel')
 
         model = MOTorch(
             module=     LinModel,
-            name=       'LinTest',
-            do_logfile= False)
+            name=       'LinTest')
         self.assertTrue(model['name'] == 'LinTest')
 
         model = MOTorch(
             module=         LinModel,
-            name_timestamp= True,
-            do_logfile=     False)
+            name_timestamp= True)
         self.assertTrue(model['name'] != 'LinModel')
         self.assertTrue({d for d in '0123456789'} & set([l for l in model['name']]))
 
@@ -147,15 +135,16 @@ class TestMOTor(unittest.TestCase):
         model = MOTorch(
             module=         LinModel,
             save_topdir=    MOTORCH_DIR,
-            do_logfile=     False,
+            loglevel=       10,
             in_shape=       12,
-            out_shape=      12,
-            verb=           1)
+            out_shape=      12)
         pms = model.get_managed_params()
-        print(pms)
+        print(f'model.get_managed_params(): {pms}')
+        orig_seed = model['seed']
+        print(f'orig_seed: {orig_seed}')
         model.save()
 
-        model.oversave(
+        MOTorch.oversave(
             name=           model["name"],
             save_topdir=    MOTORCH_DIR,
             seed=           252)
@@ -165,27 +154,24 @@ class TestMOTor(unittest.TestCase):
         print(dna)
         self.assertFalse(dna)
 
+        # this will load
         dna = model.load_dna(
             name=           model["name"],
             save_topdir=    MOTORCH_DIR)
         print(dna)
-        for p in pms:
-            self.assertTrue(p in dna)
-
+        for p in pms: self.assertTrue(p in dna)
         self.assertTrue(dna["seed"]==252)
 
         # this model will not load
-        model = MOTorch(
-            module=         LinModel,
-            do_logfile=     False)
-        print(model['in_shape'])
+        model = MOTorch(module=LinModel)
+        print(f'not loaded model in_shape: {model["in_shape"]}')
         self.assertTrue(model['in_shape'] != 12)
 
-        # this model will load from NEMODEL_DIR
+        # this model will load from MOTORCH_DIR
         model = MOTorch(
             module=         LinModel,
             save_topdir=    MOTORCH_DIR,
-            do_logfile=     False)
+            loglevel=       10)
         print(model['in_shape'])
         self.assertTrue(model['in_shape'] == 12)
 
@@ -193,7 +179,6 @@ class TestMOTor(unittest.TestCase):
             module=         LinModel,
             name_timestamp= True,
             save_topdir=    MOTORCH_DIR,
-            do_logfile=     False,
             in_shape=       12,
             out_shape=      12)
         model.save()
@@ -202,8 +187,7 @@ class TestMOTor(unittest.TestCase):
         model = MOTorch(
             module=         LinModel,
             name=           model['name'],
-            save_topdir=    MOTORCH_DIR,
-            do_logfile=     False)
+            save_topdir=    MOTORCH_DIR)
         self.assertTrue(model['in_shape'] == 12)
 
         model.copy_saved_dna(
@@ -222,8 +206,7 @@ class TestMOTor(unittest.TestCase):
             module=         LinModel,
             name=           'GXLin',
             save_topdir=    MOTORCH_DIR,
-            psdd=           psdd,
-            do_logfile=     False)
+            psdd=           psdd)
 
         print(model.gxable)
         print(model['psdd'])
@@ -242,9 +225,7 @@ class TestMOTor(unittest.TestCase):
 
     def test_params_resolution(self):
 
-        model = MOTorch(
-            module=         LinModel,
-            do_logfile=     False)
+        model = MOTorch(module=LinModel)
         print(model['seed'])        # value from MOTORCH_DEFAULTS
         print(model['in_shape'])    # value from nn.Module defaults
         self.assertTrue(model['seed'] == 123)
@@ -252,7 +233,6 @@ class TestMOTor(unittest.TestCase):
 
         model = MOTorch(
             module=         LinModel,
-            do_logfile=     False,
             seed=           151)
         print(model['seed'])        # MOTORCH_DEFAULTS overridden with kwargs
         self.assertTrue(model['seed'] == 151)
@@ -260,7 +240,6 @@ class TestMOTor(unittest.TestCase):
         model = MOTorch(
             module=         LinModelSeed,
             save_topdir=    MOTORCH_DIR,
-            do_logfile=     False,
             in_shape=       24,
             out_shape=      24)
         print(model['seed'])        # MOTORCH_DEFAULTS overridden with nn.Module defaults
@@ -270,8 +249,7 @@ class TestMOTor(unittest.TestCase):
         model = MOTorch(
             module=         LinModelSeed,
             save_topdir=    MOTORCH_DIR,
-            seed=           212,
-            do_logfile=     False)
+            seed=           212)
         print(model['in_shape'])    # loaded from save
         print(model['seed'])        # saved overridden with kwargs
         self.assertTrue(model['in_shape'] == 24)
@@ -282,8 +260,7 @@ class TestMOTor(unittest.TestCase):
 
         model = MOTorch(
             module=     LinModel,
-            seed=       121,
-            do_logfile= False)
+            seed=       121)
 
         inp = np.random.random((5,784)).astype(np.float32)
         out1 = model(inp)
@@ -292,8 +269,7 @@ class TestMOTor(unittest.TestCase):
 
         model = MOTorch(
             module=     LinModel,
-            seed=       121,
-            do_logfile= False)
+            seed=       121)
 
         out2 = model(inp)
         print(model['seed'])
@@ -306,14 +282,12 @@ class TestMOTor(unittest.TestCase):
 
         model = MOTorch(
             module=         LinModel,
-            save_topdir=    MOTORCH_DIR,
-            do_logfile=     False)
+            save_topdir=    MOTORCH_DIR)
         model.save()
 
         model = MOTorch(
             module=         LinModel,
-            read_only=      True,
-            do_logfile=     False)
+            read_only=      True)
         self.assertRaises(MOTorchException, model.save)
 
 
@@ -325,9 +299,7 @@ class TestMOTor(unittest.TestCase):
             in_shape=       256,
             out_shape=      10,
             name_timestamp= True,
-            seed=           121,
-            do_logfile=     False,
-            verb=           0)
+            seed=           121)
         name = model.name
 
         inp = np.random.random((5, 256)).astype(np.float32)
@@ -340,9 +312,7 @@ class TestMOTor(unittest.TestCase):
             module=         LinModel,
             save_topdir=    MOTORCH_DIR,
             name=           name,
-            seed=           123, # although different seed, model will load checkpoint
-            do_logfile=     False,
-            verb=           0)
+            seed=           123) # although different seed, model will load checkpoint
 
         out2 = loaded_model(inp)
         print(out2)
@@ -359,9 +329,7 @@ class TestMOTor(unittest.TestCase):
             in_shape=       256,
             out_shape=      10,
             name_timestamp= True,
-            seed=           121,
-            do_logfile=     False,
-            verb=           0)
+            seed=           121)
         name = model.name
         print(model)
         model.save()
@@ -385,9 +353,7 @@ class TestMOTor(unittest.TestCase):
             module=         LinModel,
             save_topdir=    MOTORCH_DIR,
             name_timestamp= True,
-            do_logfile=     False,
-            seed=           121,
-            verb=           0)
+            seed=           121)
         name_A = model.name
         model.save()
 
@@ -395,9 +361,7 @@ class TestMOTor(unittest.TestCase):
             module=         LinModel,
             save_topdir=    MOTORCH_DIR,
             name_timestamp= True,
-            do_logfile=     False,
-            seed=           121,
-            verb=           0)
+            seed=           121)
         name_B = model.name
         model.save()
 
@@ -414,9 +378,7 @@ class TestMOTor(unittest.TestCase):
             module=         LinModel,
             save_topdir=    MOTORCH_DIR,
             name_timestamp= True,
-            do_logfile=     False,
-            seed=           121,
-            verb=           0)
+            seed=           121)
         name_A = model.name
         model.save()
 
@@ -424,9 +386,7 @@ class TestMOTor(unittest.TestCase):
             module=         LinModel,
             save_topdir=    MOTORCH_DIR,
             name_timestamp= True,
-            do_logfile=     False,
-            seed=           121,
-            verb=           0)
+            seed=           121)
         name_B = model.name
         model.save()
 
@@ -441,10 +401,7 @@ class TestMOTor(unittest.TestCase):
 
         model = MOTorch(
             module=         LinModel,
-            hpmser_mode=    True,
-            do_logfile=     False,
-            verb=           1)
-        self.assertTrue(model['verb'] == 0)
+            hpmser_mode=    True)
         self.assertRaises(MOTorchException, model.save)
 
 
