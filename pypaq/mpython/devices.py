@@ -3,6 +3,7 @@ import os
 import platform
 from typing import Optional, Union, List
 
+from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.mpython.mptools import sys_res_nfo
 
 
@@ -34,16 +35,19 @@ def get_available_cuda_id(max_mem=None): # None sets automatic, otherwise (0,1.1
     return GPUtil.getAvailable(limit=20, maxMemory=max_mem)
 
 # prints report of system cuda devices
-def report_cuda():
-    print('\nSystem CUDA devices:')
+def report_cuda() -> str:
+    rp = 'System CUDA devices:'
     for device in GPUtil.getGPUs():
-        print(f' > id: {device.id}, name: {device.name}, MEM: {int(device.memoryUsed)}/{int(device.memoryTotal)} (U/T)')
+        rp += f'\n > id: {device.id}, name: {device.name}, MEM: {int(device.memoryUsed)}/{int(device.memoryTotal)} (U/T)'
+    return rp
 
 
 def get_devices(
         devices: DevicesParam=  -1,
         namespace: str=         'TF1',
-        verb=                   1) -> List[str]:
+        logger=                  None) -> List[str]:
+
+    if not logger: logger = get_pylogger(name='get_devices')
 
     if namespace not in ['TF1','TF2','torch']:
         raise NameError('Wrong namespace, supported are: TF1, TF2 or torch')
@@ -102,10 +106,10 @@ def get_devices(
     final_devices = []
     final_devices += [f'{device_pfx}{cpu_pfx}:0'] * len(devices_CPU)
     if devices_int:
-        if verb>0: report_cuda()
+        logger.trace(report_cuda())
         for dev in devices_int: final_devices.append(f'{device_pfx}{gpu_pfx}:{dev}')
 
-    if verb>0: print(f'\nget_devices is returning {len(final_devices)} devices: {final_devices}')
+    logger.debug(f'get_devices is returning {len(final_devices)} devices: {final_devices}')
     return final_devices
 
 # masks GPUs from given list of ids or single one

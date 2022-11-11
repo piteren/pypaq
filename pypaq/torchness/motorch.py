@@ -10,11 +10,10 @@ import numpy as np
 import shutil
 import torch
 from typing import Optional, Tuple, Dict
-import warnings
 
 from pypaq.lipytools.little_methods import stamp, get_params, get_func_dna, prep_folder
 from pypaq.lipytools.moving_average import MovAvg
-from pypaq.lipytools.logger import set_logger
+from pypaq.lipytools.pylogger import get_pylogger, get_hi_child
 from pypaq.pms.base_types import POINT
 from pypaq.pms.parasave import ParaSave
 from pypaq.mpython.devices import get_devices
@@ -93,23 +92,18 @@ class MOTorch(ParaSave, Module):
     def __init__(
             self,
             module: type(Module),
-            name: Optional[str]=        None,
-            name_timestamp=             False,      # adds timestamp to the model name
-            save_topdir: str=           SAVE_TOPDIR,
-            save_fn_pfx: str=           SAVE_FN_PFX,
-            verb=                       0,
+            name: Optional[str]=    None,
+            name_timestamp=         False,      # adds timestamp to the model name
+            save_topdir: str=       SAVE_TOPDIR,
+            save_fn_pfx: str=       SAVE_FN_PFX,
+            logger=                 None,
+            loglevel=               20,
             **kwargs):
-
-        # hpmser_mode - very early override, ..hpmser_mode==True will not be saved ever, so the only way to set it is to get it with kwargs
-        if kwargs.get('hpmser_mode', False):
-            verb = 0
-            kwargs['read_only'] = True
 
         self.module = module
 
-        name = self.module.__name__ if not name else name
-        if name_timestamp: name += f'.{stamp()}'
-        if verb>0: print(f'\n *** MOTorch {name} (type: {type(self).__name__}) *** initializes..')
+        self.name = self.module.__name__ if not name else name
+        if name_timestamp: self.name += f'_{stamp()}'
 
         # ************************************************************************* manage (resolve) DNA & init ParaSave
 
@@ -128,67 +122,77 @@ class MOTorch(ParaSave, Module):
         dna.update(dna_saved)
         dna.update(kwargs)          # update with kwargs given NOW by user
         dna.update({
-            'name':         name,
+            'name':         self.name,
             'save_topdir':  save_topdir,
-            'save_fn_pfx':  save_fn_pfx,
-            'verb':         verb})
+            'save_fn_pfx':  save_fn_pfx})
 
-        ParaSave.__init__(self, lock_managed_params=True, **dna)
+        # hpmser_mode -> override
+        if dna['hpmser_mode']:
+            loglevel = 50
+            dna['read_only'] = True
+
+        # read only -> override
+        if dna['read_only']:
+            dna['do_logfile'] = False
+            dna['do_TB'] = False
+
+        self.model_dir = f'{save_topdir}/{self.name}'
+        if not dna['read_only']: prep_folder(self.model_dir)
+
+        if not logger:
+            logger = get_pylogger(
+                name=       self.name,
+                add_stamp=  not name_timestamp,
+                folder=     None if dna['read_only'] else self.model_dir,
+                level=      loglevel)
+
+        self.__log = logger
+        self.__log.info(f'*** MOTorch *** {self.name} (type: {type(self).__name__}) initializes..')
+
+        ParaSave.__init__(
+            self,
+            lock_managed_params=    True,
+            logger=                 get_hi_child(self.__log, 'ParaSave'),
+            **dna)
         self.check_params_sim(params= SPEC_KEYS + list(MOTORCH_DEFAULTS.keys())) # safety check
-
-        # read only - override
-        if self['read_only']:
-            self['do_logfile'] = False
-            self['do_TB'] = False
-
-        self.model_dir = f'{self.save_topdir}/{self.name}'
-        if self.verb>0: print(f' > MOTorch dir: {self.model_dir}{" read only mode!" if self["read_only"] else ""}')
-
-        if self['do_logfile']:
-            set_logger(
-                log_folder=     self.model_dir,
-                custom_name=    self.name,
-                verb=           self.verb)
 
         dna = self.get_point()
         dna_module_keys = _module_init_params['without_defaults'] + list(_module_init_params['with_defaults'].keys())
         dna_module_keys.remove('self')
         dna_module = {k: dna[k] for k in dna_module_keys}
 
-        if self.verb>0:
+        not_used_kwargs = {}
+        for k in kwargs:
+            if k not in get_func_dna(self.module.__init__, dna):
+                not_used_kwargs[k] = kwargs[k]
 
-            not_used_kwargs = {}
-            for k in kwargs:
-                if k not in get_func_dna(self.module.__init__, dna):
-                    not_used_kwargs[k] = kwargs[k]
-
-            print(f'\n > MOTorch DNA sources:')
-            print(f' >> MOTORCH_DEFAULTS:                  {MOTORCH_DEFAULTS}')
-            print(f' >> Module init defaults:              {_module_init_params_defaults}')
-            print(f' >> DNA saved:                         {dna_saved}')
-            print(f' >> given kwargs:                      {kwargs}')
-            print(f' >> MOTorch kwargs not used by model : {not_used_kwargs}')
-            print(f' Module DNA:                           {dna_module}')
-            print(f' MOTorch complete DNA:                 {dna}')
+        self.__log.debug(f'> MOTorch DNA sources:')
+        self.__log.debug(f'>> MOTORCH_DEFAULTS:                  {MOTORCH_DEFAULTS}')
+        self.__log.debug(f'>> Module init defaults:              {_module_init_params_defaults}')
+        self.__log.debug(f'>> DNA saved:                         {dna_saved}')
+        self.__log.debug(f'>> given kwargs:                      {kwargs}')
+        self.__log.debug(f'>> MOTorch kwargs not used by model : {not_used_kwargs}')
+        self.__log.debug(f'Module DNA:                           {dna_module}')
+        self.__log.debug(f'MOTorch complete DNA:                 {dna}')
 
         # *********************************************************************************************** manage devices
 
         self.torch_dev = self.__manage_devices()
 
+        # https://pytorch.org/docs/stable/notes/randomness.html
         torch.manual_seed(self['seed'])
         torch.cuda.manual_seed(self['seed'])
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
-        # https://pytorch.org/docs/stable/notes/randomness.html
 
         self.module.__init__(self, **dna_module)
         self.to(self.torch_dev)
 
         try:
             self.load_ckpt()
-            if self.verb>0: print(f'\n > TOModel checkpoint loaded from {self.__get_ckpt_path()}')
+            self.__log.debug(f'> MOTorch checkpoint loaded from {self.__get_ckpt_path()}')
         except Exception as e:
-            if self.verb>0: print(f'\n > TOModel checkpoint NOT loaded ({e})..')
+            self.__log.debug(f'> MOTorch checkpoint NOT loaded ({e})..')
 
         self.__TBwr = TBwr(logdir=self.model_dir)  # TensorBoard writer
 
@@ -204,7 +208,7 @@ class MOTorch(ParaSave, Module):
             ann_base=   self['ann_base'],
             ann_step=   self['ann_step'],
             n_wup_off=  self['n_wup_off'],
-            verb=       self.verb-1)
+            logger=     get_hi_child(self.__log, 'ScaledLR'))
 
         self.grad_clipper = GradClipperAVT(
             module=         self,
@@ -213,24 +217,22 @@ class MOTorch(ParaSave, Module):
             avt_window=     self['avt_window'],
             avt_max_upd=    self['avt_max_upd'],
             do_clip=        self['do_clip'],
-            verb=           self.verb-1)
+            logger=         get_hi_child(self.__log, 'GradClipperAVT'))
 
         self.__set_training(False)
-
-        if self.verb>0:
-            print(f'\n > set MOTorch train.mode to False..')
-            print(f'\n > MOTorch init finished!')
+        self.__log.debug(f'> set MOTorch train.mode to False..')
+        self.__log.info(f'MOTorch init finished!')
 
     # sets CPU / GPU devices for MOTorch
     def __manage_devices(self):
 
-        if self.verb > 0: print(f'\n > MOTorch resolves devices, given: {self["devices"]}, torch.cuda.is_available(): {torch.cuda.is_available()}')
+        self.__log.debug(f'> MOTorch resolves devices, given: {self["devices"]}, torch.cuda.is_available(): {torch.cuda.is_available()}')
 
         self['devices'] = get_devices(
             devices=    self['devices'],
             namespace=  'torch',
-            verb=       self.verb-1)
-        if self.verb>0: print(f' > MOTorch will use devices: {self["devices"]}')
+            logger=     get_hi_child(self.__log, 'get_devices'))
+        self.__log.debug(f'> MOTorch will use devices: {self["devices"]}')
         # TODO: by now supported is only the first given device
         return torch.device(self['devices'][0])
 
@@ -344,7 +346,7 @@ class MOTorch(ParaSave, Module):
             step: int):
 
         if self['do_TB']: self.__TBwr.add(value=value, tag=tag, step=step)
-        else: warnings.warn(f'NEModel {self.name} cannot log TensorBoard since do_TB flag is False!')
+        else: self.__log.warn(f'NEModel {self.name} cannot log TensorBoard since do_TB flag is False!')
 
     # **************************************************************************************** baseline training methods
 
@@ -369,7 +371,7 @@ class MOTorch(ParaSave, Module):
             data_TS=        data_td['test'] if 'test' in data_td else None,
             batch_size=     self['batch_size'],
             batching_type=  'random_cov',
-            verb=           self.verb)
+            logger=         get_hi_child(self.__log, 'Batcher'))
 
     # trains model
     def train(
@@ -384,7 +386,7 @@ class MOTorch(ParaSave, Module):
         if data is not None: self.load_data(data)
         if not self._batcher: raise MOTorchException('MOTorch has not been given data for training, use load_data() or give it while training!')
 
-        if self.verb>0: print(f'{self.name} - training starts [acc/loss]')
+        self.__log.info(f'{self.name} - training starts [acc/loss]')
 
         self.__set_training(True)
 
@@ -410,15 +412,14 @@ class MOTorch(ParaSave, Module):
                 **self._batcher.get_batch())
             batch_IX += 1
 
-            if self['do_TB'] or self.verb>0:
-                if self['do_TB']:
-                    self.log_TB(value=out['loss'],        tag='tr/loss',    step=batch_IX)
-                    self.log_TB(value=out['acc'],         tag='tr/acc',     step=batch_IX)
-                    self.log_TB(value=out['gg_norm'],     tag='tr/gn',      step=batch_IX)
-                    self.log_TB(value=out['gg_avt_norm'], tag='tr/gn_avt',  step=batch_IX)
-                    self.log_TB(value=out['currentLR'],   tag='tr/cLR',     step=batch_IX)
-                tr_lssL.append(out['loss'])
-                tr_accL.append(out['acc'])
+            if self['do_TB']:
+                self.log_TB(value=out['loss'],        tag='tr/loss',    step=batch_IX)
+                self.log_TB(value=out['acc'],         tag='tr/acc',     step=batch_IX)
+                self.log_TB(value=out['gg_norm'],     tag='tr/gn',      step=batch_IX)
+                self.log_TB(value=out['gg_avt_norm'], tag='tr/gn_avt',  step=batch_IX)
+                self.log_TB(value=out['currentLR'],   tag='tr/cLR',     step=batch_IX)
+            tr_lssL.append(out['loss'])
+            tr_accL.append(out['acc'])
 
             if batch_IX in ts_bIX:
 
@@ -432,7 +433,7 @@ class MOTorch(ParaSave, Module):
                     self.log_TB(value=ts_loss, tag='ts/loss',    step=batch_IX)
                     self.log_TB(value=ts_acc,  tag='ts/acc',     step=batch_IX)
                     self.log_TB(value=acc_mav, tag='ts/acc_mav', step=batch_IX)
-                if self.verb>0: print(f'{batch_IX:5d} TR: {100*sum(tr_accL)/test_freq:.1f} / {sum(tr_lssL)/test_freq:.3f} -- TS: {100*ts_acc:.1f} / {ts_loss:.3f}')
+                self.__log.info(f'{batch_IX:5d} TR: {100*sum(tr_accL)/test_freq:.1f} / {sum(tr_lssL)/test_freq:.3f} -- TS: {100*ts_acc:.1f} / {ts_loss:.3f}')
                 tr_lssL = []
                 tr_accL = []
 
@@ -451,10 +452,9 @@ class MOTorch(ParaSave, Module):
         ts_wval /= sum_weight
 
         if self['do_TB']: self.log_TB(value=ts_wval, tag='ts/ts_wval', step=batch_IX)
-        if self.verb>0:
-            print(f'model {self.name} finished training')
-            print(f' > test_acc_max: {ts_acc_max:.4f}')
-            print(f' > test_wval:    {ts_wval:.4f}')
+        self.__log.info(f'model {self.name} finished training')
+        self.__log.info(f' > test_acc_max: {ts_acc_max:.4f}')
+        self.__log.info(f' > test_wval:    {ts_wval:.4f}')
 
         self.__set_training(False)
 
@@ -650,7 +650,7 @@ class MOTorch(ParaSave, Module):
         if self['read_only']: raise MOTorchException('ERR: read only MOTorch cannot be saved!')
         self.save_dna()
         self.save_ckpt()
-        if self.verb>0: print(f'MOTorch {self.name} saved')
+        self.__log.info(f'MOTorch {self.name} saved')
 
     @property
     def tbwr(self):

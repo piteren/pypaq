@@ -20,6 +20,7 @@
 from copy import deepcopy
 from typing import List, Optional, Union, Dict
 
+from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.textools.text_metrics import lev_dist
 from pypaq.pms.base_types import POINT, PSDD
 from pypaq.pms.paspa import PaSpa
@@ -105,17 +106,19 @@ class SubGX(Subscriptable):
             name: str,
             family: Optional[str]=  None, # family of GXable
             psdd: Optional[PSDD]=   None, # PSDD of GXable
-            verb=                   0,
+            logger=                 None,
             **kwargs):
-        self.verb = verb
+
+        if not logger: logger = get_pylogger(name='SubGX')
+        self.__log = logger
+
         self.name = name
         self.family = family
         self.psdd = psdd or {}
         self.update(kwargs)
         # INFO: all keys of self.psdd should be present in self
-        #  It is not checked now (while init) since self may be updated even after init,
-        #  it is checked while GX
-        if self.verb>0: print(f'\n *** Subscriptable *** name: {self.name} initialized, family: {self.family}, psdd: {self.psdd}')
+        #  It is not checked now (while init) since self may be updated even after init, IT IS checked while GX
+        self.__log.info(f'*** Subscriptable *** name: {self.name} initialized, family: {self.family}, psdd: {self.psdd}')
 
     # returns self POINT limited to axes included in self.psdd
     def get_gxable_point(self) -> POINT:

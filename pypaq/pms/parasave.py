@@ -15,6 +15,7 @@ from typing import Optional, List
 import warnings
 
 from pypaq.lipytools.little_methods import prep_folder, w_pickle, r_pickle, stamp
+from pypaq.lipytools.pylogger import get_pylogger, get_hi_child
 from pypaq.pms.base_types import POINT
 from pypaq.pms.subscriptable import SubGX
 
@@ -30,23 +31,30 @@ class ParaSave(SubGX):
             self,
             name:str,
             save_topdir: Optional[str]= SAVE_TOPDIR,    # ParaSave top directory, when not given folders functionality (load/save) is not accessible
-            save_fn_pfx: str=           None,           # ParaSave filename (DNA) prefix
+            save_fn_pfx: str=           SAVE_FN_PFX,    # ParaSave filename (DNA) prefix
             gxable: bool or None=       None,           # None sets to default - True, it may override default and save by setting it to True/False
             assert_saved=               False,          # for True asserts that ParaSave has been already saved in save_topdir
             lock_managed_params=        False,          # locks _managed_params to only those known while init
-            verb=                       0,
+            logger=                     None,
+            loglevel=                   20,
             **kwargs):
 
         self.name = name
 
-        if save_fn_pfx is None: save_fn_pfx = ParaSave.SAVE_FN_PFX
+        if not logger:
+            logger = get_pylogger(
+                name=       self.name,
+                folder=     ParaSave.__full_dir(name=self.name, save_topdir=save_topdir),
+                level=      loglevel)
+        self.__log = logger
 
         if assert_saved:
             obj_FN = ParaSave.__obj_fn(name, save_topdir, save_fn_pfx)
-            assert os.path.isfile(obj_FN), f'ERR: ParaSave {self.name} does not exist!'
+            ex_msg = f'ERR: ParaSave {self.name} does not exist!'
+            self.__log.error(ex_msg)
+            if not os.path.isfile(obj_FN): raise Exception(ex_msg)
 
-        self.verb = verb
-        if self.verb>0: print(f'\n *** ParaSave *** name: {self.name}, initializing..')
+        self.__log.info(f'*** ParaSave *** name: {self.name} initializes..')
 
         self.save_topdir = save_topdir
         self.save_fn_pfx = save_fn_pfx
@@ -58,7 +66,6 @@ class ParaSave(SubGX):
             save_topdir=    self.save_topdir,
             save_fn_pfx=    self.save_fn_pfx)
         self.update(dna_folder) # 1. update with params from folder
-        self.verb = verb        # 2. update verb in case it was saved in folder
         self.update(kwargs)     # 3. update with params given by user
         if gxable is not None: self.gxable = gxable  # if user forces it to be True/False
 
@@ -66,7 +73,7 @@ class ParaSave(SubGX):
         self._managed_params: Optional[List[str]] = None
         if lock_managed_params: self._managed_params = self.get_managed_params()
 
-        SubGX.__init__(self, **self.get_point())
+        SubGX.__init__(self, logger=get_hi_child(self.__log, 'SubGX'), **self.get_point())
 
 
     def get_managed_params(self) -> List[str]:
@@ -101,7 +108,6 @@ class ParaSave(SubGX):
             name: str,
             save_topdir: str=   SAVE_TOPDIR,
             save_fn_pfx: str=   SAVE_FN_PFX) -> POINT:
-        #if save_topdir is None: return {}
         obj_FN = ParaSave.__obj_fn(name, save_topdir, save_fn_pfx or ParaSave.SAVE_FN_PFX)
         if os.path.isfile(obj_FN):
             dna: POINT = r_pickle(obj_FN)

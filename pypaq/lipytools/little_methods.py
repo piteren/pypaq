@@ -187,10 +187,18 @@ def print_nested_dict(dc: dict, ind_scale=2, line_limit=200):
 
     __prn_root(dc,ind=0,ind_scale=ind_scale)
 
+# gets folder path from folder or file path
+def get_dir(path: Union[str, Path]):
+    path = str(path)
+    path_split = path.split('/')
+    if path_split[-1].find('.') != -1: path_split = path_split[:-1]
+    return '/'.join(path_split)
+
 # prepares folder, creates or flushes
 def prep_folder(
-        folder_path: Union[str, Path],  # folder path
+        path: Union[str, Path],  # folder or file path
         flush_non_empty=    False):
+    folder_path = get_dir(path)
     if flush_non_empty and os.path.isdir(folder_path): shutil.rmtree(folder_path)
     os.makedirs(folder_path, exist_ok=True)
 
