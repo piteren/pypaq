@@ -188,6 +188,8 @@ class MOTorch(ParaSave, Module):
         self.module.__init__(self, **dna_module)
         self.to(self.torch_dev)
 
+        self._train_batch_IX = 0  # global train batch counter
+
         try:
             self.load_ckpt()
             self.__log.debug(f'> MOTorch checkpoint loaded from {self.__get_ckpt_path()}')
@@ -201,14 +203,18 @@ class MOTorch(ParaSave, Module):
         self.opt = self['opt_class'](
             params= self.parameters(),
             lr=     self['baseLR'])
+        #print(len(self.opt.param_groups))
+        #print(self.opt.param_groups[0].keys())
 
+        # from now LR is managed by scheduler
         self.scheduler = ScaledLR(
-            optimizer=  self.opt,
-            warm_up=    self['warm_up'],
-            ann_base=   self['ann_base'],
-            ann_step=   self['ann_step'],
-            n_wup_off=  self['n_wup_off'],
-            logger=     get_hi_child(self.__log, 'ScaledLR'))
+            optimizer=      self.opt,
+            starting_step=  self._train_batch_IX,
+            warm_up=        self['warm_up'],
+            ann_base=       self['ann_base'],
+            ann_step=       self['ann_step'],
+            n_wup_off=      self['n_wup_off'],
+            logger=         get_hi_child(self.__log, 'ScaledLR'))
 
         self.grad_clipper = GradClipperAVT(
             module=         self,
@@ -252,12 +258,14 @@ class MOTorch(ParaSave, Module):
             self.__get_ckpt_path(),
             map_location=   self.torch_dev) # INFO: to immediately place all tensors to current device (not previously saved one)
         self.load_state_dict(checkpoint['model_state_dict'])
+        self._train_batch_IX = checkpoint['train_batch_IX']
 
     # saves model checkpoint
     def save_ckpt(self):
         # TODO: decide what to save
         torch.save({
             #'epoch': 5,
+            'train_batch_IX': self._train_batch_IX,
             'model_state_dict': self.state_dict(),
             # 'optimizer_state_dict': optimizer.state_dict(),
             #'loss': 0.4
@@ -391,7 +399,7 @@ class MOTorch(ParaSave, Module):
         self.__set_training(True)
 
         if n_batches is None: n_batches = self['n_batches']  # take default
-        batch_IX = 0
+        batch_IX = 0                        # this loop (local) batch counter
         tr_lssL = []
         tr_accL = []
         ts_acc_max = 0                      # test accuracy max
@@ -411,13 +419,14 @@ class MOTorch(ParaSave, Module):
                 to_devices= False,
                 **self._batcher.get_batch())
             batch_IX += 1
+            self._train_batch_IX += 1
 
             if self['do_TB']:
-                self.log_TB(value=out['loss'],        tag='tr/loss',    step=batch_IX)
-                self.log_TB(value=out['acc'],         tag='tr/acc',     step=batch_IX)
-                self.log_TB(value=out['gg_norm'],     tag='tr/gn',      step=batch_IX)
-                self.log_TB(value=out['gg_avt_norm'], tag='tr/gn_avt',  step=batch_IX)
-                self.log_TB(value=out['currentLR'],   tag='tr/cLR',     step=batch_IX)
+                self.log_TB(value=out['loss'],        tag='tr/loss',    step=self._train_batch_IX)
+                self.log_TB(value=out['acc'],         tag='tr/acc',     step=self._train_batch_IX)
+                self.log_TB(value=out['gg_norm'],     tag='tr/gn',      step=self._train_batch_IX)
+                self.log_TB(value=out['gg_avt_norm'], tag='tr/gn_avt',  step=self._train_batch_IX)
+                self.log_TB(value=out['currentLR'],   tag='tr/cLR',     step=self._train_batch_IX)
             tr_lssL.append(out['loss'])
             tr_accL.append(out['acc'])
 
@@ -430,10 +439,10 @@ class MOTorch(ParaSave, Module):
                 acc_mav = ts_acc_mav.upd(ts_acc)
                 ts_results.append(ts_acc)
                 if self['do_TB']:
-                    self.log_TB(value=ts_loss, tag='ts/loss',    step=batch_IX)
-                    self.log_TB(value=ts_acc,  tag='ts/acc',     step=batch_IX)
-                    self.log_TB(value=acc_mav, tag='ts/acc_mav', step=batch_IX)
-                self.__log.info(f'{batch_IX:5d} TR: {100*sum(tr_accL)/test_freq:.1f} / {sum(tr_lssL)/test_freq:.3f} -- TS: {100*ts_acc:.1f} / {ts_loss:.3f}')
+                    self.log_TB(value=ts_loss, tag='ts/loss',    step=self._train_batch_IX)
+                    self.log_TB(value=ts_acc,  tag='ts/acc',     step=self._train_batch_IX)
+                    self.log_TB(value=acc_mav, tag='ts/acc_mav', step=self._train_batch_IX)
+                self.__log.info(f'{self._train_batch_IX:5d} TR: {100*sum(tr_accL)/test_freq:.1f} / {sum(tr_lssL)/test_freq:.3f} -- TS: {100*ts_acc:.1f} / {ts_loss:.3f}')
                 tr_lssL = []
                 tr_accL = []
 
@@ -451,7 +460,7 @@ class MOTorch(ParaSave, Module):
             weight += 1
         ts_wval /= sum_weight
 
-        if self['do_TB']: self.log_TB(value=ts_wval, tag='ts/ts_wval', step=batch_IX)
+        if self['do_TB']: self.log_TB(value=ts_wval, tag='ts/ts_wval', step=self._train_batch_IX)
         self.__log.info(f'model {self.name} finished training')
         self.__log.info(f' > test_acc_max: {ts_acc_max:.4f}')
         self.__log.info(f' > test_wval:    {ts_wval:.4f}')
@@ -644,6 +653,11 @@ class MOTorch(ParaSave, Module):
                 name_trg=           name_child,
                 save_topdir_src=    save_topdir_parent_main,
                 save_topdir_trg=    save_topdir_child)
+
+    # updates scheduler baseLR of 0 group
+    def update_baseLR(self, lr: float):
+        self['baseLR'] = lr # in case model will be saved >> loaded
+        self.scheduler.update_base_lr0(lr)
 
     # saves MOTorch (ParaSave DNA and checkpoint)
     def save(self):
