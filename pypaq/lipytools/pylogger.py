@@ -10,7 +10,7 @@ def get_pylogger(
         add_stamp=                  True,
         folder: Optional[str]=      None,   # if given then writes logfile
         level=                      logging.INFO,
-        format=                     '%(asctime)s {%(filename)s:%(lineno)d} p%(process)s %(levelname)s: %(message)s',
+        format: Optional[str]=      None,
         to_stdout=                  True):
 
     # add TRACE (9) level
@@ -24,6 +24,9 @@ def get_pylogger(
 
     if add_stamp: name += '_' + stamp()
 
+    if not format:
+        format = '%(asctime)s %(levelname)s: %(message)s'
+        if level < 20: format = '%(asctime)s {%(filename)s:%(lineno)d} p%(process)s %(levelname)s: %(message)s'
     formatter = logging.Formatter(format)
 
     # manage file handler
