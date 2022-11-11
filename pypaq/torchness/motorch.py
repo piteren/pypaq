@@ -53,7 +53,6 @@ MOTORCH_DEFAULTS = {
         # other
     'hpmser_mode':  False,              # it will set model to be read_only and quiet when running with hpmser
     'read_only':    False,              # sets model to be read only - wont save anything (wont even create self.model_dir)
-    'do_logfile':   True,               # enables saving log file in self.model_dir
     'do_TB':        True}               # runs TensorBard, saves in self.model_dir
 
 
@@ -133,7 +132,6 @@ class MOTorch(ParaSave, Module):
 
         # read only -> override
         if dna['read_only']:
-            dna['do_logfile'] = False
             dna['do_TB'] = False
 
         self.model_dir = f'{save_topdir}/{self.name}'
