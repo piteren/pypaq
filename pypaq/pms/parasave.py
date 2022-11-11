@@ -170,12 +170,14 @@ class ParaSave(SubGX):
             name=           name_src,
             save_topdir=    save_topdir_src,
             save_fn_pfx=    save_fn_pfx,
-            assert_saved=   True)
+            assert_saved=   True,
+            loglevel=       30)
 
         ps_trg = ParaSave(
             name=           name_trg,
             save_topdir=    save_topdir_trg or save_topdir_src,
-            save_fn_pfx=    save_fn_pfx)
+            save_fn_pfx=    save_fn_pfx,
+            loglevel=       30)
 
         dna_src = ps_src.get_point()
         for k in ['name','save_topdir']: dna_src.pop(k)
@@ -201,12 +203,14 @@ class ParaSave(SubGX):
             name=           name_parent_main,
             save_topdir=    save_topdir_parent_main,
             save_fn_pfx=    save_fn_pfx,
-            assert_saved=   True)
+            assert_saved=   True,
+            loglevel=       30)
 
         ps = ParaSave(
             name=           name_parent_scnd,
             save_topdir=    save_topdir_parent_scnd,
-            save_fn_pfx=    save_fn_pfx) if name_parent_scnd else None
+            save_fn_pfx=    save_fn_pfx,
+            loglevel=       30) if name_parent_scnd else None
 
         not_gxable_parents = []
         if not pm.gxable: not_gxable_parents.append(pm)
