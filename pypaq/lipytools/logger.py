@@ -86,12 +86,3 @@ def set_logger(
         print(f' > logfile    : {logfile_path}')
 
     return logfile_path
-
-
-if __name__ == '__main__':
-
-    log = Logg(level=Logg.WARNING)
-    log('debug one', level=Logg.DEBUG)
-    log('info one')
-    log('warning one', level=Logg.WARNING)
-    log('error one', level=Logg.ERROR)

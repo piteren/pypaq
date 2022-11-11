@@ -13,15 +13,6 @@ def get_pylogger(
         format: Optional[str]=      None,
         to_stdout=                  True):
 
-    # add TRACE (9) level
-    if "TRACE" not in logging.__all__:
-        logging.addLevelName(9, "TRACE")
-        logging.__all__.append("TRACE")
-        def trace(self, message, *args, **kws):
-            if self.isEnabledFor(9):
-                self._log(9, message, args, **kws)
-        logging.Logger.trace = trace
-
     if add_stamp: name += '_' + stamp()
 
     if not format:
@@ -48,16 +39,9 @@ def get_pylogger(
     if sh: logger.addHandler(sh)
     return logger
 
-# returns higher level of logger
-def get_higher(level: int) -> int:
-    if level == 9: return 10
-    level += 10
-    if level > 50: level = 50
-    return level
-
 # returns child with higher level
 def get_hi_child(logger, name):
     clogger = logger.getChild(name)
     lvl = clogger.getEffectiveLevel()
-    clogger.setLevel(get_higher(lvl))
+    clogger.setLevel(lvl+10)
     return clogger
