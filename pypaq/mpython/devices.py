@@ -106,7 +106,7 @@ def get_devices(
     final_devices = []
     final_devices += [f'{device_pfx}{cpu_pfx}:0'] * len(devices_CPU)
     if devices_int:
-        logger.trace(report_cuda())
+        logger.debug(report_cuda())
         for dev in devices_int: final_devices.append(f'{device_pfx}{gpu_pfx}:{dev}')
 
     logger.debug(f'get_devices is returning {len(final_devices)} devices: {final_devices}')
@@ -122,9 +122,9 @@ def mask_cuda(ids: Optional[List[int] or int]=  None):
     os.environ["CUDA_VISIBLE_DEVICES"] = mask
 
 # wraps mask_cuda to hold DevicesParam
-def mask_cuda_devices(devices: DevicesParam=-1, verb=0):
+def mask_cuda_devices(devices: DevicesParam=-1, logger=None):
 
-    devices = get_devices(devices, verb=verb)
+    devices = get_devices(devices, logger=logger)
 
     ids = []
     devices_other = []

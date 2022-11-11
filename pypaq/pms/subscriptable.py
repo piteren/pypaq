@@ -122,7 +122,7 @@ class SubGX(Subscriptable):
         self.psdd = psdd or {}
         self.update(kwargs)
         # INFO: all keys of self.psdd should be present in self
-        #  It is not checked now (while init) since self may be updated even after init, IT IS checked while GX
+        #  - it is not checked now (while init) since self may be updated even after init, IT IS checked while GX
         self.__log.info(f'*** Subscriptable *** name: {self.name} initialized, family: {self.family}, psdd: {self.psdd}')
 
     # returns self POINT limited to axes included in self.psdd
