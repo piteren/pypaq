@@ -35,7 +35,7 @@ class Batcher:
             bs_mul: int=        2,      # VL & TS batch_size multiplier
             batching_type: str= 'random_cov',
             seed=               123,
-            logger=             None,):
+            logger=             None):
 
         if not logger: logger = get_pylogger(name='Batcher')
         self.__log = logger

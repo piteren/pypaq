@@ -20,13 +20,17 @@
 from copy import deepcopy
 from typing import List, Optional, Union, Dict
 
-from pypaq.lipytools.pylogger import get_pylogger
+from pypaq.lipytools.pylogger import get_pylogger, get_hi_child
 from pypaq.textools.text_metrics import lev_dist
 from pypaq.pms.base_types import POINT, PSDD
 from pypaq.pms.paspa import PaSpa
 
 
 class Subscriptable:
+
+    def __init__(self, logger=None):
+        if not logger: logger = get_pylogger(name='Subscriptable')
+        self.__log = logger
 
     def __getitem__(self, key):
         return getattr(self, key)
@@ -83,9 +87,8 @@ class Subscriptable:
                         found.add(tuple(sorted([pa, pb])))
 
         if found:
-            print('\nSubscriptable was asked to check for params similarity and found:')
-            for pa,pb in found:
-                print(f'WARNING: params \'{pa}\' and \'{pb}\' are too CLOSE !!!')
+            self.__log.warn('Subscriptable was asked to check for params similarity and found:')
+            for pa,pb in found: self.__log.warn(f'> params \'{pa}\' and \'{pb}\' are too CLOSE !!!')
 
         return len(found) > 0
 
@@ -111,6 +114,8 @@ class SubGX(Subscriptable):
 
         if not logger: logger = get_pylogger(name='SubGX')
         self.__log = logger
+
+        Subscriptable.__init__(self, logger=get_hi_child(self.__log, 'Subscriptable'))
 
         self.name = name
         self.family = family
