@@ -30,34 +30,37 @@ SPEC_KEYS = [
     'f1',           # F1
 ]
 
-# defaults below may be given with MOTorch kwargs or overridden by fwd_graph attributes
+# MOTorch defaults (state), may be overridden with MOTorch kwargs or fwd_graph attributes
 MOTORCH_DEFAULTS = {
-    'seed':         123,                # seed for torch and numpy
-    'devices':      -1,                         # : DevicesParam (check pypaq.mpython.devices)
+    'seed':             123,                # seed for torch and numpy
+    'devices':          -1,                 # :DevicesParam (check pypaq.mpython.devices)
         # training
-    'batch_size':   64,                 # training batch size
-    'n_batches':    1000,               # default length of training
-    'opt_class':    torch.optim.Adam,   # default optimizer
+    'batch_size':       64,                 # training batch size
+    'n_batches':        1000,               # default length of training
+    'opt_class':        torch.optim.Adam,   # default optimizer
+    'train_batch_IX':   0,                  # default (starting) batch index (counter)
         # LR management (check pypaq.torchness.base_elements.ScaledLR)
-    'baseLR':       3e-4,
-    'warm_up':      None,
-    'ann_base':     None,
-    'ann_step':     1.0,
-    'n_wup_off':    2.0,
+    'baseLR':           3e-4,
+    'warm_up':          None,
+    'ann_base':         None,
+    'ann_step':         1.0,
+    'n_wup_off':        2.0,
         # gradients clipping parameters (check pypaq.torchness.base_elements.GradClipperAVT)
-    'clip_value':   None,
-    'avt_SVal':     0.1,
-    'avt_window':   100,
-    'avt_max_upd':  1.5,
-    'do_clip':      False,
+    'clip_value':       None,
+    'avt_SVal':         0.1,
+    'avt_window':       100,
+    'avt_max_upd':      1.5,
+    'do_clip':          False,
         # other
-    'hpmser_mode':  False,              # it will set model to be read_only and quiet when running with hpmser
-    'read_only':    False,              # sets model to be read only - wont save anything (wont even create self.model_dir)
-    'do_TB':        True}               # runs TensorBard, saves in self.model_dir
+    'hpmser_mode':      False,              # it will set model to be read_only and quiet when running with hpmser
+    'read_only':        False,              # sets model to be read only - wont save anything (wont even create self.model_dir)
+    'do_TB':            True}               # runs TensorBard, saves in self.model_dir
+
 
 
 class MOTorchException(Exception):
     pass
+
 
 # torch.nn.Module to be implemented with forward & loss methods
 class Module(ABC, torch.nn.Module):
@@ -81,6 +84,7 @@ class Module(ABC, torch.nn.Module):
     @abstractmethod
     def loss_acc(self, *args, **kwargs) -> Dict:
         raise NotImplementedError
+
 
 # extends Module (torch.nn.Module) with ParaSave and many others
 class MOTorch(ParaSave, Module):
@@ -188,8 +192,6 @@ class MOTorch(ParaSave, Module):
         self.module.__init__(self, **dna_module)
         self.to(self.torch_dev)
 
-        self._train_batch_IX = 0  # global train batch counter
-
         try:
             self.load_ckpt()
             self.__log.debug(f'> MOTorch checkpoint loaded from {self.__get_ckpt_path()}')
@@ -209,7 +211,7 @@ class MOTorch(ParaSave, Module):
         # from now LR is managed by scheduler
         self.scheduler = ScaledLR(
             optimizer=      self.opt,
-            starting_step=  self._train_batch_IX,
+            starting_step=  self['train_batch_IX'],
             warm_up=        self['warm_up'],
             ann_base=       self['ann_base'],
             ann_step=       self['ann_step'],
@@ -258,14 +260,12 @@ class MOTorch(ParaSave, Module):
             self.__get_ckpt_path(),
             map_location=   self.torch_dev) # INFO: to immediately place all tensors to current device (not previously saved one)
         self.load_state_dict(checkpoint['model_state_dict'])
-        self._train_batch_IX = checkpoint['train_batch_IX']
 
     # saves model checkpoint
     def save_ckpt(self):
         # TODO: decide what to save
         torch.save({
             #'epoch': 5,
-            'train_batch_IX': self._train_batch_IX,
             'model_state_dict': self.state_dict(),
             # 'optimizer_state_dict': optimizer.state_dict(),
             #'loss': 0.4
@@ -419,14 +419,14 @@ class MOTorch(ParaSave, Module):
                 to_devices= False,
                 **self._batcher.get_batch())
             batch_IX += 1
-            self._train_batch_IX += 1
+            self['train_batch_IX'] += 1
 
             if self['do_TB']:
-                self.log_TB(value=out['loss'],        tag='tr/loss',    step=self._train_batch_IX)
-                self.log_TB(value=out['acc'],         tag='tr/acc',     step=self._train_batch_IX)
-                self.log_TB(value=out['gg_norm'],     tag='tr/gn',      step=self._train_batch_IX)
-                self.log_TB(value=out['gg_avt_norm'], tag='tr/gn_avt',  step=self._train_batch_IX)
-                self.log_TB(value=out['currentLR'],   tag='tr/cLR',     step=self._train_batch_IX)
+                self.log_TB(value=out['loss'],        tag='tr/loss',    step=self['train_batch_IX'])
+                self.log_TB(value=out['acc'],         tag='tr/acc',     step=self['train_batch_IX'])
+                self.log_TB(value=out['gg_norm'],     tag='tr/gn',      step=self['train_batch_IX'])
+                self.log_TB(value=out['gg_avt_norm'], tag='tr/gn_avt',  step=self['train_batch_IX'])
+                self.log_TB(value=out['currentLR'],   tag='tr/cLR',     step=self['train_batch_IX'])
             tr_lssL.append(out['loss'])
             tr_accL.append(out['acc'])
 
@@ -439,10 +439,10 @@ class MOTorch(ParaSave, Module):
                 acc_mav = ts_acc_mav.upd(ts_acc)
                 ts_results.append(ts_acc)
                 if self['do_TB']:
-                    self.log_TB(value=ts_loss, tag='ts/loss',    step=self._train_batch_IX)
-                    self.log_TB(value=ts_acc,  tag='ts/acc',     step=self._train_batch_IX)
-                    self.log_TB(value=acc_mav, tag='ts/acc_mav', step=self._train_batch_IX)
-                self.__log.info(f'{self._train_batch_IX:5d} TR: {100*sum(tr_accL)/test_freq:.1f} / {sum(tr_lssL)/test_freq:.3f} -- TS: {100*ts_acc:.1f} / {ts_loss:.3f}')
+                    self.log_TB(value=ts_loss, tag='ts/loss',    step=self['train_batch_IX'])
+                    self.log_TB(value=ts_acc,  tag='ts/acc',     step=self['train_batch_IX'])
+                    self.log_TB(value=acc_mav, tag='ts/acc_mav', step=self['train_batch_IX'])
+                self.__log.info(f'{self["train_batch_IX"]:5d} TR: {100*sum(tr_accL)/test_freq:.1f} / {sum(tr_lssL)/test_freq:.3f} -- TS: {100*ts_acc:.1f} / {ts_loss:.3f}')
                 tr_lssL = []
                 tr_accL = []
 
@@ -460,7 +460,7 @@ class MOTorch(ParaSave, Module):
             weight += 1
         ts_wval /= sum_weight
 
-        if self['do_TB']: self.log_TB(value=ts_wval, tag='ts/ts_wval', step=self._train_batch_IX)
+        if self['do_TB']: self.log_TB(value=ts_wval, tag='ts/ts_wval', step=self['train_batch_IX'])
         self.__log.info(f'model {self.name} finished training')
         self.__log.info(f' > test_acc_max: {ts_acc_max:.4f}')
         self.__log.info(f' > test_wval:    {ts_wval:.4f}')
