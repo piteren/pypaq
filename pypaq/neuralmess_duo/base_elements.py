@@ -26,7 +26,7 @@ def replace_nan_with_zero(tensor): return tf.where(tf.math.is_nan(tensor), tf.ze
 
 # scales learning rate with warmUp and annealing (after warmUp)
 def lr_scaler(
-        iLR,                            # initial learning rate
+        baseLR,                            # initial learning rate
         g_step: tf.Tensor,              # global step
         warm_up: int or None=   1000,   # warmup steps, None or 0 turns-off
         ann_base: float=        0.999,  # annealing base, None or 1 for turn-off
@@ -34,14 +34,14 @@ def lr_scaler(
         n_wup_off: float=       2.0,    # N warmUp offset of annealing
         verb=                   0):
 
-    if verb>0: print(f'\nbuilding lR scaling graph for iLR: {iLR} ..')
+    if verb>0: print(f'\nbuilding lR scaling graph for baseLR: {baseLR} ..')
     g_step_fl = tf.cast(g_step, dtype=tf.float32)
     if warm_up is None: warm_up = 0
-    lR = iLR
+    lR = baseLR
 
     if warm_up:
         ratioWm = tf.reduce_min([g_step_fl, warm_up]) / warm_up # warmUp ratio
-        lR = iLR * ratioWm # learning rate with warmup
+        lR = baseLR * ratioWm # learning rate with warmup
         if verb>0: print(f'applied warmUp ({warm_up}) to lR')
     if ann_base is not None and ann_base != 1:
         gStep_offs = tf.reduce_max([0, g_step_fl - warm_up * n_wup_off]) # offset by warmUpSteps

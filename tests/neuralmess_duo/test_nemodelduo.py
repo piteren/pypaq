@@ -21,7 +21,7 @@ class TestNEModelDUO(unittest.TestCase):
             save_topdir=    MODEL_DIR,
             do_logfile=     False,
             verb=           2)
-        self.assertTrue(model['iLR'] == 0.0005)
+        self.assertTrue(model['baseLR'] == 0.0005)
         self.assertTrue(len(model['name']) > 3)
         model.save()
         model.exit()
@@ -53,12 +53,12 @@ class TestNEModelDUO(unittest.TestCase):
             name=           'pio',
             fwd_func=       fwd_graph,
             save_topdir=    MODEL_DIR,
-            iLR=            0.001,
+            baseLR=            0.001,
             do_logfile=     False,
             verb=           0)
-        print(model['iLR'])
+        print(model['baseLR'])
         model.update_LR(0.03)
-        print(model['iLR'])
+        print(model['baseLR'])
         model.save()
         model.exit()
 
@@ -66,8 +66,8 @@ class TestNEModelDUO(unittest.TestCase):
             name=           'pio',
             save_topdir=    MODEL_DIR,
             verb=           2)
-        print(model['iLR'])
-        self.assertTrue(model['iLR'] == 0.03)
+        print(model['baseLR'])
+        self.assertTrue(model['baseLR'] == 0.03)
         model.exit()
 
 
@@ -112,7 +112,7 @@ class TestNEModelDUO(unittest.TestCase):
             do_logfile=     False,
             seed=           121,
             verb=           0)
-        print(model['iLR'])
+        print(model['baseLR'])
         model.save()
         model.exit()
 
@@ -123,7 +123,7 @@ class TestNEModelDUO(unittest.TestCase):
         self.assertTrue('weights.index' in os.listdir(f'{MODEL_DIR}/pir'))
 
         model = NEModelDUO(name='pir', save_topdir=MODEL_DIR)
-        print(model['iLR'])
+        print(model['baseLR'])
         model.exit()
 
 
@@ -131,19 +131,19 @@ class TestNEModelDUO(unittest.TestCase):
 
         flush_tmp_dir()
 
-        psdd = {'iLR':  [0.000001,0.1]}
+        psdd = {'baseLR':  [0.000001,0.1]}
 
         # save #1
         model = NEModelDUO(
             name=           'pio',
             fwd_func=       fwd_graph,
             save_topdir=    MODEL_DIR,
-            iLR=            0.001,
+            baseLR=            0.001,
             do_logfile=     False,
             psdd=           psdd,
             seed=           121,
             verb=           0)
-        print(model['iLR'])
+        print(model['baseLR'])
         model.save()
         model.exit()
 
@@ -152,12 +152,12 @@ class TestNEModelDUO(unittest.TestCase):
             name=           'pip',
             fwd_func=       fwd_graph,
             save_topdir=    MODEL_DIR,
-            iLR=            0.01,
+            baseLR=            0.01,
             do_logfile=     False,
             psdd=           psdd,
             seed=           122,
             verb=           0)
-        print(model['iLR'])
+        print(model['baseLR'])
         model.save()
         model.exit()
 

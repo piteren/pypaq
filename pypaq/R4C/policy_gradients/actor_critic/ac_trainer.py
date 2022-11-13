@@ -74,7 +74,7 @@ class ACTrainer(FATrainer):
             print(f'qv_actions {qv_actions.shape}, {qv_actions[0]}')
 
         # update Actor
-        loss_actor = self.actor.update_batch(
+        loss_actor = self.actor.update_with_experience(
             observations=   observations,
             actions=        actions,
             dreturns=       qv_actions)
@@ -88,7 +88,7 @@ class ACTrainer(FATrainer):
         if inspect: print(f'next_action_qvs {next_actions_qvs.shape}, {next_actions_qvs[0]}')
 
         # update Critic
-        loss_critic = self.critic.update_batch(
+        loss_critic = self.critic.update_with_experience(
             observations=       observations,
             actions_OH=         actions_OH,
             next_action_qvs=    next_actions_qvs,

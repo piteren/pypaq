@@ -2,7 +2,7 @@
 
  2020 (c) piteren
 
- baseline QNN graph (TF)
+    baseline DQN graph (TF based)
 
 """
 
@@ -10,7 +10,7 @@ from pypaq.neuralmess.base_elements import tf
 from pypaq.neuralmess.layers import lay_dense
 
 
-def qnn_graph(
+def dqn_graph(
         name=               'qnn',
         num_actions: int=   4,
         observation_width=  4,

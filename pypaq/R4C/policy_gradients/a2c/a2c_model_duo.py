@@ -103,7 +103,7 @@ class A2CModel_duo(Actor, ABC):
             fetches=    self.nn['value'])
         return values
     """
-    def update_batch(self, batch, inspect=False) -> float:
+    def update_with_experience(self, batch, inspect=False) -> float:
 
         observations =  extract_from_batch(batch, 'observation')
         actions=        extract_from_batch(batch, 'action')
@@ -174,7 +174,7 @@ if __name__ == '__main__':
     mdict = {
         'hidden_layers':    (20,20),
         #'lay_norm':         True,
-        'iLR':              0.01,
+        'baseLR':              0.01,
         #'do_clip':          True,
         'seed':             121}
 

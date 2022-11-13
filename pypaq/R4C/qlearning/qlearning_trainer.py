@@ -2,24 +2,20 @@
 
  2022 (c) piteren
 
-    QLearningTrainer for QLearningActor acting on FiniteActionsRLEnvy
-
-    There are 3 parameters that need to be "constrained":
-    batch_size, memory_size and max_ep_steps (for training procedure).
-    memory_size should be N*batch size, max_ep_steps probably should be equal to batch_size
+    QLearningTrainer for QLearningActor acting on FiniteActionsRLEnvy.
 
 """
 
 import numpy as np
 import random
-from typing import Dict
 
-from pypaq.lipytools.plots import two_dim
+from pypaq.lipytools.pylogger import get_pylogger, get_hi_child
 from pypaq.R4C.envy import FiniteActionsRLEnvy
-from pypaq.R4C.trainer import FATrainer, ExperienceMemory
+from pypaq.R4C.trainer import FATrainer
 from pypaq.R4C.qlearning.qlearning_actor import QLearningActor
 
 
+# Q-Learning Trainer (used by QTable and DQN)
 class QLearningTrainer(FATrainer):
 
     def __init__(
@@ -27,111 +23,61 @@ class QLearningTrainer(FATrainer):
             actor: QLearningActor,
             envy: FiniteActionsRLEnvy,
             batch_size=         10,
-            memsize_batches=    10,
+            memsize_batches=    10,   # ExperienceMemory size (in number of batches)
             exploration=        0.5,  # exploration factor
             discount=           0.9,  # discount factor (gamma)
             seed=               123,
-            verb=               1):
+            logger=             None,
+            loglevel=           20):
 
-        self.verb = verb
+        if not logger:
+            logger = get_pylogger(
+                name=       'QLearningTrainer',
+                add_stamp=  True,
+                folder=     None,
+                level=      loglevel)
+        self.__log = logger
+
         random.seed(seed)
 
         FATrainer.__init__(
             self,
             actor=              actor,
             envy=               envy,
+            batch_size=         batch_size,
+            memsize_batches=    memsize_batches,
             exploration=        exploration,
-            batch_size=         batch_size)
-        self.actor = actor # INFO: type "upgrade" for pycharm editor
+            discount=           discount,
+            logger=             get_hi_child(self.__log, 'FATrainer', higher_level=False))
+        self.actor = actor # INFO: just type "upgrade" for pycharm editor
 
-        self.memsize_batches = memsize_batches
-        self.discount = discount
-
-        if self.verb>0: print(f'\n*** QLearningTrainer for {envy.name} (actions: {envy.num_actions()})')
-
-    def init_memory(self):
-        self.memory = ExperienceMemory(self.batch_size * self.memsize_batches)
+        self.__log.info(f'*** QLearningTrainer for {envy.name} (actions: {self.num_of_actions})')
 
     # updates QLearningActor policy with batch of data from memory
-    # INFO: inspect is not used ..
-    def update_actor(self, inspect=False):
+    def update_actor(
+            self,
+            reset_memory=   True,
+            inspect=        False) -> float: # INFO: inspect is not used ..
 
         batch = self.memory.sample(self.batch_size)
 
-        observations = [me['observation'] for me in batch]
-        actions = [me['action'] for me in batch]
-
-        rewards = [me['reward'] for me in batch]
+        observations =      [me['observation']      for me in batch]
+        actions =           [me['action']           for me in batch]
+        rewards =           [me['reward']           for me in batch]
         next_observations = [me['next_observation'] for me in batch]
-        no_qvsL = self.actor.get_QVs_batch(next_observations)
+        terminals =         [me['terminal']         for me in batch]
 
-        terminals = [me['terminal'] for me in batch]
-        no_qvs_terminal = np.zeros(self.envy.num_actions())
+        no_qvs = self.actor.get_QVs_batch(np.array(next_observations))
+        no_qvs_terminal = np.zeros(self.num_of_actions)
+
         for ix,t in enumerate(terminals):
-            if t: no_qvsL[ix] = no_qvs_terminal
+            if t: no_qvs[ix] = no_qvs_terminal
 
-        new_qvs = [(r + self.discount * max(no_qvs)) for r,no_qvs in zip(rewards,no_qvsL)]
+        new_qvs = [(r + self.discount * max(no_qvs)) for r,no_qvs in zip(rewards, no_qvs)]
 
-        self.actor.update_batch(
-            observations=   observations,
-            actions=        actions,
-            new_qvs=        new_qvs)
+        if reset_memory: self.memory.reset()
 
-    # INFO: upd_on_episode & test_render is not implemented
-    def train(
-            self,
-            num_updates=    2000,   # number of training updates
-            upd_on_episode= False,  # updates on episode finish (do not wait till batch)
-            test_freq=      100,    # number of updates between test
-            test_episodes=  100,    # number of testing episodes
-            test_max_steps= 1000,   # max number of episode steps while testing
-            test_render=    True,
-            break_onetest=  False,  # breaks training after all test episodes succeeded
-    ) -> Dict:
-
-        self.init_memory()
-
-        returnL = []
-        n_terminals = 0
-        break_succeeded = False
-        for uix in range(num_updates):
-
-            all_rewards = 0
-            new_actions = 0
-            while new_actions <  self.batch_size:
-
-                observations, actions, rewards = self.play(
-                    steps=          self.batch_size - new_actions,
-                    break_terminal= True,
-                    exploration=    self.exploration,
-                    render=         False)
-
-                all_rewards += sum(rewards)
-
-                new_actions += len(observations)
-                next_observations = observations[1:] + [self.envy.get_observation()]
-                terminals = [False]*(len(observations)-1) + [self.envy.is_terminal()]
-
-                for o,a,r,n,t in zip(observations, actions, rewards, next_observations, terminals):
-                    self.memory.append({'observation':o, 'action':a, 'reward':r, 'next_observation':n, 'terminal':t})
-
-                if self.envy.is_terminal(): n_terminals += 1
-
-            self.update_actor()
-
-            returnL.append(all_rewards)
-
-            if uix % test_freq == 0:
-                tr = self.test_on_episodes(
-                    n_episodes= test_episodes,
-                    max_steps=  test_max_steps)
-                if self.verb>0: print(f' > test avg_won:{tr[0]*100:.1f}%, avg_return:{tr[1]:.1f}')
-                break_succeeded = tr[0] == 1
-
-            if break_onetest and break_succeeded: break
-
-        if self.verb>0: two_dim(returnL)
-        return { # training_report
-            'returnL':          returnL,
-            'n_terminals':      n_terminals,
-            'break_succeeded':  break_succeeded}
+        return self.actor.update_with_experience(
+            observations=   np.array(observations),
+            actions=        np.array(actions),
+            new_qvs=        np.array(new_qvs))

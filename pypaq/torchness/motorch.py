@@ -128,7 +128,6 @@ class MOTorch(ParaSave, Module):
                 add_stamp=  not name_timestamp,
                 folder=     None if _read_only else self.model_dir,
                 level=      loglevel)
-
         self.__log = logger
         self.__log.info(f'*** MOTorch *** {self.name} (type: {type(self).__name__}) initializes..')
 

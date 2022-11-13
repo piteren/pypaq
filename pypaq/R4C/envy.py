@@ -2,14 +2,13 @@
 
  2022 (c) piteren
 
-    Reinforcement Environment Interfaces
-
     Envy is a base environment interface
 
     RLEnvy is an interface that defines base RL methods used by Actor or Trainer or other objects
 
         RLEnvy may implement get_last_action_reward() and get_reward() methods (reward function)
-        that in fact should be implemented by a Trainer.
+        that in fact should be implemented by a Trainer (it is Trainer responsibility to get those values,
+        but it is much cleaner to do get it from Envy).
         (Actor does not need reward to act with policy, Trainer is supposed to train Actor
         using information of reward that he defines observing an Envy)
         get_reward methods may be implemented by RLEnvy as an generic baseline used by Trainer,
@@ -26,7 +25,7 @@ class Envy(ABC):
     def __init__(self, name:str):
         self.name = name
 
-    # resets envy to initial state
+    # resets Envy (self) to initial state
     @abstractmethod
     def reset(self): pass
 
@@ -39,7 +38,7 @@ class Envy(ABC):
     def run(self, action): pass
 
 
-# wraps Envy with methods needed by base RL algorithms
+# adds to Envy methods needed by base RL algorithms
 class RLEnvy(Envy, ABC):
 
     # returns reward of last action played by envy, this is in fact Trainer function, but it is easier to implement it with an Envy
@@ -69,6 +68,6 @@ class RLEnvy(Envy, ABC):
 # interface of RL Environment with finite actions number
 class FiniteActionsRLEnvy(RLEnvy):
 
-    # returns number of envy actions
+    # returns number of Envy actions
     @abstractmethod
     def num_actions(self) -> int: pass

@@ -42,7 +42,7 @@ class ACSharedTrainer(FATrainer):
 
         dreturns_norm = self.zscore_norm(dreturns)
 
-        loss = self.actor.update_batch(
+        loss = self.actor.update_with_experience(
             observations=       observations,
             actions=            actions,
             #rewards=            rewards,

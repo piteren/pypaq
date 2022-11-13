@@ -40,8 +40,9 @@ def get_pylogger(
     return logger
 
 # returns child with higher level
-def get_hi_child(logger, name):
+def get_hi_child(logger, name, higher_level=True):
     clogger = logger.getChild(name)
-    lvl = clogger.getEffectiveLevel()
-    clogger.setLevel(lvl+10)
+    if higher_level:
+        lvl = clogger.getEffectiveLevel()
+        clogger.setLevel(lvl+10)
     return clogger

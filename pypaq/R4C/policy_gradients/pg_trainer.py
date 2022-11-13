@@ -35,7 +35,7 @@ class PGTrainer(FATrainer):
                 names=      ['rewards', 'dreturns', 'dreturns_norm'],
                 legend_loc= 'lower left')
 
-        loss = self.actor.update_batch(
+        loss = self.actor.update_with_experience(
             observations=   self._extract_from_batch(batch, 'observation'),
             actions=        self._extract_from_batch(batch, 'action'),
             dreturns=       dreturns_norm)

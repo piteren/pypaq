@@ -82,7 +82,7 @@ class PGActor(Actor, ABC):
         return actions
 
     # updates self NN with batch of data
-    def update_batch(
+    def update_with_experience(
             self,
             observations,
             actions,

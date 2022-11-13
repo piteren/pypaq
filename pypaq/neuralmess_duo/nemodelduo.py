@@ -35,7 +35,7 @@ NEMODELDUO_DEFAULTS = {
     'opt_class':    tf.keras.optimizers.Adam,   # default optimizer of train()
     'devices':      'GPU:0',                    # for TF1 we used '/device:CPU:0'
     # LR management (parameters of LR warmup and annealing)
-    'iLR':          3e-4,                       # initial learning rate (base init)
+    'baseLR':          3e-4,                       # initial learning rate (base init)
     'warm_up':      None,
     'ann_base':     None,
     'ann_step':     1.0,
@@ -59,7 +59,7 @@ def fwd_graph(
         in_width=           10,
         hidden_layers=      (128,),
         out_width=          3,
-        iLR=                0.0005,     # defaults of fwd_graph will override NEMODELDUO_DEFAULTS
+        baseLR=                0.0005,     # defaults of fwd_graph will override NEMODELDUO_DEFAULTS
         verb=               0):
 
     in_vec =  tf.keras.Input(shape=in_width, name="in_vec")
@@ -246,7 +246,7 @@ class NEModelDUO(ParaSave):
                 name=       'lr',
                 trainable=  False,
                 dtype=      tf.float32)
-            self.lr.assign(self['iLR'])
+            self.lr.assign(self['baseLR'])
 
             # variable for time averaged global norm of gradients
             self.ggnorm_avt = self.train_model.add_weight(
@@ -273,7 +273,7 @@ class NEModelDUO(ParaSave):
             for w in self.train_model.weights: print(f' **  {w.name:30} {str(w.shape):10} {w.device}')
 
         scaled_LR = lr_scaler(
-            iLR=        self.lr,
+            baseLR=        self.lr,
             g_step=     self.iterations,
             warm_up=    self['warm_up'],
             ann_base=   self['ann_base'],
@@ -479,17 +479,17 @@ class NEModelDUO(ParaSave):
         if self.writer: self.writer.add(value=value, tag=tag, step=step)
         else: warnings.warn(f'NEModelDUO {self.name} cannot log TensorBoard since do_TB flag is False!')
 
-    # updates base LR (iLR) in graph - but not saves it to the checkpoint
+    # updates base LR (baseLR) in graph - but not saves it to the checkpoint
     def update_LR(self, lr: float):
-        old = self['iLR']
-        self['iLR'] = lr
-        self.lr.assign(self['iLR'])
-        if self.verb>1: print(f'NEModelDUO {self.name} updated iLR from {old} to {self["iLR"]}')
+        old = self['baseLR']
+        self['baseLR'] = lr
+        self.lr.assign(self['baseLR'])
+        if self.verb>1: print(f'NEModelDUO {self.name} updated baseLR from {old} to {self["baseLR"]}')
 
 
     def __str__(self):
         s = f'NEModelDUO {self.name}'
-        s += f'\n > iLR: {self.lr.numpy()}'
+        s += f'\n > baseLR: {self.lr.numpy()}'
         s += f'\n > iterations: {self.iterations.numpy()}'
         s += f'\ntrain_model weights:'
         total_w = 0

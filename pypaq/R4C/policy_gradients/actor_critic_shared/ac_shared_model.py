@@ -89,7 +89,7 @@ class ACSharedModel(Actor, ABC):
             fetches=    self.nn['value'])
         return values
 
-    def update_batch(
+    def update_with_experience(
             self,
             observations,
             actions,

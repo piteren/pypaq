@@ -352,7 +352,10 @@ class NEModel(ParaSave):
     # sets CPU / GPU devices for NEModel
     def __manage_devices(self):
 
-        self['devices'] = get_devices(self['devices'], verb=self.verb)
+        self['devices'] = get_devices(self['devices'],
+                                      # TODO: put logger
+                                      #verb=self.verb
+                                      )
 
         devices_other = []
         devices_gpu = []
