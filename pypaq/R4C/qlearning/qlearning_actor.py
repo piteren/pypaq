@@ -51,9 +51,10 @@ class QLearningActor(Actor, ABC):
     # updates QV for given observations and actions batch, may be overridden with optimized version
     def update_with_experience(
             self,
-            observations: np.ndarray,
-            actions: np.ndarray,
-            new_qvs: np.ndarray) -> float:
+            observations: np.ndarray,   # batch of observations
+            actions: np.ndarray,        # batch of selected actions for given observations (do not have to come from Actor policy!)
+            new_qvs: np.ndarray,        # batch of QV to be updated (QV for selected action only)
+    ) -> float:
 
         loss = 0.0
         for ob, ac, nq in zip(observations, actions, new_qvs):

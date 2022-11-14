@@ -40,7 +40,7 @@ def lr_scaler(
         n_wup_off: float=   2.0,    # N warmUp offset of annealing
         verb=               0):
 
-    if verb > 0: print(f'*** lr_scaler *** baseLR: {baseLR}')
+    if verb > 0: print(f'*** lr_scaler for baseLR: {baseLR}')
     baseLR = tf.convert_to_tensor(baseLR)
 
     # create global step variable if not given

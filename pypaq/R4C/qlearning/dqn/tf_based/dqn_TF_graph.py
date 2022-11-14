@@ -2,7 +2,7 @@
 
  2020 (c) piteren
 
-    baseline DQN graph (TF based)
+    baseline DQN graph for NEModel (TF)
 
 """
 
@@ -51,8 +51,11 @@ def dqn_graph(
 
         pred_qv = tf.gather_nd(output, indices=enum_actions_PH)
 
-        loss = tf.losses.mean_squared_error(labels=gold_QV_PH, predictions=pred_qv)  # loss on predicted vs next, we want predicted to match next
-        loss = tf.reduce_mean(loss)
+        # loss on predicted vs next, we want predicted to match next
+        loss = tf.losses.mean_squared_error(
+            labels=         gold_QV_PH,
+            predictions=    pred_qv,
+            reduction=      tf.compat.v1.losses.Reduction.SUM_OVER_BATCH_SIZE)
 
     return {
         'gold_QV_PH':       gold_QV_PH,

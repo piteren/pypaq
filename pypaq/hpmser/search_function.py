@@ -178,7 +178,7 @@ def hpmser(
     tbwr = TBwr(logdir=f'{hpmser_FD}/{name}') if do_TB else None
 
     if verb>0:
-        print(f'\n*** hpmser *** {name} started for: {func.__name__}, sampling config: {sampling_config}')
+        print(f'\n*** hpmser {name} started for: {func.__name__}, sampling config: {sampling_config}')
         if srl: print(f' search will continue with {len(srl)} results...')
 
     if not srl: srl = SRL(

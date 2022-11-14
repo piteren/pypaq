@@ -4,17 +4,18 @@ import torch
 from pypaq.torchness.base_elements import my_initializer
 
 
-# my dense layer, adds initializer
+# my dense layer, adds initializer and activation
 class LayDense(torch.nn.Module):
 
     def __init__(
             self,
             in_features: int,
             out_features: int,
-            bias: bool=                         True,
-            device=                             None,
-            dtype=                              None,
-            initializer: Optional[Callable]=    None):
+            activation: Optional[type(torch.nn.Module)]=    torch.nn.ReLU,
+            bias: bool=                                     True,
+            device=                                         None,
+            dtype=                                          None,
+            initializer: Optional[Callable]=                None):
 
         super(LayDense, self).__init__()
         self.dense = torch.nn.Linear(
@@ -23,13 +24,16 @@ class LayDense(torch.nn.Module):
             bias=           bias,
             device=         device,
             dtype=          dtype)
+        self.activation = activation() if activation else None
 
         if initializer is None: initializer = my_initializer
         initializer(self.dense.weight)
         if bias: torch.nn.init.zeros_(self.dense.bias)
 
     def forward(self, x):
-        return self.dense(x)
+        out = self.dense(x)
+        if self.activation: out = self.activation(out)
+        return out
 
 # time & feats dropout (for sequences)
 class TF_Dropout(torch.nn.Module):

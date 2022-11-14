@@ -7,4 +7,5 @@ plotly
 psutil
 scipy
 tensorflow
+torch
 typing-extensions

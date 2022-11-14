@@ -40,7 +40,7 @@ class PaSpa:
         self.axes = sorted(list(self.__psdd.keys()))
         self.L2 = distance_L2
         self.dim = len(self.__psdd)
-        if self.verb>0:  print(f'\n*** PaSpa *** (dim: {self.dim}) inits')
+        if self.verb>0:  print(f'\n*** PaSpa (dim: {self.dim}) inits..')
 
         # resolve axis type and width and some safety checks
         self.__axT = {} # axis type, [list,tuple]_[float,int,diff] list_diff is not allowed

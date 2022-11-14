@@ -10,6 +10,7 @@ from abc import abstractmethod, ABC
 from collections import deque
 import numpy as np
 import random
+import time
 from typing import List, Tuple, Optional, Dict
 
 from pypaq.lipytools.moving_average import MovAvg
@@ -78,7 +79,7 @@ class Trainer(ABC):
         self.movavg_factor = movavg_factor
 
         self.memory: Optional[ExperienceMemory] = None
-        self.metric = MovAvg()
+        self.loss_mavg = MovAvg()
 
         self.__log.info(f'*** Trainer for {self.envy.name} initialized')
         self.__log.info(f'> batch_size:  {self.batch_size}')
@@ -121,7 +122,6 @@ class Trainer(ABC):
                                                         observation=    observation_vec,
                                                         sampled=        np.random.rand() < sampled)
         self.envy.run(action)
-
         reward = self.envy.get_last_action_reward()
 
         return observation_vec, action, reward
@@ -203,7 +203,7 @@ class Trainer(ABC):
     def train(
             self,
             num_updates=    2000,   # number of training updates
-            upd_on_episode= False,  # updates on episode finish (does not wait till batch)
+            upd_on_episode= False,  # updates on episode finish / terminal (does not wait till batch)
             reset_memory=   True,   # reset memory after each update (batch)
             train_sampled=  0.3,    # while TRAINING: how often move is sampled (vs argmax)
             use_movavg=     True,
@@ -211,7 +211,7 @@ class Trainer(ABC):
             test_episodes=  100,    # number of testing episodes
             test_max_steps= 1000,   # max number of episode steps while testing
             test_render=    True,
-            break_ntests=   0,      # when > 0: breaks training after all test episodes succeeded N times
+            break_ntests=   0,      # when > 0: breaks training after all test episodes succeeded N times in a row
     ) -> Dict:
         """
         generic RL training procedure,
@@ -219,15 +219,16 @@ class Trainer(ABC):
         may be overridden with custom implementation,
         returns Dict with some training stats
         """
-
+        stime = time.time()
         self.__log.info(f'Starting train for {num_updates} updates..')
         self.init_memory()
 
         lossL = []
-        num_act = []
-        n_terminals = 0
-        last_terminals = 0
-        break_succeeded = 0
+        n_terminals = 0             # number of terminal states reached while training
+        last_terminals = 0          # previous number of terminal states
+        n_won = 0                   # number of wins while training
+        succeeded_row_curr = 0      # current number of succeeded tests in a row
+        succeeded_row_max = 0       # max number of succeeded tests in a row
         for uix in range(num_updates):
 
             new_actions = 0
@@ -254,16 +255,18 @@ class Trainer(ABC):
 
                 self.__log.debug(f' >> Trainer gots {len(observations):3} observations after play and {len(self.memory):3} in memory, new_actions: {new_actions}' )
 
-                num_act.append(len(actions))
                 if self.envy.is_terminal(): n_terminals += 1
+                if self.envy.won_episode(): n_won += 1
+
                 if upd_on_episode: break
 
             inspect = (uix % test_freq == 0) if self.__log.getEffectiveLevel()<20 else False
             loss_actor = self.update_actor(
                 reset_memory=   reset_memory,
                 inspect=        inspect)
-            lossL.append(self.metric.upd(loss_actor))
+            lossL.append(self.loss_mavg.upd(loss_actor))
 
+            # test
             if uix % test_freq == 0:
 
                 observations, actions, rewards, won = self.play_episode(
@@ -271,26 +274,28 @@ class Trainer(ABC):
                     exploration=    0.0,
                     render=         test_render)
 
-                tr = self.test_on_episodes(
+                ts_res = self.test_on_episodes(
                     n_episodes= test_episodes,
                     max_steps=  test_max_steps)
 
-                self.__log.info(f' T:{n_terminals}(+{n_terminals-last_terminals}) -- TS: {len(actions)} actions, return {sum(rewards):.1f} ({"won" if won else "lost"}) -- {test_episodes}xTS: avg_won: {tr[0]*100:.1f}%, avg_return: {tr[1]:.1f} -- loss_actor: {self.metric():.4f}')
+                self.__log.info(f' term:{n_terminals}(+{n_terminals-last_terminals}) -- TS: {len(actions)} actions, return {sum(rewards):.1f} ({"won" if won else "lost"}) -- {test_episodes}xTS: avg_won: {ts_res[0]*100:.1f}%, avg_return: {ts_res[1]:.1f} -- loss_actor: {self.loss_mavg():.4f}')
                 last_terminals = n_terminals
 
-                if tr[0] == 1: break_succeeded += 1
-                else: break_succeeded = 0
+                if ts_res[0] == 1:
+                    succeeded_row_curr += 1
+                    if succeeded_row_curr > succeeded_row_max: succeeded_row_max = succeeded_row_curr
+                else: succeeded_row_curr = 0
 
-            if break_ntests and break_succeeded==break_ntests: break
+            if break_ntests and succeeded_row_curr==break_ntests: break
 
-        if self.__log.getEffectiveLevel()<30:
-            two_dim(lossL, name='Actor loss')
-            two_dim(num_act, name='num_act')
+        self.__log.info(f'Training finished, time taken: {time.time()-stime:.2f}sec')
+        if self.__log.getEffectiveLevel()<30: two_dim(lossL, name='Actor loss')
 
         return { # training_report
-            'lossL':            lossL,
-            'n_terminals':      n_terminals,
-            'break_succeeded':  break_succeeded}
+            'lossL':                lossL,
+            'n_terminals':          n_terminals,
+            'n_won':                n_won,
+            'succeeded_row_max':    succeeded_row_max}
 
 
 # FiniteActions RL Trainer (for Actor acting on FiniteActionsRLEnvy)

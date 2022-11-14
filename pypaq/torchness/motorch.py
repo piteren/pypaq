@@ -129,7 +129,7 @@ class MOTorch(ParaSave, Module):
                 folder=     None if _read_only else self.model_dir,
                 level=      loglevel)
         self.__log = logger
-        self.__log.info(f'*** MOTorch *** {self.name} (type: {type(self).__name__}) initializes..')
+        self.__log.info(f'*** MOTorch *** {self.name} initializes..')
 
         # ************************************************************************* manage (resolve) DNA & init ParaSave
 
@@ -228,6 +228,7 @@ class MOTorch(ParaSave, Module):
 
         self.__set_training(False)
         self.__log.debug(f'> set MOTorch train.mode to False..')
+        self.__log.debug(str(self))
         self.__log.info(f'MOTorch init finished!')
 
     # sets CPU / GPU devices for MOTorch
@@ -335,7 +336,7 @@ class MOTorch(ParaSave, Module):
             **kwargs)
 
         out['loss'].backward()          # update gradients
-        gnD = self.grad_clipper.clip()  # clip gradients
+        gnD = self.grad_clipper.clip()  # clip gradients, adds: 'gg_norm' & 'gg_avt_norm' to out
         self.opt.step()                 # apply optimizer
         self.opt.zero_grad()            # clear gradients
         self.scheduler.step()           # apply LR scheduler
@@ -670,4 +671,4 @@ class MOTorch(ParaSave, Module):
         return self.__TBwr
 
     def __str__(self):
-        return f'{self.name}\n{self.module.__str__(self)}\n{ParaSave.__str__(self)}\n'
+        return f'MOTorch: {self.name}\n{self.module.__str__(self)}{ParaSave.__str__(self)}'

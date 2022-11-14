@@ -2,11 +2,7 @@
 
  2022 (c) piteren
 
-    DQNN - QLearningActor based on NN (NEModel)
-
-    Similar to QLearningActor, DQNN has its own QV update override implemented with NN Optimizer that is responsible by
-    updating NN weights with call of optimizer policies like learning ratio and other.
-    DQNN updates not QV but NN weights according to loss calculated with given gold QV.
+    DQNTFActor - DQNActor implemented with NEModel (TF)
 
 """
 
@@ -19,8 +15,8 @@ from pypaq.R4C.qlearning.dqn.tf_based.dqn_TF_graph import dqn_graph
 from pypaq.neuralmess.nemodel import NEModel
 
 
-# QLearningActor with NeuralNetwork (DQN)
-class DQNTFActor(DQNActor, ABC):
+# DQN TF (NN) based QLearningActor
+class DQN_TFActor(DQNActor, ABC):
 
     def __init__(
             self,
@@ -33,7 +29,7 @@ class DQNTFActor(DQNActor, ABC):
 
         if not logger:
             logger = get_pylogger(
-                name=       'DQNTFActor',
+                name=       'DQN_TFActor',
                 add_stamp=  True,
                 folder=     None,
                 level=      loglevel)
@@ -44,7 +40,8 @@ class DQNTFActor(DQNActor, ABC):
             num_actions=    num_actions,
             observation=    observation,
             mdict=          mdict,
-            logger=         get_hi_child(self.__log, 'DQNActor', higher_level=False))
+            logger=         self.__log,
+            name_pfx=       'dqnTF')
 
         self.nn = self._init_model(
             fwd_func=   graph,
@@ -59,19 +56,17 @@ class DQNTFActor(DQNActor, ABC):
             verb=           0,
             **mdict)
 
-    def get_QVs(self, observation) -> np.ndarray:
-        ov = self.get_observation_vec(observation)
+    def get_QVs(self, observation: np.ndarray) -> np.ndarray:
         output = self.nn.session.run(
             fetches=    self.nn['output'],
-            feed_dict=  {self.nn['observations_PH']: [ov]})
+            feed_dict=  {self.nn['observations_PH']: [observation]})
         return output[0] # reduce dim
 
     # optimized with single call to session with a batch of observations
-    def get_QVs_batch(self, observations) -> np.ndarray:
-        ovs = [self.get_observation_vec(observation) for observation in observations]
+    def get_QVs_batch(self, observations: np.ndarray) -> np.ndarray:
         output = self.nn.session.run(
             fetches=    self.nn['output'],
-            feed_dict=  {self.nn['observations_PH']: np.array(ovs)})
+            feed_dict=  {self.nn['observations_PH']: observations})
         return output
 
     # optimized with single call to session with a batch of data
@@ -81,7 +76,6 @@ class DQNTFActor(DQNActor, ABC):
             actions: np.ndarray,
             new_qvs: np.ndarray) -> float:
 
-        ovs = [self.get_observation_vec(observation) for observation in observations]
         _, loss, gn, gn_avt = self.nn.session.run(
             fetches=[
                 self.nn['optimizer'],
@@ -89,9 +83,9 @@ class DQNTFActor(DQNActor, ABC):
                 self.nn['gg_norm'],
                 self.nn['gg_avt_norm']],
             feed_dict={
-                self.nn['observations_PH']:  np.array(ovs),
+                self.nn['observations_PH']: observations,
                 self.nn['enum_actions_PH']: np.array(list(enumerate(actions))),
-                self.nn['gold_QV_PH']:      np.array(new_qvs)})
+                self.nn['gold_QV_PH']:      new_qvs})
 
         self._upd_step += 1
 

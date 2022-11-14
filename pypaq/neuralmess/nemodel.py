@@ -237,7 +237,7 @@ class NEModel(ParaSave):
             **kwargs):                                  # here go params of FWD & OPT functions
 
         if name_timestamp: name += f'.{stamp()}'
-        if verb>0: print(f'\n *** NEModel {name} (type: {type(self).__name__}) *** initializes...')
+        if verb>0: print(f'\n *** NEModel {name} initializes...')
 
         # ************************************************************************* manage (resolve) DNA & init ParaSave
 

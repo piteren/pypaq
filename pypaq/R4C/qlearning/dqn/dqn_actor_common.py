@@ -2,11 +2,9 @@
 
  2022 (c) piteren
 
-    DQNN - QLearningActor based on NN (NEModel)
+    DQNActor - QLearningActor based on NN
 
-    Similar to QLearningActor, DQNN has its own QV update override implemented with NN Optimizer that is responsible by
-    updating NN weights with call of optimizer policies like learning ratio and other.
-    DQNN updates not QV but NN weights according to loss calculated with given gold QV.
+    DQNActor updates NN weights (self state) using optimizer & loss calculated with given gold QV.
 
 """
 
@@ -26,24 +24,20 @@ class DQNActor(QLearningActor, ABC):
             num_actions: int,
             observation,
             mdict: dict,
-            logger=     None):
+            logger,
+            name_pfx=   'dqn'):
 
-        if 'name' not in mdict: mdict['name'] = f'dqn_{stamp()}'
-
-        if not logger:
-            logger = get_pylogger(
-                name=       mdict['name'],
-                add_stamp=  False,
-                folder=     None)
         self.__log = logger
 
+        if 'name' not in mdict: mdict['name'] = f'{name_pfx}_{stamp()}'
         mdict['num_actions'] = num_actions
         mdict['observation_width'] = self.get_observation_vec(observation).shape[-1]
 
         self.nn = None
 
-        self.__log.info(f'*** DQNActor ({mdict["name"]}) inits, num_actions: {num_actions}, observation_width: {mdict["observation_width"]}')
+        self.__log.info(f'*** DQNActor {mdict["name"]} initialized, num_actions: {mdict["num_actions"]}, observation_width: {mdict["observation_width"]}')
 
+    # initializes self.nn
     @abstractmethod
     def _init_model(self, **kwargs): pass
 
@@ -55,5 +49,6 @@ class DQNActor(QLearningActor, ABC):
             new_qv: float) -> float:
         raise NotImplementedError
 
-    def save(self):
-        self.nn.save()
+    def save(self): self.nn.save()
+
+    def __str__(self): return self.nn.__str__()
