@@ -49,10 +49,10 @@ class DQN_PTActor(DQNActor, ABC):
             name_pfx=       'dqnPT')
 
         self.nn = self._init_model(
-            module=         module,
-            mdict=          mdict,
-            logger=         None if not logger_given else get_hi_child(self.__log, 'MOTorch', higher_level=False),
-            loglevel=       loglevel)
+            module=     module,
+            mdict=      mdict,
+            logger=     None if not logger_given else get_hi_child(self.__log, 'MOTorch', higher_level=False),
+            loglevel=   loglevel)
 
         self._upd_step = 0
 
@@ -60,9 +60,9 @@ class DQN_PTActor(DQNActor, ABC):
 
     def _init_model(self, module, mdict, logger, loglevel):
         return MOTorch(
-            module=         module,
-            logger=         logger,
-            loglevel=       loglevel,
+            module=     module,
+            logger=     logger,
+            loglevel=   loglevel,
             **mdict)
 
     def get_QVs(self, observation) -> np.ndarray:
@@ -85,13 +85,11 @@ class DQN_PTActor(DQNActor, ABC):
             full_qvs[pos] = v
             mask[pos] = 1
 
-        """
-        print(observations.shape, actions.shape, new_qvs.shape)
-        print(actions)
-        print(new_qvs)
-        print(full_qvs)
-        print(mask)
-        """
+        self.__log.log(5, f'>>> observations.shape, actions.shape, new_qvs.shape: {observations.shape}, {actions.shape}, {new_qvs.shape}')
+        self.__log.log(5, f'>>> actions: {actions}')
+        self.__log.log(5, f'>>> new_qvs: {new_qvs}')
+        self.__log.log(5, f'>>> full_qvs: {full_qvs}')
+        self.__log.log(5, f'>>> mask: {mask}')
 
         out = self.nn.backward(observations, full_qvs, mask)
 

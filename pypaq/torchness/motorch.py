@@ -130,6 +130,7 @@ class MOTorch(ParaSave, Module):
                 level=      loglevel)
         self.__log = logger
         self.__log.info(f'*** MOTorch *** {self.name} initializes..')
+        self.__log.debug(f'> MOTorch dir: {self.model_dir}{" <- read only mode!" if _read_only else ""}')
 
         # ************************************************************************* manage (resolve) DNA & init ParaSave
 
@@ -141,6 +142,7 @@ class MOTorch(ParaSave, Module):
 
         _module_init_params = get_params(self.module.__init__)
         _module_init_params_defaults = _module_init_params['with_defaults']   # get init params defaults
+        if 'logger' in _module_init_params_defaults: _module_init_params_defaults.pop('logger')
 
         dna = {}
         dna.update(MOTORCH_DEFAULTS)
@@ -178,11 +180,9 @@ class MOTorch(ParaSave, Module):
         self.__log.debug(f'Module DNA:                           {dna_module}')
         self.__log.debug(f'MOTorch complete DNA:                 {dna}')
 
-        # *********************************************************************************************** manage devices
-
         self.torch_dev = self.__manage_devices()
 
-        # https://pytorch.org/docs/stable/notes/randomness.html
+        # seed (https://pytorch.org/docs/stable/notes/randomness.html)
         torch.manual_seed(self['seed'])
         torch.cuda.manual_seed(self['seed'])
         torch.backends.cudnn.deterministic = True
@@ -190,6 +190,7 @@ class MOTorch(ParaSave, Module):
 
         self.module.__init__(self, **dna_module)
         self.to(self.torch_dev)
+        self.__log.debug(f'{self.name} (MOTorch) Module initialized!')
 
         try:
             self.load_ckpt()
@@ -418,6 +419,7 @@ class MOTorch(ParaSave, Module):
                 to_torch=   False,
                 to_devices= False,
                 **self._batcher.get_batch())
+
             batch_IX += 1
             self['train_batch_IX'] += 1
 

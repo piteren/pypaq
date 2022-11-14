@@ -23,17 +23,22 @@ class DQN_TFActor(DQNActor, ABC):
             num_actions: int,
             observation,
             mdict: dict,
-            graph=      dqn_graph,
-            logger=     None,
-            loglevel=   20):
+            graph=          dqn_graph,
+            save_topdir=    '_models',
+            logger=         None,
+            loglevel=       20):
 
-        if not logger:
+        logger_given = bool(logger)
+        if not logger_given:
             logger = get_pylogger(
                 name=       'DQN_TFActor',
                 add_stamp=  True,
                 folder=     None,
                 level=      loglevel)
         self.__log = logger
+
+        mdict['save_topdir'] = save_topdir
+        self.__log.info(f'DQN (TF based) Actor initializes, save_topdir: {mdict["save_topdir"]}')
 
         DQNActor.__init__(
             self,
@@ -45,15 +50,17 @@ class DQN_TFActor(DQNActor, ABC):
 
         self.nn = self._init_model(
             fwd_func=   graph,
-            mdict=      mdict)
+            mdict=      mdict,
+            logger=     None if not logger_given else get_hi_child(self.__log, 'MOTorch', higher_level=False),
+            loglevel=   loglevel)
 
         self._upd_step = 0
 
-    def _init_model(self, fwd_func, mdict):
+    def _init_model(self, fwd_func, mdict, logger, loglevel):
         return NEModel(
-            fwd_func=       fwd_func,
-            save_topdir=    '_models',
-            verb=           0,
+            fwd_func=   fwd_func,
+            logger=     logger,
+            loglevel=   loglevel,
             **mdict)
 
     def get_QVs(self, observation: np.ndarray) -> np.ndarray:

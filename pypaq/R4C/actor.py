@@ -12,11 +12,11 @@ import numpy as np
 
 class Actor(ABC):
 
-    # prepares np.ndarray from observation
+    # prepares numpy vector from observation
     @abstractmethod
     def get_observation_vec(self, observation: object) -> np.ndarray: pass
 
-    # returns Actor action based on observation according to Actor policy, optionally action may be sampled from probability
+    # returns Actor action based on observation according to Actor policy (~argmax), optionally action may be sampled from probability
     @abstractmethod
     def get_policy_action(
             self,

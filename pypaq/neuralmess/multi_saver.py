@@ -10,9 +10,9 @@
 """
 
 from typing import Dict, List, Optional, Tuple
-from tensorflow.python.tools.inspect_checkpoint import print_tensors_in_checkpoint_file
 
 from pypaq.lipytools.little_methods import prep_folder
+from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.neuralmess.get_tf import tf
 
 
@@ -26,10 +26,16 @@ class MultiSaver:
             savers: Tuple or List=          (None,),    # tuple of savers names managed by MultiSaver
             max_keep: Optional[List[int]]=  None,       # for each saver keeps N last ckpt saves, for None: 1 for each saver
             session=                        None,
-            verb=                           0):
+            logger=                         None):
+
+        if not logger:
+            logger = get_pylogger(
+                name=       'MultiSaver',
+                add_stamp=  True,
+                folder=     None)
+        self.__log = logger
 
         self.save_FD = f'{save_TFD}/{model_name}'
-        self.verb = verb
         self.model_name = model_name
 
         if type(vars) is list: vars = {'ALL': vars}
@@ -51,12 +57,12 @@ class MultiSaver:
                     max_to_keep=            max_keep[ix])
 
         self.s_step = {sv: {var: 0 for var in self.vars} for sv in savers} # self step per saver per vars
-        if self.verb>0:
-            print(f'\n*** MultiSaver *** for {self.model_name} model')
-            print(f' > MultiSaver folder: {self.save_FD}')
-            print(f' > gots {len(self.vars)} lists of variables')
-            for var in self.vars: print(f' >> {var} - {len(self.vars[var])} variables')
-            print(f' > for every var list gots {len(savers)} savers: {savers}')
+
+        self.__log.info(f'*** MultiSaver for {self.model_name} model')
+        self.__log.debug(f'> MultiSaver folder: {self.save_FD}')
+        self.__log.debug(f'> gots {len(self.vars)} lists of variables')
+        for var in self.vars: self.__log.log(5, f' >> {var} - {len(self.vars[var])} variables')
+        self.__log.debug(f'> for every var list gots {len(savers)} savers: {savers}')
 
     # saves checkpoint of given saver
     def save(
@@ -69,7 +75,7 @@ class MultiSaver:
 
         prep_folder(self.save_FD)
         sv_name = f' {saver}' if saver else ''
-        if self.verb>0: print(f'MultiSaver{sv_name} saves variables...')
+        self.__log.debug(f'MultiSaver{sv_name} saves variables...')
 
         for var in self.vars:
             ckpt_path = f'{self.save_FD}/{var}/{self.model_name}'
@@ -89,7 +95,7 @@ class MultiSaver:
                 write_meta_graph=   False,
                 write_state=        True)
             self.s_step[saver][var] += 1
-            if self.verb>1: print(f' > saved variables {var}')
+            self.__log.debug(f' > saved variables {var}')
 
     # loads last checkpoint of given saver
     def load(
@@ -99,7 +105,6 @@ class MultiSaver:
             allow_init=                     True):
 
         if not session: session = self.session
-        if self.verb > 0: print()
 
         for var in self.vars:
             # look for checkpoint
@@ -110,16 +115,17 @@ class MultiSaver:
                 latest_filename=    latest_filename) if self.save_FD else None
 
             if ckpt:
-                if self.verb>1:
-                    print(f'\n >>> tensors @ckpt {ckpt}')
-                    print_tensors_in_checkpoint_file(
-                        file_name=      ckpt,
-                        tensor_name=    '',
-                        all_tensors=    False)
+                """
+                from tensorflow.python.tools.inspect_checkpoint import print_tensors_in_checkpoint_file
+                print_tensors_in_checkpoint_file(
+                    file_name=      ckpt,
+                    tensor_name=    '',
+                    all_tensors=    False)
+                """
                 self.savers[saver][var].restore(session, ckpt)
-                if self.verb>0: print(f'Variables {var} restored from checkpoint {saver if saver else ""}')
+                self.__log.debug(f'Variables {var} restored from checkpoint {saver if saver else ""}')
 
             else:
                 assert allow_init, 'Err: saver load failed: checkpoint not found and not allowInit'
                 session.run(tf.initializers.variables(self.vars[var]))
-                if self.verb>0: print(f'No checkpoint found, variables {var} initialized with default initializer')
+                self.__log.debug(f'No checkpoint found, variables {var} initialized with default initializer')

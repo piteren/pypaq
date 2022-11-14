@@ -12,6 +12,7 @@ from typing import Optional
 from pypaq.neuralmess.get_tf import tf
 from pypaq.mpython.devices import DevicesParam, mask_cuda_devices
 from pypaq.lipytools.little_methods import short_scin
+from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.mpython.mpdecor import proc_wait
 
 
@@ -38,9 +39,10 @@ def lr_scaler(
         ann_base: float=    0.999,  # annealing base, None or 1 for turn-off
         ann_step: float=    1.0,    # annealing step, higher value speeds up annealing
         n_wup_off: float=   2.0,    # N warmUp offset of annealing
-        verb=               0):
+        logger=             None):
 
-    if verb > 0: print(f'*** lr_scaler for baseLR: {baseLR}')
+    if not logger: logger = get_pylogger(name='lr_scaler')
+    logger.info(f'*** lr_scaler for baseLR: {baseLR}')
     baseLR = tf.convert_to_tensor(baseLR)
 
     # create global step variable if not given
@@ -58,11 +60,11 @@ def lr_scaler(
     if warm_up:
         ratioWm = tf.reduce_min([g_step_fl, warm_up]) / warm_up # warmUp ratio
         lR = baseLR * ratioWm # learning rate with warmup
-        if verb > 0: print(f'applied warmUp ({warm_up}) to lR')
+        logger.debug(f'applied warmUp ({warm_up}) to lR')
     if ann_base is not None and ann_base != 1:
         gStep_offs = tf.reduce_max([0, g_step_fl - warm_up * n_wup_off]) # offset by warmUpSteps
         lR *= ann_base ** (gStep_offs * ann_step) # learning rate with annealing
-        if verb>0: print(f'applied annealing to lR ({ann_base:.5f},{ann_step:.5f})')
+        logger.debug(f'applied annealing to lR ({ann_base:.5f},{ann_step:.5f})')
     return {
         'scaled_LR':    lR,
         'g_step':       g_step}
@@ -75,7 +77,9 @@ def grad_clipper_AVT(
         avt_window=     100,        # width of averaging window (number of steps)
         avt_max_upd=    1.5,        # single step max factor of avt update
         do_clip=        True,       # disables clipping (just GN calculations)
-        verb=           0):
+        logger=         None):
+
+    if not logger: logger = get_pylogger(name='grad_clipper_AVT')
 
     gg_norm = tf.global_norm(gradients) # gradients global norm
     gg_avt_norm = tf.get_variable( # time averaged gradients global norm variable
@@ -90,15 +94,15 @@ def grad_clipper_AVT(
     gg_avt_norm = tf.assign(
         ref=    gg_avt_norm,
         value=  (gg_avt_norm * (avt_window-1) + avt_update) / avt_window)
-    if verb > 0: print(f'grad_clipper_AVT: avt_SVal {avt_SVal:.1f}, avt_window {avt_window}, avt_max_upd {avt_max_upd:.1f}')
+    logger.debug(f'grad_clipper_AVT: avt_SVal {avt_SVal:.1f}, avt_window {avt_window}, avt_max_upd {avt_max_upd:.1f}')
 
     if do_clip:
         gradients, _ = tf.clip_by_global_norm(
             t_list=     gradients,
             clip_norm=  clip_value or gg_avt_norm,
             use_norm=   gg_norm)
-        if verb > 0: print(f' >> is clipping gradients {"with value" if clip_value else "with AVT"}')
-    elif verb > 0: print(' >> not doing clipping')
+        logger.debug(f' >> is clipping gradients {"with value" if clip_value else "with AVT"}')
+    else: logger.debug(' >> not doing clipping')
 
     return {
         'gradients':    gradients,
@@ -117,8 +121,9 @@ def gc_loss_reductor(
         avt_window: int=    100,
         avt_max_upd: float= 1.5,
         do_clip: bool=      True,
-        verb=               0):
+        logger=             None):
 
+    if not logger: logger = get_pylogger(name='gc_loss_reductor')
     if vars is None: vars = tf.trainable_variables()
 
     if gradients is None: gradients = tf.gradients(avg_loss, vars, colocate_gradients_with_ops=False)
@@ -130,7 +135,7 @@ def gc_loss_reductor(
         avt_window=     avt_window,
         avt_max_upd=    avt_max_upd,
         do_clip=        do_clip,
-        verb=           verb)
+        logger=         logger)
     clippedGradients =  gc_out['gradients']
 
     optimizer = optimizer.apply_gradients(
@@ -193,16 +198,16 @@ def sh_size(shape : list or tuple):
 def log_vars(
         variables: list,
         simple=     False,
-        sort=       True): # use order from list or sorted by name
-
-    print(f'Total num of variables: {len(variables)}')
-    print(f' > num of floats: {short_scin(num_var_floats(variables), precision=2)}')
+        sort=       True) -> str: # use order from list or sorted by name
+    s = f'Total num of variables: {len(variables)}\n'
+    s += f' > num of floats: {short_scin(num_var_floats(variables), precision=2)}\n'
     if not simple:
         vns = [(v.name, v.shape) for v in variables]
         if sort:
             dVar = {v.name: v.shape for v in variables}
             vns = [(key, dVar[key]) for key in sorted(list(dVar.keys()))]
-        for v in vns: print(f' >> v: {v[0]} {v[1]}')
+        for v in vns: s += f' >> v: {v[0]} {v[1]}\n'
+    return s[:-1]
 
 # logs variables from checkpoint
 def log_checkpoint(ckpt_FD):

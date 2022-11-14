@@ -55,9 +55,9 @@ from typing import Optional, Callable, Tuple, Dict
 import warnings
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-from pypaq.lipytools.logger import set_logger
-from pypaq.lipytools.little_methods import short_scin, stamp, get_params, get_func_dna
+from pypaq.lipytools.little_methods import short_scin, stamp, get_params, get_func_dna, prep_folder
 from pypaq.lipytools.moving_average import MovAvg
+from pypaq.lipytools.pylogger import get_pylogger, get_hi_child
 from pypaq.mpython.devices import mask_cuda, get_devices
 from pypaq.mpython.mpdecor import proc_wait
 from pypaq.pms.base_types import POINT
@@ -80,21 +80,21 @@ SPEC_KEYS = [
 
 # defaults below may be given with NEModelDUO kwargs or overridden by fwd_graph attributes
 NEMODEL_DEFAULTS = {
-    'seed':                 12321,                      # seed for TF and numpy
-    'devices':              -1,                         # : DevicesParam (check pypaq.mpython.devices)
+    'seed':                 12321,      # seed for TF and numpy
+    'devices':              -1,         # : DevicesParam (check pypaq.mpython.devices)
         # training
-    'batch_size':           64,                         # training batch size
-    'n_batches':            1000,                       # default length of training
+    'batch_size':           64,         # training batch size
+    'n_batches':            1000,       # default length of training
+    'train_batch_IX':       0,          # default (starting) batch index (counter)
         # other
-    'hpmser_mode':          False,                      # it will set model to be read_only and quiet when running with hpmser
-    'savers_names':         (None,),                    # names of savers for MultiSaver
-    'load_saver':           True,                       # Optional[bool or str] for None/False does not load, for True loads default
-    'read_only':            False,                      # sets model to be read only - wont save anything (wont even create self.model_dir)
-    'do_logfile':           True,                       # enables saving log file in self.model_dir
-    'do_TB':                True,                       # runs TensorBard, saves in self.model_dir
-    'silent_TF_warnings':   False,                      # turns off TF warnings
-    'sep_device':           True,                       # separate first device for variables, gradients_avg, optimizer (otherwise those ar placed on the first FWD calculations tower)
-    'collocate_GWO':        False,                      # collocates gradient calculations with tf.OPs (gradients are calculated on every tower with its operations, but remember that vars are on one device...) (otherwise with first FWD calculations tower)
+    'hpmser_mode':          False,      # it will set model to be read_only and quiet when running with hpmser
+    'savers_names':         (None,),    # names of savers for MultiSaver
+    'load_saver':           True,       # Optional[bool or str] for None/False does not load, for True loads default
+    'read_only':            False,      # sets model to be read only - wont save anything (wont even create self.model_dir)
+    'do_TB':                True,       # runs TensorBard, saves in self.model_dir
+    'silent_TF_warnings':   False,      # turns off TF warnings
+    'sep_device':           True,       # separate first device for variables, gradients_avg, optimizer (otherwise those ar placed on the first FWD calculations tower)
+    'collocate_GWO':        False,      # collocates gradient calculations with tf.OPs (gradients are calculated on every tower with its operations, but remember that vars are on one device...) (otherwise with first FWD calculations tower)
 }
 
 
@@ -155,14 +155,16 @@ def opt_graph(
         warm_up=            None,
         ann_base=           None,
         ann_step=           1.0,
-        n_wup_off: float=   1.0,
+        n_wup_off: float=   2.0,
             # gradients clipping parameters (check pypaq.neuralmess.base_elements.gc_loss_reductor)
         clip_value=         None,
         avt_SVal=           0.1,
         avt_window=         100,
         avt_max_upd=        1.5,
         do_clip=            False,
-        verb=               0):
+        logger=             None):
+
+    if not logger: logger = get_pylogger(name='opt_graph')
 
     g_step = tf.get_variable(  # global step variable
         name=           'g_step',
@@ -185,7 +187,7 @@ def opt_graph(
         ann_base=       ann_base,
         ann_step=       ann_step,
         n_wup_off=      n_wup_off,
-        verb=           verb)['scaled_LR']
+        logger=         logger)['scaled_LR']
 
     # updates with: optimizer, gg_norm, gg_avt_norm
     loss_reductorD = gc_loss_reductor(
@@ -198,13 +200,13 @@ def opt_graph(
         avt_window=     avt_window,
         avt_max_upd=    avt_max_upd,
         do_clip=        do_clip,
-        verb=           verb)
+        logger=         logger)
 
     # select OPT vars
     opt_vars = tf.global_variables(scope=tf.get_variable_scope().name)
-    if verb>0:
-        print(f' ### opt_vars: {len(opt_vars)} floats: {short_scin(num_var_floats(opt_vars))} ({opt_vars[0].device})')
-        if verb>1: log_vars(opt_vars)
+
+    logger.debug(f' ### opt_vars: {len(opt_vars)} floats: {short_scin(num_var_floats(opt_vars))} ({opt_vars[0].device})')
+    logger.log(5, log_vars(opt_vars))
 
     rd = {}
     rd.update({
@@ -233,17 +235,46 @@ class NEModel(ParaSave):
             opt_func: Optional[Callable]=   opt_graph,  # default function building optimization (OPT) graph (from train_vars & gradients to optimizer)
             save_topdir: str=               SAVE_TOPDIR,
             save_fn_pfx: str=               SAVE_FN_PFX,
-            verb=                           0,
+            logger=                         None,
+            loglevel=                       20,
             **kwargs):                                  # here go params of FWD & OPT functions
 
-        if name_timestamp: name += f'.{stamp()}'
-        if verb>0: print(f'\n *** NEModel {name} initializes...')
+        self.name = name
+        if name_timestamp: self.name += f'_{stamp()}'
+
+        # ********************************************************************************************** early overrides
+
+        if kwargs.get('hpmser_mode', False):
+            loglevel = 50
+            kwargs['read_only'] = True
+
+        if kwargs.get('read_only', False):
+            kwargs['do_TB'] = False
+
+        if kwargs.get('silent_TF_warnings', False):
+            tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+            warnings.filterwarnings('ignore')
+
+        _read_only = kwargs.get('read_only', False)
+
+        self.model_dir = f'{save_topdir}/{self.name}'
+        if not _read_only: prep_folder(self.model_dir)
+
+        if not logger:
+            logger = get_pylogger(
+                name=       self.name,
+                add_stamp=  not name_timestamp,
+                folder=     None if _read_only else self.model_dir,
+                level=      loglevel)
+        self.__log = logger
+        self.__log.info(f'*** NEModel {self.name} initializes...')
+        self.__log.debug(f'> NEModel dir: {self.model_dir}{" <- read only mode!" if _read_only else ""}')
 
         # ************************************************************************* manage (resolve) DNA & init ParaSave
 
         # load dna from folder
-        dna_saved = ParaSave.load_dna(
-            name=           name,
+        dna_saved = NEModel.load_dna(
+            name=           self.name,
             save_topdir=    save_topdir,
             save_fn_pfx=    save_fn_pfx)
 
@@ -251,6 +282,8 @@ class NEModel(ParaSave):
 
         _opt_func_params_defaults = get_params(opt_func)['with_defaults'] if opt_func else {}
         _fwd_func_params_defaults = get_params(fwd_func)['with_defaults']  # get fwd_func defaults
+        if 'logger' in _opt_func_params_defaults: _opt_func_params_defaults.pop('logger')
+        if 'logger' in _fwd_func_params_defaults: _fwd_func_params_defaults.pop('logger')
 
         dna = {
             'fwd_func': fwd_func,
@@ -261,53 +294,30 @@ class NEModel(ParaSave):
         dna.update(dna_saved)
         dna.update(kwargs)                  # update with kwargs (params of FWD & OPT) given NOW by user
         dna.update({
-            'name':         name,
+            'name':         self.name,
             'save_topdir':  save_topdir,
-            'save_fn_pfx':  save_fn_pfx,
-            'verb':         verb})
+            'save_fn_pfx':  save_fn_pfx})
 
-        ParaSave.__init__(self, lock_managed_params=True, **dna)
+        ParaSave.__init__(
+            self,
+            lock_managed_params=    True,
+            logger=                 get_hi_child(self.__log, 'ParaSave'),
+            **dna)
         self.check_params_sim(SPEC_KEYS + list(NEMODEL_DEFAULTS.keys())) # safety check
 
-        # hpmser_mode - early override
-        if self['hpmser_mode']:
-            self.verb = 0
-            self['read_only'] = True
+        not_used_kwargs = {}
+        for k in kwargs:
+            if k not in get_func_dna(self['opt_func'], dna) and k not in get_func_dna(self['fwd_func'], dna):
+                not_used_kwargs[k] = kwargs[k]
 
-        # read only - early override
-        if self['read_only']:
-            self['do_logfile'] = False
-            self['do_TB'] = False
-
-        if self['silent_TF_warnings']:
-            tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
-            warnings.filterwarnings('ignore')
-
-        self.model_dir = f'{self.save_topdir}/{self.name}'
-        if self.verb>0: print(f' > NEModel dir: {self.model_dir}{" read only mode!" if self["read_only"] else ""}')
-
-        # set logfile
-        if self['do_logfile']:
-            set_logger(
-                log_folder=     self.model_dir,
-                custom_name=    self.name,
-                verb=           self.verb)
-
-        if self.verb>0:
-
-            not_used_kwargs = {}
-            for k in kwargs:
-                if k not in get_func_dna(self['opt_func'], dna) and k not in get_func_dna(self['fwd_func'], dna):
-                    not_used_kwargs[k] = kwargs[k]
-
-            print(f'\n > NEModel DNA sources:')
-            print(f' >> NEMODEL_DEFAULTS:                   {NEMODEL_DEFAULTS}')
-            print(f' >> fwd_func defaults:                  {_fwd_func_params_defaults}')
-            print(f' >> opt_func defaults:                  {_opt_func_params_defaults}')
-            print(f' >> DNA saved:                          {dna_saved}')
-            print(f' >> given kwargs:                       {kwargs}')
-            print(f' >> NEModel kwargs not used by graphs : {not_used_kwargs}')
-            print(f' NEModel complete DNA:                  {dna}')
+        self.__log.debug(f'> NEModel DNA sources:')
+        self.__log.debug(f' >> NEMODEL_DEFAULTS:                   {NEMODEL_DEFAULTS}')
+        self.__log.debug(f' >> fwd_func defaults:                  {_fwd_func_params_defaults}')
+        self.__log.debug(f' >> opt_func defaults:                  {_opt_func_params_defaults}')
+        self.__log.debug(f' >> DNA saved:                          {dna_saved}')
+        self.__log.debug(f' >> given kwargs:                       {kwargs}')
+        self.__log.debug(f' >> NEModel kwargs not used by graphs : {not_used_kwargs}')
+        self.__log.debug(f' NEModel complete DNA:                  {dna}')
 
         self.__manage_devices()
 
@@ -318,9 +328,7 @@ class NEModel(ParaSave):
         self._gFWD = [] # list of dicts of all FWD graphs (from all devices)
         self._graph = None
         saver_vars = self.__build_graph()
-        if self.verb>0: print(f'{self.name} (NEModel) graph built!')
-        if self.verb>1: print(f' > self point:\n{self.get_point()}')
-        if self.verb>1: print(f' > self all fields:\n{self.get_all_fields()}')
+        self.__log.debug(f'{self.name} (NEModel) graph built!')
 
         # create session
         config = tf.ConfigProto(allow_soft_placement=True)
@@ -328,8 +336,6 @@ class NEModel(ParaSave):
         self._session = tf.Session(
             graph=  self._graph,
             config= config)
-
-        self.__TBwr = TBwr(logdir=self.model_dir)  # TensorBoard writer
 
         # create saver & load
         sv_keys = list(saver_vars.keys())
@@ -342,20 +348,21 @@ class NEModel(ParaSave):
             save_TFD=   self.save_topdir,
             savers=     self['savers_names'],
             session=    self._session,
-            verb=       self.verb)
+            logger=     get_hi_child(self.__log, 'MultiSaver'))
         if self['load_saver']: self.load_ckpt()
+
+        self.__TBwr = TBwr(logdir=self.model_dir)  # TensorBoard writer
 
         self._batcher = None
 
-        if self.verb>0: print(f'\n > NEModel init finished..')
+        self.__log.info(f'NEModel init finished!')
 
     # sets CPU / GPU devices for NEModel
     def __manage_devices(self):
 
-        self['devices'] = get_devices(self['devices'],
-                                      # TODO: put logger
-                                      #verb=self.verb
-                                      )
+        self['devices'] = get_devices(
+            devices=    self['devices'],
+            logger=     get_hi_child(self.__log, 'get_devices'))
 
         devices_other = []
         devices_gpu = []
@@ -371,16 +378,14 @@ class NEModel(ParaSave):
 
         self['devices'] = devices_other + devices_gpu
 
-        if self.verb>0: print(f' > masking GPU devices: {ids}')
+        self.__log.debug(f' > masking GPU devices: {ids}')
         mask_cuda(ids) # mask GPU devices
 
         # report devices
-        if self.verb>0:
-            print()
-            if len(self['devices'])==1:
-                if 'CPU' in self['devices'][0]: print(f'NEModel builds CPU device setup')
-                else:                           print(f'NEModel builds single-GPU setup')
-            else:                               print(f'NEModel builds multi-dev setup for {len(self["devices"])} devices')
+        if len(self['devices'])==1:
+            if 'CPU' in self['devices'][0]: self.__log.debug(f'NEModel builds CPU device setup')
+            else:                           self.__log.debug(f'NEModel builds single-GPU setup')
+        else:                               self.__log.debug(f'NEModel builds multi-dev setup for {len(self["devices"])} devices')
 
         if len(self['devices'])<3: self['sep_device'] = False # SEP is available for 3 or more devices
 
@@ -391,26 +396,26 @@ class NEModel(ParaSave):
         self._graph = tf.Graph()
         with self._graph.as_default():
 
-            if self.verb>0: print(f'\nNEModel set TF & NP seed to {self["seed"]}')
+            self.__log.debug(f'NEModel set TF & NP seed to {self["seed"]}')
 
             fwd_func_dna = get_func_dna(self['fwd_func'], self.get_point())
 
             # builds graph @SEP, this graph wont be run, it is only needed to place variables, if not vars_sep >> variables will be placed with first tower
             if self['sep_device']:
-                if self.verb>0: print(f'\nNEModel places VARs on {self["devices"][0]}...')
+                self.__log.debug(f'NEModel places VARs on {self["devices"][0]}...')
                 with tf.device(self['devices'][0]):
                     self['fwd_func'](**fwd_func_dna)
 
             tower_devices = [] + self['devices']
             if self['sep_device']: tower_devices = tower_devices[1:] # trim SEP
             for dev in tower_devices:
-                if self.verb>0: print(f'\nNEModel builds FWD graph @device: {dev}')
+                self.__log.debug(f'NEModel builds FWD graph @device: {dev}')
                 with tf.device(dev):
                     with tf.variable_scope('', reuse=tf.AUTO_REUSE):
                         self._gFWD.append(self['fwd_func'](**fwd_func_dna))
 
             fwd_graph_return_dict = self._gFWD[0]
-            if self.verb>0: print(f'dictionary keys returned by fwd_func ({self["fwd_func"].__name__}): {fwd_graph_return_dict.keys()}')
+            self.__log.debug(f'dictionary keys returned by fwd_func ({self["fwd_func"].__name__}): {fwd_graph_return_dict.keys()}')
 
             self.update(fwd_graph_return_dict) # update self with fwd_graph_return_dict
 
@@ -440,20 +445,20 @@ class NEModel(ParaSave):
 
             else: saver_vars['fwd_vars'] = all_vars # put all
 
-            if self.verb>0:
-                print('\nNEModel variables to save from fwd_func:')
-                for key in sorted(list(saver_vars.keys())):
+
+            self.__log.debug('NEModel variables to save from fwd_func:')
+            for key in sorted(list(saver_vars.keys())):
                     varList = saver_vars[key]
-                    if varList: print(f' ### vars @{key} - num: {len(varList)}, floats: {short_scin(num_var_floats(varList))} ({varList[0].device})')
-                    else: print(' ### no vars')
-                    if self.verb>1: log_vars(varList)
+                    if varList: self.__log.log(5, f' ### vars @{key} - num: {len(varList)}, floats: {short_scin(num_var_floats(varList))} ({varList[0].device})')
+                    else: self.__log.log(5, ' ### no vars')
+                    self.__log.log(5, log_vars(varList))
 
             if 'loss' not in self: warnings.warn('NEModel: there is no loss in FWD graph, OPT graph wont be build!')
             if not self['opt_func']: print(f'\nNEModel: OPT graph wont be build since opt_func is not given')
 
             # build optimization graph
             if self['opt_func'] and 'loss' in self:
-                if self.verb>0: print(f'\nPreparing OPT part with {self["opt_class"]}')
+                self.__log.debug(f'Preparing OPT part with {self["opt_class"]}')
 
                 # select trainable variables for OPT
                 all_tvars = tf.trainable_variables()
@@ -461,7 +466,7 @@ class NEModel(ParaSave):
                     # check if all train_vars are trainable:
                     for var in train_vars:
                         if var not in all_tvars:
-                            if self.verb>0: print(f'variable {var.name} is not trainable but is in train_vars, please check the graph!')
+                            self.__log.warn(f'variable {var.name} is not trainable but is in train_vars, please check the graph!')
                 else:
                     for key in saver_vars:
                         for var in saver_vars[key]:
@@ -469,10 +474,9 @@ class NEModel(ParaSave):
                                 train_vars.append(var)
                     assert train_vars, 'ERR: there are no trainable variables at the graph!'
                 # log train_vars
-                if self.verb>0:
-                    print('\nNEModel trainable variables:')
-                    print(f' ### train_vars: {len(train_vars)} floats: {short_scin(num_var_floats(train_vars))}')
-                    if self.verb>1: log_vars(train_vars)
+                self.__log.debug('NEModel trainable variables:')
+                self.__log.debug(f' ### train_vars: {len(train_vars)} floats: {short_scin(num_var_floats(train_vars))}')
+                self.__log.log(5, log_vars(train_vars))
 
                 # build gradients for towers
                 for ix in range(len(self._gFWD)):
@@ -483,23 +487,22 @@ class NEModel(ParaSave):
                         colocate_gradients_with_ops=    not self['collocate_GWO']) # TF default is False >> calculates gradients where OPS, for True >> where train_vars
 
                     # log gradients
-                    if self.verb>0:
 
-                        # None_as_gradient case
-                        device = 'UNKNOWN'
-                        for t in tower['gradients']:
-                            if t is not None:
-                                device = t.device
-                                break
+                    # None_as_gradient case
+                    device = 'UNKNOWN'
+                    for t in tower['gradients']:
+                        if t is not None:
+                            device = t.device
+                            break
 
-                        print(f' > gradients for {ix} tower got {len(tower["gradients"])} tensors ({device})')
-                        if self.verb>1:
-                            print('NEModel variables and their gradients:')
-                            for gix in range(len(tower['gradients'])):
-                                grad = tower['gradients'][gix]
-                                var = train_vars[gix]
-                                print(var, var.device)
-                                print(f' > {grad}') # grad as a tensor displays device when printed (unless collocated with OP!)
+                    self.__log.debug(f' > gradients for {ix} tower got {len(tower["gradients"])} tensors ({device})')
+
+                    self.__log.log(5, 'NEModel variables and their gradients:')
+                    for gix in range(len(tower['gradients'])):
+                        grad = tower['gradients'][gix]
+                        var = train_vars[gix]
+                        self.__log.log(5, f'{var} {var.device}')
+                        self.__log.log(5, f' > {grad}') # grad as a tensor displays device when printed (unless collocated with OP!)
 
                 self['gradients'] = self._gFWD[0]['gradients']
 
@@ -507,13 +510,12 @@ class NEModel(ParaSave):
                 none_grads = 0
                 for grad in self['gradients']:
                     if grad is None: none_grads += 1
-                if none_grads and self.verb>0:
-                    print(f'There are None gradients: {none_grads}/{len(self["gradients"])}, some trainVars may be unrelated to loss, please check the graph!')
+                if none_grads: self.__log.warn(f'There are None gradients: {none_grads}/{len(self["gradients"])}, some trainVars may be unrelated to loss, please check the graph!')
 
                 # average gradients
                 if len(self['devices']) > 1:
 
-                    if self.verb>0: print(f'\nNEModel builds gradients averaging graph with device {self["devices"][0]} for {len(self._gFWD)} towers')
+                    self.__log.debug(f'NEModel builds gradients averaging graph with device {self["devices"][0]} for {len(self._gFWD)} towers')
                     with tf.device(self["devices"][0]):
                         towerGrads = [tower['gradients'] for tower in self._gFWD]
                         avgGrads = []
@@ -530,12 +532,12 @@ class NEModel(ParaSave):
                             else: avgGrads.append(None)
 
                         self['gradients'] = avgGrads # update with averaged gradients
-                        if self.verb>0: print(f' > NEModel averaged gradients ({self["gradients"][0].device})')
+                        self.__log.debug(f' > NEModel averaged gradients ({self["gradients"][0].device})')
 
                 # finally build graph from elements
                 with tf.variable_scope('OPT', reuse=tf.AUTO_REUSE):
 
-                    if self.verb>0: print(f'\nBuilding OPT graph for {self.name} model @device: {self["devices"][0]}')
+                    self.__log.debug(f'Building OPT graph for {self.name} model @device: {self["devices"][0]}')
 
                     opt_func_dna = get_func_dna(self['opt_func'], self.get_point())
 
@@ -545,7 +547,7 @@ class NEModel(ParaSave):
                             train_vars=     train_vars,
                             gradients=      self['gradients'],
                             **opt_func_dna)
-                        if self.verb>0: print(f'dictionary keys returned by opt_func ({self["opt_func"].__name__}): {opt_graph_return_dict.keys()}')
+                        self.__log.debug(f'dictionary keys returned by opt_func ({self["opt_func"].__name__}): {opt_graph_return_dict.keys()}')
 
                         self.update(opt_graph_return_dict)  # update self with opt_graph_return_dict
 
@@ -567,14 +569,14 @@ class NEModel(ParaSave):
     # updates baseLR in graph - but not saves it to the checkpoint
     def update_baseLR(self, lr: Optional):
         if 'baseLR_var' not in self:
-            if self.verb>1: print('NEModel: There is no LR variable in graph to update')
+            self.__log.warn('NEModel: There is no LR variable in graph to update')
         else:
             if lr is not None:
                 old = self['baseLR']
                 self['baseLR'] = lr
-                if self.verb>1: print(f'NEModel {self.name} updated baseLR from {old} to {self["baseLR"]}')
+                self.__log.debug(f'NEModel {self.name} updated baseLR from {old} to {self["baseLR"]}')
             self._session.run(tf.assign(ref=self['baseLR_var'], value=self['baseLR']))
-            if self.verb>1: print(f'NEModel {self.name} updated baseLR_var (graph variable) with baseLR: {self["baseLR"]}')
+            self.__log.debug(f'NEModel {self.name} updated baseLR_var (graph variable) with baseLR: {self["baseLR"]}')
 
     # logs value to TB
     def log_TB(
@@ -598,7 +600,7 @@ class NEModel(ParaSave):
             data_TS=        data['test'] if 'test' in data else None,
             batch_size=     self['batch_size'],
             batching_type=  'random_cov',
-            verb=           self.verb)
+            logger=         get_hi_child(self.__log, 'Batcher'))
 
     # builds feed dict from given batch of data
     def build_feed(self, batch: dict, train=True) -> dict:
@@ -620,7 +622,7 @@ class NEModel(ParaSave):
         if data is not None: self.load_data(data)
         if not self._batcher: raise NEModelException('NEModel has not been given data for training, use load_data() or give it while training!')
 
-        if self.verb>0: print(f'{self.name} - training starts')
+        self.__log.info(f'{self.name} - training starts [acc/loss]')
         if n_batches is None: n_batches = self['n_batches']  # take default
         batch_IX = 0
         tr_lssL = []
@@ -636,34 +638,33 @@ class NEModel(ParaSave):
         if self['hpmser_mode']: ts_bIX = ts_bIX[-ten_factor:]
 
         while batch_IX < n_batches:
-            batch_IX += 1
+
             batch = self._batcher.get_batch()
-
             feed = self.build_feed(batch)
-            fetches = self['optimizer']
-            if self['do_TB'] or self.verb>0: fetches = [self['optimizer'], self['loss'], self['acc'], self['gg_norm'], self['gg_avt_norm']]
-
+            fetches = [self['optimizer'], self['loss'], self['acc'], self['gg_norm'], self['gg_avt_norm']]
             run_out = self._session.run(fetches, feed)
+            _, loss, acc, gg_norm, gg_avt_norm = run_out
 
-            if self['do_TB'] or self.verb>0:
-                _, loss, acc, gg_norm, gg_avt_norm = run_out
-                if self['do_TB']:
-                    self.log_TB(value=loss,        tag='tr/loss',    step=batch_IX)
-                    self.log_TB(value=acc,         tag='tr/acc',     step=batch_IX)
-                    self.log_TB(value=gg_norm,     tag='tr/gn',      step=batch_IX)
-                    self.log_TB(value=gg_avt_norm, tag='tr/gn_avt',  step=batch_IX)
-                tr_lssL.append(loss)
-                tr_accL.append(acc)
+            batch_IX += 1
+            self['train_batch_IX'] += 1
+
+            if self['do_TB']:
+                self.log_TB(value=loss,        tag='tr/loss',    step=self['train_batch_IX'])
+                self.log_TB(value=acc,         tag='tr/acc',     step=self['train_batch_IX'])
+                self.log_TB(value=gg_norm,     tag='tr/gn',      step=self['train_batch_IX'])
+                self.log_TB(value=gg_avt_norm, tag='tr/gn_avt',  step=self['train_batch_IX'])
+            tr_lssL.append(loss)
+            tr_accL.append(acc)
 
             if batch_IX in ts_bIX:
                 ts_acc, ts_loss = self.test()
                 acc_mav = ts_acc_mav.upd(ts_acc)
                 ts_results.append(ts_acc)
                 if self['do_TB']:
-                    self.log_TB(value=ts_loss, tag='ts/loss',    step=batch_IX)
-                    self.log_TB(value=ts_acc,  tag='ts/acc',     step=batch_IX)
-                    self.log_TB(value=acc_mav, tag='ts/acc_mav', step=batch_IX)
-                if self.verb>0: print(f'{batch_IX:5d} TR: {100*sum(tr_accL)/test_freq:.1f} / {sum(tr_lssL)/test_freq:.3f} -- TS: {100*ts_acc:.1f} / {ts_loss:.3f}')
+                    self.log_TB(value=ts_loss, tag='ts/loss',    step=self['train_batch_IX'])
+                    self.log_TB(value=ts_acc,  tag='ts/acc',     step=self['train_batch_IX'])
+                    self.log_TB(value=acc_mav, tag='ts/acc_mav', step=self['train_batch_IX'])
+                self.__log.info(f'{self["train_batch_IX"]:5d} TR: {100*sum(tr_accL)/test_freq:.1f} / {sum(tr_lssL)/test_freq:.3f} -- TS: {100*ts_acc:.1f} / {ts_loss:.3f}')
                 tr_lssL = []
                 tr_accL = []
 
@@ -681,11 +682,10 @@ class NEModel(ParaSave):
             weight += 1
         ts_wval /= sum_weight
 
-        if self['do_TB']: self.log_TB(value=ts_wval, tag='ts/ts_wval', step=batch_IX)
-        if self.verb>0:
-            print(f'model {self.name} finished training')
-            print(f' > test_acc_max: {ts_acc_max:.4f}')
-            print(f' > test_wval:    {ts_wval:.4f}')
+        if self['do_TB']: self.log_TB(value=ts_wval, tag='ts/ts_wval', step=self['train_batch_IX'])
+        self.__log.info(f'model {self.name} finished training')
+        self.__log.info(f' > test_acc_max: {ts_acc_max:.4f}')
+        self.__log.info(f' > test_wval:    {ts_wval:.4f}')
 
         return ts_wval
 
@@ -872,7 +872,7 @@ class NEModel(ParaSave):
         assert not self['read_only'], f'ERR: cannot save NEModel {self.name} while model is readonly!'
         ParaSave.save_dna(self)
         self.save_ckpt()
-        if self.verb>0: print(f'NEMmodel {self.name} saved')
+        self.__log.info(f'NEMmodel {self.name} saved')
 
     @property
     def gFWD(self):

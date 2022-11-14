@@ -20,7 +20,7 @@ class QLearningActor(Actor, ABC):
     @abstractmethod
     def get_QVs(self, observation: np.ndarray) -> np.ndarray: pass
 
-    # returns QVs (for all actions) for given observations batch, may be overridden with optimized version
+    # returns QVs (for all actions) for given observations batch, here baseline implementation - may be overridden with optimized version
     def get_QVs_batch(self, observations: np.ndarray) -> np.ndarray:
         return np.apply_along_axis(
             func1d= self.get_QVs,
@@ -55,7 +55,6 @@ class QLearningActor(Actor, ABC):
             actions: np.ndarray,        # batch of selected actions for given observations (do not have to come from Actor policy!)
             new_qvs: np.ndarray,        # batch of QV to be updated (QV for selected action only)
     ) -> float:
-
         loss = 0.0
         for ob, ac, nq in zip(observations, actions, new_qvs):
             loss += self.upd_QV(
