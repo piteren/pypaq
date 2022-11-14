@@ -87,7 +87,9 @@ class Trainer(ABC):
         self.__log.info(f'> discount:    {self.discount}')
 
     def init_memory(self):
-        self.memory = ExperienceMemory(self.batch_size * self.memsize_batches)
+        size = self.batch_size * self.memsize_batches
+        self.memory = ExperienceMemory(maxsize=size)
+        self.__log.debug(f'Trainer initialized ExperienceMemory of maxsize {size}')
 
     # saves sample (given as kwargs - dict) into memory
     def remember(self, **kwargs):

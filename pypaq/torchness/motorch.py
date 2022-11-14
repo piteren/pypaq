@@ -172,13 +172,13 @@ class MOTorch(ParaSave, Module):
                 not_used_kwargs[k] = kwargs[k]
 
         self.__log.debug(f'> MOTorch DNA sources:')
-        self.__log.debug(f'>> MOTORCH_DEFAULTS:                  {MOTORCH_DEFAULTS}')
-        self.__log.debug(f'>> Module init defaults:              {_module_init_params_defaults}')
-        self.__log.debug(f'>> DNA saved:                         {dna_saved}')
-        self.__log.debug(f'>> given kwargs:                      {kwargs}')
-        self.__log.debug(f'>> MOTorch kwargs not used by model : {not_used_kwargs}')
-        self.__log.debug(f'Module DNA:                           {dna_module}')
-        self.__log.debug(f'MOTorch complete DNA:                 {dna}')
+        self.__log.debug(f'>> MOTORCH_DEFAULTS:                 {MOTORCH_DEFAULTS}')
+        self.__log.debug(f'>> Module init defaults:             {_module_init_params_defaults}')
+        self.__log.debug(f'>> DNA saved:                        {dna_saved}')
+        self.__log.debug(f'>> given kwargs:                     {kwargs}')
+        self.__log.debug(f'>> MOTorch kwargs not used by model: {not_used_kwargs}')
+        self.__log.debug(f'Module DNA:                          {dna_module}')
+        self.__log.debug(f'MOTorch complete DNA:                {dna}')
 
         self.torch_dev = self.__manage_devices()
 
