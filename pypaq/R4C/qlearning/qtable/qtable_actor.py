@@ -10,7 +10,7 @@
 
 """
 
-from abc import ABC
+from abc import ABC, abstractmethod
 import numpy as np
 from typing import Hashable, Dict, List
 
@@ -67,18 +67,23 @@ class QTableActor(QLearningActor, ABC):
         self.__upd_rate = upd_rate
         self.__qtable = QTable(num_actions)
 
-    def get_QVs(self, observation: np.ndarray) -> np.ndarray:
-        return self.__qtable.get_QVs(observation)
+    # prepares numpy vector from observation, it is a private / internal skill of Actor
+    @abstractmethod
+    def _get_observation_vec(self, observation: object) -> np.ndarray: pass
+
+    def get_QVs(self, observation: object) -> np.ndarray:
+        obs_vec = self._get_observation_vec(observation)
+        return self.__qtable.get_QVs(obs_vec)
 
     def upd_QV(
             self,
-            observation: np.ndarray,
+            observation: object,
             action: int,
             new_qv: float) -> float:
         old_qv = self.get_QVs(observation)[action]
         diff = new_qv - old_qv
         self.__qtable.put_QV(
-            observation=    observation,
+            observation=    self._get_observation_vec(observation),
             action=         action,
             new_qv=         old_qv + self.__upd_rate * diff)
         return abs(diff)

@@ -6,8 +6,9 @@
 
 """
 
-from abc import ABC
+from abc import ABC, abstractmethod
 import numpy as np
+from typing import List
 
 from pypaq.lipytools.pylogger import get_pylogger, get_hi_child
 from pypaq.lipytools.little_methods import stamp
@@ -40,7 +41,7 @@ class DQN_TFActor(QLearningActor, ABC):
 
         if 'name' not in mdict: mdict['name'] = f'dqnPT_{stamp()}'
         mdict['num_actions'] = num_actions
-        mdict['observation_width'] = self.get_observation_vec(observation).shape[-1]
+        mdict['observation_width'] = self._get_observation_vec(observation).shape[-1]
         mdict['save_topdir'] = save_topdir
 
         self.__log.info(f'*** DQN_TFActor {mdict["name"]} (TF based) initializes..')
@@ -58,25 +59,31 @@ class DQN_TFActor(QLearningActor, ABC):
 
         self.__log.info(f'DQN_TFActor initialized')
 
-    def get_QVs(self, observation: np.ndarray) -> np.ndarray:
+    # prepares numpy vector from observation, it is a private / internal skill of Actor
+    @abstractmethod
+    def _get_observation_vec(self, observation: object) -> np.ndarray: pass
+
+    def get_QVs(self, observation: object) -> np.ndarray:
+        obs_vec = self._get_observation_vec(observation)
         output = self.nn.session.run(
             fetches=    self.nn['output'],
-            feed_dict=  {self.nn['observations_PH']: [observation]})
+            feed_dict=  {self.nn['observations_PH']: [obs_vec]})
         return output[0] # reduce dim
 
     # optimized with single call to session with a batch of observations
-    def get_QVs_batch(self, observations: np.ndarray) -> np.ndarray:
+    def get_QVs_batch(self, observations: List[object]) -> np.ndarray:
+        obs_vecs = np.array([self._get_observation_vec(o) for o in observations])
         output = self.nn.session.run(
             fetches=    self.nn['output'],
-            feed_dict=  {self.nn['observations_PH']: observations})
+            feed_dict=  {self.nn['observations_PH']: obs_vecs})
         return output
 
     # optimized with single call to session with a batch of data
     def update_with_experience(
             self,
-            observations: np.ndarray,
-            actions: np.ndarray,
-            new_qvs: np.ndarray,
+            observations: List[object],
+            actions: List[int],
+            new_qvs: List[float],
             inspect=    False) -> float:
 
         _, loss, gn, gn_avt = self.nn.session.run(
@@ -86,9 +93,9 @@ class DQN_TFActor(QLearningActor, ABC):
                 self.nn['gg_norm'],
                 self.nn['gg_avt_norm']],
             feed_dict={
-                self.nn['observations_PH']: observations,
+                self.nn['observations_PH']: np.array([self._get_observation_vec(o) for o in observations]),
                 self.nn['enum_actions_PH']: np.array(list(enumerate(actions))),
-                self.nn['gold_QV_PH']:      new_qvs})
+                self.nn['gold_QV_PH']:      np.array(new_qvs)})
 
         self._upd_step += 1
 
@@ -101,10 +108,10 @@ class DQN_TFActor(QLearningActor, ABC):
     # INFO: not used since this Actor updates only with batches
     def upd_QV(
             self,
-            observation: np.ndarray,
+            observation: object,
             action: int,
             new_qv: float) -> float:
-        raise NotImplementedError
+        raise Exception('not implemented')
 
     def save(self): self.nn.save()
 

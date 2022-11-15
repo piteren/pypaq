@@ -23,10 +23,6 @@ class QLearningTrainer(FATrainer):
             self,
             actor: QLearningActor,
             envy: FiniteActionsRLEnvy,
-            batch_size=         10,
-            memsize_batches=    10,   # ExperienceMemory size (in number of batches)
-            exploration=        0.5,  # exploration factor
-            discount=           0.9,  # discount factor (gamma)
             seed=               123,
             logger=             None,
             loglevel=           20):
@@ -45,17 +41,17 @@ class QLearningTrainer(FATrainer):
             self,
             actor=              actor,
             envy=               envy,
-            batch_size=         batch_size,
-            memsize_batches=    memsize_batches,
-            exploration=        exploration,
-            discount=           discount,
             logger=             get_hi_child(self.__log, 'FATrainer', higher_level=False))
         self.actor = actor # INFO: just type "upgrade" for pycharm editor
 
     # updates QLearningActor policy with batch of random data from memory
-    def update_actor(self, inspect=False) -> float:
+    def update_actor(
+            self,
+            batch_size: int,
+            discount: float,
+            inspect=    False) -> float:
 
-        batch = self.memory.sample(self.batch_size)
+        batch = self.memory.sample(batch_size)
 
         observations =      extract_from_batch(batch, 'observation')
         actions =           extract_from_batch(batch, 'action')
@@ -69,7 +65,7 @@ class QLearningTrainer(FATrainer):
         for ix,t in enumerate(terminals):
             if t: no_qvs[ix] = no_qvs_terminal
 
-        new_qvs = np.array([(r + self.discount * max(no_qvs)) for r,no_qvs in zip(rewards, no_qvs)])
+        new_qvs = np.array([(r + discount * max(no_qvs)) for r,no_qvs in zip(rewards, no_qvs)])
 
         return self.actor.update_with_experience(
             observations=   observations,

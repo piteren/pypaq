@@ -21,21 +21,14 @@ from pypaq.lipytools.plots import two_dim
 from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.R4C.helpers import discounted_return, movavg_return
 from pypaq.R4C.envy import RLEnvy, FiniteActionsRLEnvy
-from pypaq.R4C.actor import Actor
+from pypaq.R4C.actor import TrainableActor
 
 
 # Trainer Experience Memory (deque od dicts)
 class ExperienceMemory:
 
     def __init__(self, maxsize):
-        self.maxsize = maxsize
-        self.__init_mem()
-
-    def __init_mem(self):
-        self.memory = deque(maxlen=self.maxsize)
-
-    def reset(self):
-        self.__init_mem()
+        self.memory = deque(maxlen=maxsize)
 
     def append(self, element:dict):
         self.memory.append(element)
@@ -48,6 +41,9 @@ class ExperienceMemory:
     def get_all(self) -> List[dict]:
         return list(self.memory)
 
+    def clear(self):
+        self.memory.clear()
+
     def __len__(self):
         return len(self.memory)
 
@@ -58,45 +54,25 @@ class Trainer(ABC):
     def __init__(
             self,
             envy: RLEnvy,
-            actor: Actor,
-            batch_size=         32,     # Actor update data size
-            memsize_batches=    1,      # ExperienceMemory size (in number of batches)
-            exploration=        0.5,    # exploration factor
-            discount=           0.9,    # return discount factor (gamma)
-            movavg_factor=      0.3,
-            logger=             None):
+            actor: TrainableActor,
+            logger=     None):
 
         if not logger: logger = get_pylogger(name='Trainer')
         self.__log = logger
 
         self.envy = envy
         self.actor = actor
-        self.exploration = exploration
-        self.batch_size = batch_size
-        self.memsize_batches = memsize_batches
-        self.discount = discount
-        self.movavg_factor = movavg_factor
-
         self.memory: Optional[ExperienceMemory] = None
-        self.loss_mavg = MovAvg()
 
         self.__log.info(f'*** Trainer for {self.envy.name} initialized')
-        self.__log.info(f'> batch_size:  {self.batch_size}')
-        self.__log.info(f'> exploration: {self.exploration}')
-        self.__log.info(f'> discount:    {self.discount}')
-
-    def init_memory(self):
-        size = self.batch_size * self.memsize_batches
-        self.memory = ExperienceMemory(maxsize=size)
-        self.__log.info(f'Trainer initialized ExperienceMemory of maxsize {size}')
-
-    # saves sample (given as kwargs - dict) into memory
-    def remember(self, **kwargs):
-        self.memory.append(kwargs)
 
     # updates Actor policy, returns Actor "metric" - loss etc. (float), baseline implementation
-    def update_actor(self, inspect=False) -> float:
-        batch = self.memory.sample(self.batch_size)
+    def update_actor(
+            self,
+            batch_size: int,
+            discount: float,
+            inspect=    False) -> float:
+        batch = self.memory.sample(batch_size)
         return self.actor.update_with_experience(
             batch=      batch,
             inspect=    inspect)
@@ -110,19 +86,18 @@ class Trainer(ABC):
             self,
             exploration=    0.0,    # prob pf exploration
             sampled=        0.0     # prob of sampling (vs argmax)
-    ) -> Tuple[np.ndarray, object, float]:
+    ) -> Tuple[object, object, float]:
 
         observation = self.envy.get_observation()
-        observation_vec = self.actor.get_observation_vec(observation)
 
         if np.random.rand() < exploration: action = self.get_exploring_action()
         else:                              action = self.actor.get_policy_action(
-                                                        observation=    observation_vec,
+                                                        observation=    observation,
                                                         sampled=        np.random.rand() < sampled)
         self.envy.run(action)
         reward = self.envy.get_last_action_reward()
 
-        return observation_vec, action, reward
+        return observation, action, reward
 
     # plays (envy) until N steps performed, returns (observations, actions, rewards)
     def play(
@@ -131,7 +106,7 @@ class Trainer(ABC):
             break_terminal= False, # for True breaks play at episode end
             exploration=    0.0,
             sampled=        0.0,
-            render=         False) -> Tuple[List[np.ndarray], List[object], List[float]]:
+            render=         False) -> Tuple[List[object], List[object], List[float]]:
 
         self.__log.log(5,f'playing for {steps} steps..')
         observations = []
@@ -166,7 +141,7 @@ class Trainer(ABC):
             exploration=    0.0,
             sampled=        0.0,
             render=         False
-    ) -> Tuple[List[np.ndarray], List[object], List[float], bool]:
+    ) -> Tuple[List[object], List[object], List[float], bool]:
 
         self.envy.reset()
         observations, actions, rewards = self.play(
@@ -200,21 +175,35 @@ class Trainer(ABC):
     # generic RL training procedure
     def train(
             self,
-            num_updates=    2000,   # number of training updates
-            upd_on_episode= False,  # updates on episode finish / terminal (does not wait till batch)
-            train_sampled=  0.3,    # while TRAINING: how often move is sampled (vs argmax)
-            use_movavg=     True,
-            test_freq=      100,    # number of updates between test
-            test_episodes=  100,    # number of testing episodes
-            test_max_steps= 1000,   # max number of episode steps while testing
-            test_render=    True,
-            break_ntests=   0,      # when > 0: breaks training after all test episodes succeeded N times in a row
+            num_updates=        2000,   # number of training updates
+            batch_size=         32,     # Actor update data size
+            upd_on_episode=     False,  # updates on episode finish / terminal (does not wait till batch)
+            memsize_batches=    1,      # ExperienceMemory size (in number of batches)
+            exploration=        0.5,    # exploration factor
+            discount=           0.9,    # return discount factor (gamma)
+            train_sampled=      0.3,    # how often move is sampled (vs argmax) while training
+            movavg_factor=      0.3,
+            use_movavg=         True,
+            test_freq=          100,    # number of updates between test
+            test_episodes=      100,    # number of testing episodes
+            test_max_steps=     1000,   # max number of episode steps while testing
+            test_render=        False,
+            break_ntests=       0,      # when > 0: breaks training after all test episodes succeeded N times in a row
     ) -> Dict:
 
         stime = time.time()
         self.__log.info(f'Starting train for {num_updates} updates..')
-        self.init_memory()
+        self.__log.info(f'> batch_size:    {batch_size}')
+        self.__log.info(f'> exploration:   {exploration}')
+        self.__log.info(f'> discount:      {discount}')
+        self.__log.info(f'> train_sampled: {train_sampled}')
+        self.__log.info(f'> movavg_factor: {movavg_factor}, used: {use_movavg}')
 
+        mem_size = memsize_batches * batch_size
+        self.memory = ExperienceMemory(mem_size)
+        self.__log.info(f'> initialized ExperienceMemory of maxsize {mem_size}')
+
+        loss_mavg = MovAvg()
         lossL = []
         n_terminals = 0             # number of terminal states reached while training
         last_terminals = 0          # previous number of terminal states
@@ -225,26 +214,27 @@ class Trainer(ABC):
 
             # get a batch of data
             new_actions = 0
-            while new_actions < self.batch_size:
+            while new_actions < batch_size:
 
                 observations, actions, rewards = self.play(
-                    steps=          self.batch_size - new_actions,
+                    steps=          batch_size - new_actions,
                     break_terminal= True,
-                    exploration=    self.exploration,
+                    exploration=    exploration,
                     sampled=        train_sampled,
                     render=         False)
 
                 new_actions += len(observations)
 
-                if use_movavg: dreturns = movavg_return(rewards=rewards, factor=self.movavg_factor)
-                else:          dreturns = discounted_return(rewards=rewards, discount=self.discount)
+                # TODO: move to prepare_batch_from_experience()
+                if use_movavg: dreturns = movavg_return(rewards=rewards, factor=movavg_factor)
+                else:          dreturns = discounted_return(rewards=rewards, discount=discount)
 
-                next_observations = observations[1:] + [self.actor.get_observation_vec(self.envy.get_observation())]
+                next_observations = observations[1:] + [self.envy.get_observation()]
                 terminals = [False]*(len(observations)-1) + [self.envy.is_terminal()]
 
                 # INFO: not all algorithms (QLearning,PG,AC) need all the data below (we store 'more' just in case)
                 for o,a,d,r,n,t in zip(observations, actions, dreturns, rewards, next_observations, terminals):
-                    self.remember(observation=o, action=a, dreturn=d, reward=r, next_observation=n, terminal=t)
+                    self.memory.append(dict(observation=o, action=a, dreturn=d, reward=r, next_observation=n, terminal=t))
 
                 self.__log.debug(f' >> Trainer gots {len(observations):3} observations after play and {len(self.memory):3} in memory, new_actions: {new_actions}' )
 
@@ -254,8 +244,12 @@ class Trainer(ABC):
                 if upd_on_episode: break
 
             # update Actor
-            loss_actor = self.update_actor(inspect=(uix % test_freq == 0) if self.__log.getEffectiveLevel()<20 else False)
-            lossL.append(self.loss_mavg.upd(loss_actor))
+            # batch_from_experience = self.prepare_batch_from_experience(batch_size=batch_size)
+            loss_actor = self.update_actor(
+                batch_size= batch_size,
+                discount=   discount,
+                inspect=    (uix % test_freq == 0) if self.__log.getEffectiveLevel()<20 else False)
+            lossL.append(loss_mavg.upd(loss_actor))
 
             # test Actor
             if uix % test_freq == 0:
@@ -269,7 +263,7 @@ class Trainer(ABC):
                     n_episodes= test_episodes,
                     max_steps=  test_max_steps)
 
-                self.__log.info(f' term:{n_terminals}(+{n_terminals-last_terminals}) -- TS: {len(actions)} actions, return {sum(rewards):.1f} ({"won" if won else "lost"}) -- {test_episodes}xTS: avg_won: {ts_res[0]*100:.1f}%, avg_return: {ts_res[1]:.1f} -- loss_actor: {self.loss_mavg():.4f}')
+                self.__log.info(f' term:{n_terminals}(+{n_terminals-last_terminals}) -- TS: {len(actions)} actions, return {sum(rewards):.1f} ({"won" if won else "lost"}) -- {test_episodes}xTS: avg_won: {ts_res[0]*100:.1f}%, avg_return: {ts_res[1]:.1f} -- loss_actor: {loss_mavg():.4f}')
                 last_terminals = n_terminals
 
                 if ts_res[0] == 1:

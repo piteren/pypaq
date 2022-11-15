@@ -4,15 +4,13 @@
 
     Envy is a base environment interface
 
-    RLEnvy is an interface that defines base RL methods used by Actor or Trainer or other objects
+    RLEnvy is an interface that defines base RL methods used by Actor or Trainer (..or other objects)
 
-        RLEnvy may implement get_last_action_reward() and get_reward() methods (reward function)
-        that in fact should be implemented by a Trainer (it is Trainer responsibility to get those values,
-        but it is much cleaner to do get it from Envy).
-        (Actor does not need reward to act with policy, Trainer is supposed to train Actor
-        using information of reward that he defines observing an Envy)
-        get_reward methods may be implemented by RLEnvy as an generic baseline used by Trainer,
-        he always may override it with custom reward function.
+        RLEnvy implements get_reward methods: get_last_action_reward() and get_reward().
+        Values returned with those methods always may (should?) be overridden by Trainer.
+        Trainer is supposed to train Actor using information of reward that he defines / corrects observing an Envy.
+        He may apply discount, factor, moving average etc to those values.
+        (Actor does not need reward to act with policy.)
 
 """
 

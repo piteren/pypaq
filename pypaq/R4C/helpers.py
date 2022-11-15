@@ -5,8 +5,8 @@ from typing import List
 # extracts array of data from a batch
 def extract_from_batch(
         batch :List[dict],
-        key: str) -> np.ndarray:
-    return np.array(list(map(lambda x: x[key], batch)))
+        key: str) -> List[object]:
+    return list(map(lambda x: x[key], batch))
 
 # normalizes x with zscore (0 mean 1 std), this is helpful for training, as rewards can vary considerably between episodes,
 def zscore_norm(x):
@@ -14,7 +14,9 @@ def zscore_norm(x):
     return (x - np.mean(x)) / np.std(x) + 0.00000001
 
 # prepares list of discounted accumulated return from [reward]
-def discounted_return(rewards: List[float], discount: float) -> List[float]:
+def discounted_return(
+        rewards: List[float],
+        discount: float) -> List[float]:
     dar = np.zeros_like(rewards)
     s = 0.0
     for i in reversed(range(len(rewards))):
