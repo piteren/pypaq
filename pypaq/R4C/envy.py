@@ -17,13 +17,19 @@
 """
 
 from abc import abstractmethod, ABC
+from typing import List
+
+from pypaq.lipytools.pylogger import get_pylogger
 
 
 # base Environment interface
 class Envy(ABC):
 
-    def __init__(self, name:str):
+    def __init__(self, name:str, logger):
         self.name = name
+        if not logger: logger = get_pylogger(name=self.name)
+        self.__log = logger
+        self.__log.debug(f'*** Envy {self.name} initialized!')
 
     # resets Envy (self) to initial state
     @abstractmethod
@@ -35,7 +41,7 @@ class Envy(ABC):
 
     # plays action, goes to new state
     @abstractmethod
-    def run(self, action): pass
+    def run(self, action: object): pass
 
 
 # adds to Envy methods needed by base RL algorithms
@@ -47,7 +53,11 @@ class RLEnvy(Envy, ABC):
 
     # returns reward based on observations and action, this is in fact Trainer function, but it is easier to implement it with an Envy
     @abstractmethod
-    def get_reward(self, prev_observation, action, next_observation) -> float: pass
+    def get_reward(
+            self,
+            prev_observation: object,
+            action: object,
+            next_observation: object) -> float: pass
 
     # returns True if episode finished and has been won, for some Envies it wont return True whenever
     @abstractmethod
@@ -71,3 +81,7 @@ class FiniteActionsRLEnvy(RLEnvy):
     # returns number of Envy actions
     @abstractmethod
     def num_actions(self) -> int: pass
+
+    # returns list of valid actions
+    @abstractmethod
+    def get_valid_actions(self) -> List[object]: pass

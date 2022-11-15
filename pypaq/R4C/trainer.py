@@ -4,6 +4,9 @@
 
     RL Trainer for Actor acting on RLEnvy
 
+        Implements generic RL training procedure, that is valid for some algorithms (QTable, PG, AC).
+        May be overridden with custom implementation, returns Dict with some training stats
+
 """
 
 from abc import abstractmethod, ABC
@@ -128,7 +131,7 @@ class Trainer(ABC):
 
         return observation_vec, action, reward
 
-    # plays (envy) until N steps performed, returns (observations, actions, rewards, win/lost)
+    # plays (envy) until N steps performed, returns (observations, actions, rewards)
     def play(
             self,
             steps=          1000,
@@ -206,7 +209,7 @@ class Trainer(ABC):
             self,
             num_updates=    2000,   # number of training updates
             upd_on_episode= False,  # updates on episode finish / terminal (does not wait till batch)
-            reset_memory=   True,   # reset memory after each update (batch)
+            reset_memory=   True,   # reset memory after each update (batch), by default is True -> train collects a batch of data, then trains on it and resets
             train_sampled=  0.3,    # while TRAINING: how often move is sampled (vs argmax)
             use_movavg=     True,
             test_freq=      100,    # number of updates between test
@@ -233,6 +236,7 @@ class Trainer(ABC):
         succeeded_row_max = 0       # max number of succeeded tests in a row
         for uix in range(num_updates):
 
+            # get a batch of data
             new_actions = 0
             while new_actions < self.batch_size:
 
@@ -262,13 +266,13 @@ class Trainer(ABC):
 
                 if upd_on_episode: break
 
-            inspect = (uix % test_freq == 0) if self.__log.getEffectiveLevel()<20 else False
+            # update Actor
             loss_actor = self.update_actor(
                 reset_memory=   reset_memory,
-                inspect=        inspect)
+                inspect=        (uix % test_freq == 0) if self.__log.getEffectiveLevel()<20 else False)
             lossL.append(self.loss_mavg.upd(loss_actor))
 
-            # test
+            # test Actor
             if uix % test_freq == 0:
 
                 observations, actions, rewards, won = self.play_episode(

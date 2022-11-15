@@ -10,6 +10,7 @@ import numpy as np
 import random
 
 from pypaq.lipytools.pylogger import get_pylogger, get_hi_child
+from pypaq.R4C.helpers import extract_from_batch
 from pypaq.R4C.envy import FiniteActionsRLEnvy
 from pypaq.R4C.trainer import FATrainer
 from pypaq.R4C.qlearning.qlearning_actor import QLearningActor
@@ -61,23 +62,23 @@ class QLearningTrainer(FATrainer):
 
         batch = self.memory.sample(self.batch_size)
 
-        observations =      [me['observation']      for me in batch]
-        actions =           [me['action']           for me in batch]
-        rewards =           [me['reward']           for me in batch]
-        next_observations = [me['next_observation'] for me in batch]
-        terminals =         [me['terminal']         for me in batch]
+        observations =      extract_from_batch(batch, 'observation')
+        actions =           extract_from_batch(batch, 'action')
+        rewards =           extract_from_batch(batch, 'reward')
+        next_observations = extract_from_batch(batch, 'next_observation')
+        terminals =         extract_from_batch(batch, 'terminal')
 
-        no_qvs = self.actor.get_QVs_batch(np.array(next_observations))
+        no_qvs = self.actor.get_QVs_batch(next_observations)
         no_qvs_terminal = np.zeros(self.num_of_actions)
 
         for ix,t in enumerate(terminals):
             if t: no_qvs[ix] = no_qvs_terminal
 
-        new_qvs = [(r + self.discount * max(no_qvs)) for r,no_qvs in zip(rewards, no_qvs)]
+        new_qvs = np.array([(r + self.discount * max(no_qvs)) for r,no_qvs in zip(rewards, no_qvs)])
 
         if reset_memory: self.memory.reset()
 
         return self.actor.update_with_experience(
-            observations=   np.array(observations),
-            actions=        np.array(actions),
-            new_qvs=        np.array(new_qvs))
+            observations=   observations,
+            actions=        actions,
+            new_qvs=        new_qvs)

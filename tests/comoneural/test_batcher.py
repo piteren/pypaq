@@ -25,7 +25,7 @@ class TestBatcher(unittest.TestCase):
                 'samples':  samples,
                 'labels':   labels}
 
-            batcher = Batcher(data, batch_size=batch_size, batching_type=btype, verb=1)
+            batcher = Batcher(data, batch_size=batch_size, batching_type=btype)
 
             sL = []
             n_b = 0
