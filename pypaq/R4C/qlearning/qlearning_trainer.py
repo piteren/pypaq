@@ -52,13 +52,8 @@ class QLearningTrainer(FATrainer):
             logger=             get_hi_child(self.__log, 'FATrainer', higher_level=False))
         self.actor = actor # INFO: just type "upgrade" for pycharm editor
 
-        self.__log.info(f'*** QLearningTrainer for {envy.name} (actions: {self.num_of_actions})')
-
-    # updates QLearningActor policy with batch of data from memory
-    def update_actor(
-            self,
-            reset_memory=   True,
-            inspect=        False) -> float: # INFO: inspect is not used ..
+    # updates QLearningActor policy with batch of random data from memory
+    def update_actor(self, inspect=False) -> float:
 
         batch = self.memory.sample(self.batch_size)
 
@@ -76,9 +71,8 @@ class QLearningTrainer(FATrainer):
 
         new_qvs = np.array([(r + self.discount * max(no_qvs)) for r,no_qvs in zip(rewards, no_qvs)])
 
-        if reset_memory: self.memory.reset()
-
         return self.actor.update_with_experience(
             observations=   observations,
             actions=        actions,
-            new_qvs=        new_qvs)
+            new_qvs=        new_qvs,
+            inspect=        inspect)

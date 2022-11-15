@@ -8,7 +8,7 @@
 
 """
 
-from abc import abstractmethod, ABC
+from abc import ABC
 import numpy as np
 
 from pypaq.lipytools.little_methods import stamp
@@ -30,7 +30,7 @@ class PGActor(Actor, ABC):
 
         self.verb = verb
         self.num_actions = num_actions
-        observation_vec_width = self.observation_vec(observation).shape[-1]
+        observation_vec_width = self.get_observation_vec(observation).shape[-1]
 
         if self.verb>0: print(f'\n*** PGActor inits, observation_width: {observation_vec_width}')
 
@@ -47,16 +47,12 @@ class PGActor(Actor, ABC):
 
         self.__upd_step = 0
 
-     # returns vector of feats from given observation (encodes observation into input vector)
-    @abstractmethod
-    def observation_vec(self, observation) -> np.ndarray: pass
-
     # vectorization of observations batch, may be overridden with more optimal custom implementation
     def observation_vec_batch(self, observations) -> np.ndarray:
-        return np.array([self.observation_vec(v) for v in observations])
+        return np.array([self.get_observation_vec(v) for v in observations])
 
     def get_policy_probs(self, observation) -> np.ndarray:
-        ov = self.observation_vec(observation)
+        ov = self.get_observation_vec(observation)
         probs = self.nn.session.run(
             feed_dict=  {self.nn['observation_PH']: [ov]},
             fetches=    self.nn['action_prob'])
@@ -86,8 +82,8 @@ class PGActor(Actor, ABC):
             self,
             observations,
             actions,
-            dreturns     # those should be discounted accumulated returns
-    ) -> float:
+            dreturns,     # those should be discounted accumulated returns
+            inspect=    False) -> float:
 
         ovs = self.observation_vec_batch(observations)
         _, loss, gn, gn_avt, amax_prob, amin_prob, ace = self.nn.session.run(

@@ -23,15 +23,13 @@ class PGTrainer(FATrainer):
             self,
             actor=  actor,
             **kwargs)
-        self.actor = actor # INFO: type "upgrade" for pycharm editor
+        self.actor = actor # INFO: just type "upgrade" for pycharm editor
 
     # PGActor update method
-    def update_actor(
-            self,
-            reset_memory=   True,
-            inspect=        False) -> float:
+    def update_actor(self, inspect=False) -> float:
 
-        batch = self.memory.sample(self.batch_size)
+        batch = self.memory.get_all()   # get all ordered
+        self.memory.reset()             # reset
 
         observations = extract_from_batch(batch, 'observation')
         actions =      extract_from_batch(batch, 'action')
@@ -46,11 +44,8 @@ class PGTrainer(FATrainer):
                 names=      ['rewards', 'dreturns', 'dreturns_norm'],
                 legend_loc= 'lower left')
 
-        loss = self.actor.update_with_experience(
+        return self.actor.update_with_experience(
             observations=   observations,
             actions=        actions,
-            dreturns=       dreturns_norm)
-
-        if reset_memory: self.memory.reset()
-
-        return loss
+            dreturns=       dreturns_norm,
+            inspect=        inspect)

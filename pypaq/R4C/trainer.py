@@ -40,9 +40,11 @@ class ExperienceMemory:
     def append(self, element:dict):
         self.memory.append(element)
 
+    # returns random sample of non-duplicates from memory
     def sample(self, n) -> List[dict]:
         return random.sample(self.memory, n)
 
+    # returns all elements from memory in original order
     def get_all(self) -> List[dict]:
         return list(self.memory)
 
@@ -62,15 +64,9 @@ class Trainer(ABC):
             exploration=        0.5,    # exploration factor
             discount=           0.9,    # return discount factor (gamma)
             movavg_factor=      0.3,
-            logger=             None,
-            loglevel=           20):
+            logger=             None):
 
-        if not logger:
-            logger = get_pylogger(
-                name=       'Trainer',
-                add_stamp=  True,
-                folder=     None,
-                level=      loglevel)
+        if not logger: logger = get_pylogger(name='Trainer')
         self.__log = logger
 
         self.envy = envy
@@ -92,21 +88,18 @@ class Trainer(ABC):
     def init_memory(self):
         size = self.batch_size * self.memsize_batches
         self.memory = ExperienceMemory(maxsize=size)
-        self.__log.debug(f'Trainer initialized ExperienceMemory of maxsize {size}')
+        self.__log.info(f'Trainer initialized ExperienceMemory of maxsize {size}')
 
     # saves sample (given as kwargs - dict) into memory
     def remember(self, **kwargs):
         self.memory.append(kwargs)
 
-    # updates Actor policy, returns Actor "metric" - loss etc. (float)
-    def update_actor(
-            self,
-            reset_memory=   True,
-            inspect=        False) -> float:
+    # updates Actor policy, returns Actor "metric" - loss etc. (float), baseline implementation
+    def update_actor(self, inspect=False) -> float:
         batch = self.memory.sample(self.batch_size)
-        loss = self.actor.update_with_experience(batch=batch, inspect=inspect)
-        if reset_memory: self.memory.reset()
-        return loss
+        return self.actor.update_with_experience(
+            batch=      batch,
+            inspect=    inspect)
 
     # trainer selects exploring action (with Trainer exploratory policy)
     @abstractmethod
@@ -209,7 +202,6 @@ class Trainer(ABC):
             self,
             num_updates=    2000,   # number of training updates
             upd_on_episode= False,  # updates on episode finish / terminal (does not wait till batch)
-            reset_memory=   True,   # reset memory after each update (batch), by default is True -> train collects a batch of data, then trains on it and resets
             train_sampled=  0.3,    # while TRAINING: how often move is sampled (vs argmax)
             use_movavg=     True,
             test_freq=      100,    # number of updates between test
@@ -218,12 +210,7 @@ class Trainer(ABC):
             test_render=    True,
             break_ntests=   0,      # when > 0: breaks training after all test episodes succeeded N times in a row
     ) -> Dict:
-        """
-        generic RL training procedure,
-        implementation below is valid for PG & AC algorithm
-        may be overridden with custom implementation,
-        returns Dict with some training stats
-        """
+
         stime = time.time()
         self.__log.info(f'Starting train for {num_updates} updates..')
         self.init_memory()
@@ -267,9 +254,7 @@ class Trainer(ABC):
                 if upd_on_episode: break
 
             # update Actor
-            loss_actor = self.update_actor(
-                reset_memory=   reset_memory,
-                inspect=        (uix % test_freq == 0) if self.__log.getEffectiveLevel()<20 else False)
+            loss_actor = self.update_actor(inspect=(uix % test_freq == 0) if self.__log.getEffectiveLevel()<20 else False)
             lossL.append(self.loss_mavg.upd(loss_actor))
 
             # test Actor
@@ -310,10 +295,20 @@ class FATrainer(Trainer, ABC):
     def __init__(
             self,
             envy: FiniteActionsRLEnvy,
+            logger= None,
             **kwargs):
-        Trainer.__init__(self, envy=envy, **kwargs)
+
+        if not logger: logger = get_pylogger(name='FATrainer')
+        self.__log = logger
+
+        Trainer.__init__(
+            self,
+            envy=   envy,
+            logger= self.__log,
+            **kwargs)
         self.envy = envy # INFO: type "upgrade" for pycharm editor
         self.num_of_actions = self.envy.num_actions()
+        self.__log.info(f'*** FATrainer initialized, number of actions: {self.num_of_actions}')
 
     # selects 100% random action from action space
     def get_exploring_action(self):

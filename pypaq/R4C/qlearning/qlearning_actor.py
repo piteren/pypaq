@@ -54,7 +54,7 @@ class QLearningActor(Actor, ABC):
             observations: np.ndarray,   # batch of observations
             actions: np.ndarray,        # batch of selected actions for given observations (do not have to come from Actor policy!)
             new_qvs: np.ndarray,        # batch of QV to be updated (QV for selected action only)
-    ) -> float:
+            inspect=    False) -> float:
         loss = 0.0
         for ob, ac, nq in zip(observations, actions, new_qvs):
             loss += self.upd_QV(

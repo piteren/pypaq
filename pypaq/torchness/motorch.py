@@ -129,7 +129,7 @@ class MOTorch(ParaSave, Module):
                 folder=     None if _read_only else self.model_dir,
                 level=      loglevel)
         self.__log = logger
-        self.__log.info(f'*** MOTorch *** {self.name} initializes..')
+        self.__log.info(f'*** MOTorch *** {self.name} initializes for Module {self.module.__name__}')
         self.__log.debug(f'> MOTorch dir: {self.model_dir}{" <- read only mode!" if _read_only else ""}')
 
         # ************************************************************************* manage (resolve) DNA & init ParaSave

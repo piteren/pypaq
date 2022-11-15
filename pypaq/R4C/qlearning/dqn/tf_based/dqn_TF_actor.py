@@ -10,13 +10,14 @@ from abc import ABC
 import numpy as np
 
 from pypaq.lipytools.pylogger import get_pylogger, get_hi_child
-from pypaq.R4C.qlearning.dqn.dqn_actor_common import DQNActor
+from pypaq.lipytools.little_methods import stamp
+from pypaq.R4C.qlearning.qlearning_actor import QLearningActor
 from pypaq.R4C.qlearning.dqn.tf_based.dqn_TF_graph import dqn_graph
 from pypaq.neuralmess.nemodel import NEModel
 
 
 # DQN TF (NN) based QLearningActor
-class DQN_TFActor(DQNActor, ABC):
+class DQN_TFActor(QLearningActor, ABC):
 
     def __init__(
             self,
@@ -37,31 +38,25 @@ class DQN_TFActor(DQNActor, ABC):
                 level=      loglevel)
         self.__log = logger
 
+        if 'name' not in mdict: mdict['name'] = f'dqnPT_{stamp()}'
+        mdict['num_actions'] = num_actions
+        mdict['observation_width'] = self.get_observation_vec(observation).shape[-1]
         mdict['save_topdir'] = save_topdir
-        self.__log.info(f'DQN (TF based) Actor initializes, save_topdir: {mdict["save_topdir"]}')
 
-        DQNActor.__init__(
-            self,
-            num_actions=    num_actions,
-            observation=    observation,
-            mdict=          mdict,
-            logger=         self.__log,
-            name_pfx=       'dqnTF')
+        self.__log.info(f'*** DQN_TFActor {mdict["name"]} (TF based) initializes..')
+        self.__log.info(f'> num_actions:       {mdict["num_actions"]}')
+        self.__log.info(f'> observation_width: {mdict["observation_width"]}')
+        self.__log.info(f'> save_topdir:       {mdict["save_topdir"]}')
 
-        self.nn = self._init_model(
+        self.nn = NEModel(
             fwd_func=   graph,
-            mdict=      mdict,
-            logger=     None if not logger_given else get_hi_child(self.__log, 'MOTorch', higher_level=False),
-            loglevel=   loglevel)
+            logger=     None if not logger_given else get_hi_child(self.__log, 'NEModel', higher_level=False),
+            loglevel=   loglevel,
+            **mdict)
 
         self._upd_step = 0
 
-    def _init_model(self, fwd_func, mdict, logger, loglevel):
-        return NEModel(
-            fwd_func=   fwd_func,
-            logger=     logger,
-            loglevel=   loglevel,
-            **mdict)
+        self.__log.info(f'DQN_TFActor initialized')
 
     def get_QVs(self, observation: np.ndarray) -> np.ndarray:
         output = self.nn.session.run(
@@ -81,7 +76,8 @@ class DQN_TFActor(DQNActor, ABC):
             self,
             observations: np.ndarray,
             actions: np.ndarray,
-            new_qvs: np.ndarray) -> float:
+            new_qvs: np.ndarray,
+            inspect=    False) -> float:
 
         _, loss, gn, gn_avt = self.nn.session.run(
             fetches=[
@@ -101,3 +97,15 @@ class DQN_TFActor(DQNActor, ABC):
         self.nn.log_TB(gn_avt,  'upd/gn_avt',   step=self._upd_step)
 
         return loss
+
+    # INFO: not used since this Actor updates only with batches
+    def upd_QV(
+            self,
+            observation: np.ndarray,
+            action: int,
+            new_qv: float) -> float:
+        raise NotImplementedError
+
+    def save(self): self.nn.save()
+
+    def __str__(self): return self.nn.__str__()
