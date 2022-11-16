@@ -79,8 +79,15 @@ class TestMOTorch(unittest.TestCase):
             loss = out['loss']
             acc = out['acc']
             print(loss, acc)
+    """
+    def test_NNWrap_inherited(self):
 
-
+        model = MOTorch(module=LinModel)
+        print(model.name)
+        model.save()
+        dna = MOTorch.load_dna(model.name)
+        print(dna)
+    """
     def test_inherited_interfaces(self):
 
         model = MOTorch(module=LinModel)
@@ -88,7 +95,6 @@ class TestMOTorch(unittest.TestCase):
         model.float()
         print(model.state_dict())
         print(model.get_point())
-
 
     def test_training_mode(self):
 

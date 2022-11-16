@@ -456,7 +456,7 @@ class NEModel(ParaSave):
                     else: self.__log.log(5, ' ### no vars')
                     self.__log.log(5, log_vars(varList))
 
-            if 'loss' not in self: warnings.warn('NEModel: there is no loss in FWD graph, OPT graph wont be build!')
+            if 'loss' not in self: self.__log.warn('NEModel: there is no loss in FWD graph, OPT graph wont be build!')
             if not self['opt_func']: print(f'\nNEModel: OPT graph wont be build since opt_func is not given')
 
             # build optimization graph
@@ -588,7 +588,7 @@ class NEModel(ParaSave):
             tag: str,
             step: int):
         if self['do_TB']: self.__TBwr.add(value=value, tag=tag, step=step)
-        else: warnings.warn(f'NEModel {self.name} cannot log TensorBoard since do_TB flag is False!')
+        else: self.__log.warn(f'NEModel {self.name} cannot log TensorBoard since do_TB flag is False!')
 
     # **************************************************************************************** baseline training methods
 
@@ -607,7 +607,7 @@ class NEModel(ParaSave):
 
     # builds feed dict from given batch of data
     def build_feed(self, batch: dict, train=True) -> dict:
-        warnings.warn('NEModel.build_feed() should be overridden!')
+        self.__log.warn('NEModel.build_feed() should be overridden!')
         return {}
 
     # TODO: refactor according to MOTorch train concept
