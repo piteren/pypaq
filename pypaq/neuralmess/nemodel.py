@@ -392,13 +392,16 @@ class NEModel(ParaSave):
     # builds graph (FWD & OPT) and manages surroundings
     def __build_graph(self) -> dict:
 
+        point_with_logger = self.get_point()
+        point_with_logger['logger'] = get_hi_child(self.__log, 'graphs')
+
         # build FWD graph(s) >> manage variables >> build OPT graph
         self._graph = tf.Graph()
         with self._graph.as_default():
 
             self.__log.debug(f'NEModel set TF & NP seed to {self["seed"]}')
 
-            fwd_func_dna = get_func_dna(self['fwd_func'], self.get_point())
+            fwd_func_dna = get_func_dna(self['fwd_func'], point_with_logger)
 
             # builds graph @SEP, this graph wont be run, it is only needed to place variables, if not vars_sep >> variables will be placed with first tower
             if self['sep_device']:
@@ -539,7 +542,7 @@ class NEModel(ParaSave):
 
                     self.__log.debug(f'Building OPT graph for {self.name} model @device: {self["devices"][0]}')
 
-                    opt_func_dna = get_func_dna(self['opt_func'], self.get_point())
+                    opt_func_dna = get_func_dna(self['opt_func'], point_with_logger)
 
                     with tf.device(self['devices'][0]):
 

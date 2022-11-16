@@ -7,17 +7,14 @@ from pypaq.lipytools.little_methods import stamp, prep_folder
 # returns formatted Logger
 def get_pylogger(
         name: str,
-        add_stamp=                  True,
-        folder: Optional[str]=      None,   # if given then writes logfile
-        level=                      logging.INFO,
-        format: Optional[str]=      None,
-        to_stdout=                  True):
+        add_stamp=              True,
+        folder: Optional[str]=  None,   # if given then writes logfile
+        level=                  logging.INFO,
+        format: str=            '%(asctime)s {%(filename)17s:%(lineno)3d} p%(process)s %(levelname)s: %(message)s',
+        to_stdout=              True):
 
     if add_stamp: name += '_' + stamp()
 
-    if not format:
-        format = '%(asctime)s %(levelname)s: %(message)s'
-        if level < 20: format = '%(asctime)s {%(filename)s:%(lineno)d} p%(process)s %(levelname)s: %(message)s'
     formatter = logging.Formatter(format)
 
     # manage file handler
