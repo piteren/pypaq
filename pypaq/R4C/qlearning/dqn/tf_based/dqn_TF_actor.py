@@ -10,9 +10,10 @@ from abc import ABC, abstractmethod
 import numpy as np
 from typing import List
 
-from pypaq.lipytools.pylogger import get_pylogger, get_hi_child
+from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.lipytools.little_methods import stamp
 from pypaq.R4C.qlearning.qlearning_actor import QLearningActor
+from pypaq.R4C.envy import FiniteActionsRLEnvy
 from pypaq.R4C.qlearning.dqn.tf_based.dqn_TF_graph import dqn_graph
 from pypaq.neuralmess.nemodel import NEModel
 
@@ -22,8 +23,7 @@ class DQN_TFActor(QLearningActor, ABC):
 
     def __init__(
             self,
-            num_actions: int,
-            observation,
+            envy: FiniteActionsRLEnvy,
             mdict: dict,
             graph=          dqn_graph,
             save_topdir=    '_models',
@@ -40,8 +40,8 @@ class DQN_TFActor(QLearningActor, ABC):
         self.__log = logger
 
         if 'name' not in mdict: mdict['name'] = f'dqnPT_{stamp()}'
-        mdict['num_actions'] = num_actions
-        mdict['observation_width'] = self._get_observation_vec(observation).shape[-1]
+        mdict['num_actions'] = envy.num_actions()
+        mdict['observation_width'] = self._get_observation_vec(envy.get_observation()).shape[-1]
         mdict['save_topdir'] = save_topdir
 
         self.__log.info(f'*** DQN_TFActor {mdict["name"]} (TF based) initializes..')
@@ -51,7 +51,7 @@ class DQN_TFActor(QLearningActor, ABC):
 
         self.nn = NEModel(
             fwd_func=   graph,
-            logger=     None if not logger_given else get_hi_child(self.__log, 'NEModel', higher_level=False),
+            logger=     None if not logger_given else self.__log,
             loglevel=   loglevel,
             **mdict)
 
@@ -63,7 +63,7 @@ class DQN_TFActor(QLearningActor, ABC):
     @abstractmethod
     def _get_observation_vec(self, observation: object) -> np.ndarray: pass
 
-    def get_QVs(self, observation: object) -> np.ndarray:
+    def _get_QVs(self, observation: object) -> np.ndarray:
         obs_vec = self._get_observation_vec(observation)
         output = self.nn.session.run(
             fetches=    self.nn['output'],
