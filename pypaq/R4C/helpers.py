@@ -5,7 +5,7 @@ from typing import List
 # extracts array of data from a batch
 def extract_from_batch(
         batch :List[dict],
-        key: str) -> List[object]:
+        key: str) -> List:
     return list(map(lambda x: x[key], batch))
 
 # normalizes x with zscore (0 mean 1 std), this is helpful for training, as rewards can vary considerably between episodes,

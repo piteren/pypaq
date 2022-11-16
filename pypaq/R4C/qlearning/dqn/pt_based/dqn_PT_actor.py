@@ -63,7 +63,7 @@ class DQN_PTActor(QLearningActor, ABC):
     @abstractmethod
     def _get_observation_vec(self, observation: object) -> np.ndarray: pass
 
-    def get_QVs(self, observation: object) -> np.ndarray:
+    def _get_QVs(self, observation: object) -> np.ndarray:
         obs_vec = self._get_observation_vec(observation)
         return self.nn(obs_vec)['logits'].detach().cpu().numpy()
 

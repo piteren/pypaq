@@ -18,12 +18,6 @@ class Actor(ABC):
 
 class TrainableActor(Actor, ABC):
 
-    """
-    # prepares numpy vector from observation, it is a private / internal skill of Actor
-    @abstractmethod
-    def _get_observation_vec(self, observation: object) -> np.ndarray: pass
-    """
-
     # add sampling option which may be helpful for training
     @abstractmethod
     def get_policy_action(self, observation:object, sampled=False) -> object: pass
@@ -35,4 +29,3 @@ class TrainableActor(Actor, ABC):
     # returns some info about Actor
     @abstractmethod
     def __str__(self): pass
-

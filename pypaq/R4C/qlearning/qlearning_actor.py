@@ -18,18 +18,18 @@ class QLearningActor(TrainableActor, ABC):
 
     # returns QVs (QV for all actions) for given observation
     @abstractmethod
-    def get_QVs(self, observation: object) -> np.ndarray: pass
+    def _get_QVs(self, observation: object) -> np.ndarray: pass
 
     # returns QVs (for all actions) for given observations batch, here baseline implementation - may be overridden with optimized version
     def get_QVs_batch(self, observations: List[object]) -> np.ndarray:
-        return np.array([self.get_QVs(o) for o in observations])
+        return np.array([self._get_QVs(o) for o in observations])
 
     def get_policy_action(
             self,
             observation: object,
             sampled=    False) -> int:
 
-        qvs = self.get_QVs(observation)
+        qvs = self._get_QVs(observation)
 
         if sampled:
             obs_probs = softmax(qvs) # baseline with softmax on QVs
