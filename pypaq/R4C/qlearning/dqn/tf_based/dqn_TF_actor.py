@@ -6,62 +6,58 @@
 
 """
 
-from abc import ABC, abstractmethod
+from abc import ABC
 import numpy as np
 from typing import List
 
 from pypaq.lipytools.pylogger import get_pylogger
-from pypaq.lipytools.little_methods import stamp
-from pypaq.R4C.qlearning.qlearning_actor import QLearningActor
-from pypaq.R4C.envy import FiniteActionsRLEnvy
+from pypaq.R4C.qlearning.dqn.dqn_actor import DQN_Actor
 from pypaq.R4C.qlearning.dqn.tf_based.dqn_TF_graph import dqn_graph
 from pypaq.neuralmess.nemodel import NEModel
 
 
-# DQN TF (NN) based QLearningActor
-class DQN_TFActor(QLearningActor, ABC):
+# DQN (TF NN) based QLearningActor
+class DQN_TFActor(DQN_Actor, ABC):
 
     def __init__(
             self,
-            envy: FiniteActionsRLEnvy,
             mdict: dict,
             graph=          dqn_graph,
             save_topdir=    '_models',
             logger=         None,
-            loglevel=       20):
+            loglevel=       20,
+            **kwargs):
 
-        logger_given = bool(logger)
-        if not logger_given:
+        self._logger_given = bool(logger)
+        self._loglevel = loglevel
+        if not self._logger_given:
             logger = get_pylogger(
-                name=       'DQN_TFActor',
+                name=       self.__class__.__name__,
                 add_stamp=  True,
-                folder=     None,
-                level=      loglevel)
+                folder=     save_topdir,
+                level=      self._loglevel)
         self.__log = logger
+        self.__log.info('*** DQN_TFActor (TF based) initializes..')
+        self.__log.info(f'> graph: {graph.__name__}')
 
-        if 'name' not in mdict: mdict['name'] = f'dqnPT_{stamp()}'
-        mdict['num_actions'] = envy.num_actions()
-        mdict['observation_width'] = self._get_observation_vec(envy.get_observation()).shape[-1]
-        mdict['save_topdir'] = save_topdir
+        self._graph = graph
+        self._mdict = mdict
 
-        self.__log.info(f'*** DQN_TFActor {mdict["name"]} (TF based) initializes..')
-        self.__log.info(f'> num_actions:       {mdict["num_actions"]}')
-        self.__log.info(f'> observation_width: {mdict["observation_width"]}')
-        self.__log.info(f'> save_topdir:       {mdict["save_topdir"]}')
-
-        self.nn = NEModel(
-            fwd_func=   graph,
-            logger=     None if not logger_given else self.__log,
-            loglevel=   loglevel,
-            **mdict)
-
-        self._upd_step = 0
+        DQN_Actor.__init__(
+            self,
+            mdict=          self._mdict,
+            save_topdir=    save_topdir,
+            logger=         self.__log,
+            **kwargs)
 
         self.__log.info(f'DQN_TFActor initialized')
 
-    # prepares numpy vector from observation, it is a private / internal skill of Actor
-    @abstractmethod
-    def _get_observation_vec(self, observation: object) -> np.ndarray: pass
+    def _get_model(self):
+        return NEModel(
+            fwd_func=   self._graph,
+            logger=     None if not self._logger_given else self.__log,
+            loglevel=   self._loglevel,
+            **self._mdict)
 
     def _get_QVs(self, observation: object) -> np.ndarray:
         obs_vec = self._get_observation_vec(observation)
@@ -104,14 +100,6 @@ class DQN_TFActor(QLearningActor, ABC):
         self.nn.log_TB(gn_avt,  'upd/gn_avt',   step=self._upd_step)
 
         return loss
-
-    # INFO: not used since this Actor updates only with batches
-    def upd_QV(
-            self,
-            observation: object,
-            action: int,
-            new_qv: float) -> float:
-        raise Exception('not implemented')
 
     def save(self): self.nn.save()
 
