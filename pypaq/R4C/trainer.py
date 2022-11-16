@@ -189,14 +189,14 @@ class Trainer(ABC):
             num_updates: int,           # number of training updates
             upd_on_episode=     False,  # updates on episode finish / terminal (does not wait till batch)
             memsize_batches=    1,      # ExperienceMemory size (in number of batches)
-            discount=           0.9,    # return discount factor (gamma)
-            use_movavg=         True,
-            movavg_factor=      0.3,
+            discount=           0.9,    # TODO: move # return discount factor (gamma)
+            use_movavg=         True,   # TODO: move
+            movavg_factor=      0.3,    # TODO: move
             test_freq=          100,    # number of updates between test
             test_episodes=      100,    # number of testing episodes
             test_max_steps=     1000,   # max number of episode steps while testing
-            test_render=        False,
-            inspect=            False,
+            test_render=        False,  # renders one episode while test
+            inspect=            False,  # for debug / research
             break_ntests=       0,      # when > 0: breaks training after all test episodes succeeded N times in a row
     ) -> Dict:
 

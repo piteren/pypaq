@@ -6,24 +6,31 @@
 
 """
 
-from abc import ABC
 import numpy as np
 
+from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.R4C.helpers import extract_from_batch
 from pypaq.R4C.trainer import FATrainer
 from pypaq.R4C.qlearning.qlearning_actor import QLearningActor
 
 
-# Q-Learning Trainer (used by QTable and DQN)
-class QLearningTrainer(FATrainer, ABC):
+# Q-Learning Trainer
+class QLearningTrainer(FATrainer):
 
     def __init__(
             self,
             actor: QLearningActor,
-            discount: float, # QLearning discount (gamma)
-            logger,
+            discount: float,    # QLearning discount (gamma)
+            logger=     None,
+            loglevel=   20,
             **kwargs):
 
+        if not logger:
+            logger = get_pylogger(
+                name=       'QLearningTrainer',
+                add_stamp=  True,
+                folder=     None,
+                level=      loglevel)
         self.__log = logger
         self.__log.info(f'*** QLearningTrainer initializes, discount (gamma): {discount}')
 
