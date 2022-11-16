@@ -1,6 +1,6 @@
 import numpy as np
 
-from pypaq.R4C.policy_gradients.pg_actor import PGActor
+from pypaq.R4C.policy_gradients.pg_TF_actor import PG_TFActor
 from pypaq.R4C.policy_gradients.actor_critic.ac_critic import ACCritic
 from pypaq.R4C.trainer import FATrainer
 
@@ -9,7 +9,7 @@ class ACTrainer(FATrainer):
 
     def __init__(
             self,
-            actor: PGActor,
+            actor: PG_TFActor,
             critic_class: type(ACCritic),
             critic_mdict: dict,
             verb=           1,

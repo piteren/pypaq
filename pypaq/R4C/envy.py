@@ -17,17 +17,9 @@
 from abc import abstractmethod, ABC
 from typing import List
 
-from pypaq.lipytools.pylogger import get_pylogger
-
 
 # base Environment interface
 class Envy(ABC):
-
-    def __init__(self, name:str, logger):
-        self.name = name
-        if not logger: logger = get_pylogger(name=self.name)
-        self.__log = logger
-        self.__log.debug(f'*** Envy {self.name} initialized!')
 
     # resets Envy (self) to initial state
     @abstractmethod

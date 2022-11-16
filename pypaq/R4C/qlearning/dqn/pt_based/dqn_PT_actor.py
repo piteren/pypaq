@@ -10,9 +10,10 @@ from abc import ABC, abstractmethod
 import numpy as np
 from typing import List
 
-from pypaq.lipytools.pylogger import get_pylogger, get_hi_child
+from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.lipytools.little_methods import stamp
 from pypaq.R4C.qlearning.qlearning_actor import QLearningActor
+from pypaq.R4C.envy import FiniteActionsRLEnvy
 from pypaq.R4C.qlearning.dqn.pt_based.dqn_PT_module import LinModel
 from pypaq.torchness.motorch import MOTorch
 
@@ -22,8 +23,7 @@ class DQN_PTActor(QLearningActor, ABC):
 
     def __init__(
             self,
-            num_actions: int,
-            observation,
+            envy: FiniteActionsRLEnvy,
             mdict: dict,
             module=         LinModel,
             save_topdir=    '_models',
@@ -33,25 +33,27 @@ class DQN_PTActor(QLearningActor, ABC):
         logger_given = bool(logger)
         if not logger_given:
             logger = get_pylogger(
-                name=       'DQN_PTActor',
+                name=       self.__class__.__name__,
                 add_stamp=  True,
                 folder=     None,
                 level=      loglevel)
         self.__log = logger
 
         if 'name' not in mdict: mdict['name'] = f'dqnPT_{stamp()}'
-        mdict['num_actions'] = num_actions
-        mdict['observation_width'] = self._get_observation_vec(observation).shape[-1]
+        mdict['num_actions'] = envy.num_actions()
+        mdict['observation_width'] = self._get_observation_vec(envy.get_observation()).shape[-1]
         mdict['save_topdir'] = save_topdir
 
-        self.__log.info(f'*** DQN_PTActor {mdict["name"]} (PyTorch based) initializes..')
+        self.__log.info('*** DQN_PTActor (PyTorch based) initializes..')
+        self.__log.info(f'> Envy:              {envy.__class__.__name__}')
+        self.__log.info(f'> NN model name:     {mdict["name"]}')
         self.__log.info(f'> num_actions:       {mdict["num_actions"]}')
         self.__log.info(f'> observation_width: {mdict["observation_width"]}')
         self.__log.info(f'> save_topdir:       {mdict["save_topdir"]}')
 
         self.nn = MOTorch(
             module=     module,
-            logger=     None if not logger_given else get_hi_child(self.__log, 'MOTorch', higher_level=False),
+            logger=     None if not logger_given else self.__log,
             loglevel=   loglevel,
             **mdict)
 

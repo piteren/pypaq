@@ -86,10 +86,6 @@ class QTableActor(QLearningActor, ABC):
         self._update_rate = update_rate
         self.__log.info(f'> QTableActor set update_rate to: {self._update_rate}')
 
-    # prepares numpy vector from observation, it is a private / internal skill of Actor, to be implemented for each Envy
-    @abstractmethod
-    def _get_observation_vec(self, observation: object) -> np.ndarray: pass
-
     def _get_QVs(self, observation: object) -> np.ndarray:
         obs_vec = self._get_observation_vec(observation)
         return self.__qtable.get_QVs(obs_vec)

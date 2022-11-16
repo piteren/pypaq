@@ -7,6 +7,7 @@
 """
 
 from abc import abstractmethod, ABC
+import numpy as np
 
 
 class Actor(ABC):
@@ -17,6 +18,10 @@ class Actor(ABC):
 
 
 class TrainableActor(Actor, ABC):
+
+    # prepares numpy vector from observation, it is a private / internal skill of Actor, to be implemented for each Envy
+    @abstractmethod
+    def _get_observation_vec(self, observation: object) -> np.ndarray: pass
 
     # add sampling option which may be helpful for training
     @abstractmethod

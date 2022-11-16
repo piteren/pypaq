@@ -40,10 +40,13 @@ def get_params(function: Callable):
 # prepares func sub-DNA given full DNA (wider)
 def get_func_dna(
         func: Optional[Callable],
-        dna: Dict) -> Dict:
+        dna: Dict,
+        remove_self= True # removes self in case of methods (class)
+) -> Dict:
     if func is None: return {}
     pms = get_params(func)
     valid_keys = pms['without_defaults'] + list(pms['with_defaults'].keys())
+    if remove_self and 'self' in valid_keys: valid_keys.remove('self')
     func_dna = {k: dna[k] for k in dna if k in valid_keys} # filter to get only params accepted by func
     return func_dna
 

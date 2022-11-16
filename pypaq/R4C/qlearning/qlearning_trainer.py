@@ -20,7 +20,7 @@ class QLearningTrainer(FATrainer):
     def __init__(
             self,
             actor: QLearningActor,
-            discount: float,    # QLearning discount (gamma)
+            gamma: float,       # QLearning gamma (discount)
             logger=     None,
             loglevel=   20,
             **kwargs):
@@ -32,7 +32,7 @@ class QLearningTrainer(FATrainer):
                 folder=     None,
                 level=      loglevel)
         self.__log = logger
-        self.__log.info(f'*** QLearningTrainer initializes, discount (gamma): {discount}')
+        self.__log.info(f'*** QLearningTrainer initializes, gamma: {gamma}')
 
         FATrainer.__init__(
             self,
@@ -40,7 +40,7 @@ class QLearningTrainer(FATrainer):
             logger= self.__log,
             **kwargs)
         self.actor = actor  # INFO: just type "upgrade" for pycharm editor
-        self.discount = discount
+        self.gamma = gamma
 
     # updates QLearningActor policy with batch of random data from memory
     def _update_actor(self, inspect=False) -> float:
@@ -59,7 +59,7 @@ class QLearningTrainer(FATrainer):
         for ix,t in enumerate(terminals):
             if t: no_qvs[ix] = no_qvs_terminal
 
-        new_qvs = [(r + self.discount * max(no_qvs)) for r,no_qvs in zip(rewards, no_qvs)]
+        new_qvs = [(r + self.gamma * max(no_qvs)) for r, no_qvs in zip(rewards, no_qvs)]
 
         return self.actor.update_with_experience(
             observations=   observations,

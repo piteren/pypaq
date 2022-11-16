@@ -162,23 +162,24 @@ class MOTorch(ParaSave, Module):
         self.check_params_sim(params= SPEC_KEYS + list(MOTORCH_DEFAULTS.keys())) # safety check
 
         dna = self.get_point()
-        dna_module_keys = _module_init_params['without_defaults'] + list(_module_init_params['with_defaults'].keys())
-        dna_module_keys.remove('self')
-        dna_module = {k: dna[k] for k in dna_module_keys}
+        dna_with_logger = {}
+        dna_with_logger.update(dna)
+        dna_with_logger['logger'] = get_hi_child(self.__log, self.module.__class__.__name__),
+        dna_module = get_func_dna(self.module.__init__, dna_with_logger)
 
         not_used_kwargs = {}
         for k in kwargs:
-            if k not in get_func_dna(self.module.__init__, dna):
+            if k not in dna_module:
                 not_used_kwargs[k] = kwargs[k]
 
         self.__log.debug(f'> MOTorch DNA sources:')
-        self.__log.debug(f'>> MOTORCH_DEFAULTS:                 {MOTORCH_DEFAULTS}')
-        self.__log.debug(f'>> Module init defaults:             {_module_init_params_defaults}')
-        self.__log.debug(f'>> DNA saved:                        {dna_saved}')
-        self.__log.debug(f'>> given kwargs:                     {kwargs}')
-        self.__log.debug(f'>> MOTorch kwargs not used by model: {not_used_kwargs}')
-        self.__log.debug(f'Module DNA:                          {dna_module}')
-        self.__log.debug(f'MOTorch complete DNA:                {dna}')
+        self.__log.debug(f'>> MOTORCH_DEFAULTS:                  {MOTORCH_DEFAULTS}')
+        self.__log.debug(f'>> Module init defaults:              {_module_init_params_defaults}')
+        self.__log.debug(f'>> DNA saved:                         {dna_saved}')
+        self.__log.debug(f'>> given kwargs:                      {kwargs}')
+        self.__log.debug(f'Module complete DNA:                  {dna_module}')
+        self.__log.debug(f'>> MOTorch kwargs not used by Module: {not_used_kwargs}')
+        self.__log.debug(f'MOTorch complete DNA:                 {dna}')
 
         self.torch_dev = self.__manage_devices()
 

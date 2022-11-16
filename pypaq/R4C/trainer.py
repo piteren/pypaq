@@ -18,7 +18,6 @@ from typing import List, Tuple, Optional, Dict
 
 from pypaq.lipytools.moving_average import MovAvg
 from pypaq.lipytools.plots import two_dim
-from pypaq.R4C.helpers import discounted_return, movavg_return
 from pypaq.R4C.envy import RLEnvy, FiniteActionsRLEnvy
 from pypaq.R4C.actor import TrainableActor
 
@@ -59,6 +58,7 @@ class Trainer(ABC):
             envy: RLEnvy,
             actor: TrainableActor,
             batch_size: int,        # Actor update data size
+            memsize_batches: int,   # ExperienceMemory size (in number of batches)
             exploration: float,     # train exploration factor
             train_sampled: float,   # how often move is sampled (vs argmax) while training
             seed: int,
@@ -66,8 +66,9 @@ class Trainer(ABC):
 
         self.__log = logger
         self.__log.info(f'*** Trainer initializes..')
-        self.__log.info(f'> Envy:          {envy.name}')
+        self.__log.info(f'> Envy:          {envy.__class__.__name__}')
         self.__log.info(f'> batch_size:    {batch_size}')
+        self.__log.info(f'> memory size:   {batch_size*memsize_batches}')
         self.__log.info(f'> exploration:   {exploration}')
         self.__log.info(f'> train_sampled: {train_sampled}')
         self.__log.info(f'> seed:          {seed}')
@@ -75,6 +76,7 @@ class Trainer(ABC):
         self.envy = envy
         self.actor = actor
         self.batch_size = batch_size
+        self.memsize = self.batch_size * memsize_batches
         self.exploration = exploration
         self.train_sampled = train_sampled
         self.memory: Optional[ExperienceMemory] = None
@@ -188,10 +190,6 @@ class Trainer(ABC):
             self,
             num_updates: int,           # number of training updates
             upd_on_episode=     False,  # updates on episode finish / terminal (does not wait till batch)
-            memsize_batches=    1,      # ExperienceMemory size (in number of batches)
-            discount=           0.9,    # TODO: move # return discount factor (gamma)
-            use_movavg=         True,   # TODO: move
-            movavg_factor=      0.3,    # TODO: move
             test_freq=          100,    # number of updates between test
             test_episodes=      100,    # number of testing episodes
             test_max_steps=     1000,   # max number of episode steps while testing
@@ -203,11 +201,10 @@ class Trainer(ABC):
         stime = time.time()
         self.__log.info(f'Starting train for {num_updates} updates..')
 
-        mem_size = memsize_batches * self.batch_size
         self.memory = ExperienceMemory(
-            maxsize=    mem_size,
+            maxsize=    self.memsize,
             seed=       self.seed)
-        self.__log.info(f'> initialized ExperienceMemory of maxsize {mem_size}')
+        self.__log.info(f'> initialized ExperienceMemory of maxsize {self.memsize}')
 
         loss_mavg = MovAvg()
         lossL = []
@@ -232,16 +229,12 @@ class Trainer(ABC):
                 is_terminal = self.envy.is_terminal()  # may not be when limit of new_actions reached
                 new_actions += len(actions)
 
-                # TODO: move to _update_actor()
-                if use_movavg: dreturns = movavg_return(rewards=rewards, factor=movavg_factor)
-                else:          dreturns = discounted_return(rewards=rewards, discount=discount)
-
                 next_observations = observations[1:] + [self.envy.get_observation()]
                 terminals = [False]*(len(observations)-1) + [is_terminal]
 
                 # INFO: not all algorithms (QLearning,PG,AC) need all the data below (we store 'more' just in case)
-                for o,a,d,r,n,t in zip(observations, actions, dreturns, rewards, next_observations, terminals):
-                    self.memory.append(dict(observation=o, action=a, dreturn=d, reward=r, next_observation=n, terminal=t))
+                for o,a,r,n,t in zip(observations, actions, rewards, next_observations, terminals):
+                    self.memory.append(dict(observation=o, action=a, reward=r, next_observation=n, terminal=t))
 
                 self.__log.debug(f' >> Trainer gots {len(observations):3} observations after play and {len(self.memory):3} in memory, new_actions: {new_actions}' )
 
