@@ -10,7 +10,6 @@ from abc import ABC
 import numpy as np
 from typing import List
 
-from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.R4C.qlearning.dqn.dqn_actor import DQN_Actor
 from pypaq.R4C.qlearning.dqn.tf_based.dqn_TF_graph import dqn_graph
 from pypaq.neuralmess.nemodel import NEModel
@@ -21,41 +20,18 @@ class DQN_TFActor(DQN_Actor, ABC):
 
     def __init__(
             self,
-            mdict: dict,
             graph=          dqn_graph,
             save_topdir=    '_models',
-            logger=         None,
-            loglevel=       20,
             **kwargs):
 
-        self._logger_given = bool(logger)
-        self._loglevel = loglevel
-        if not self._logger_given:
-            logger = get_pylogger(
-                name=       self.__class__.__name__,
-                add_stamp=  True,
-                folder=     save_topdir,
-                level=      self._loglevel)
-        self.__log = logger
-        self.__log.info('*** DQN_TFActor (TF based) initializes..')
-        self.__log.info(f'> graph: {graph.__name__}')
-
         self._graph = graph
-        self._mdict = mdict
-
-        DQN_Actor.__init__(
-            self,
-            mdict=          self._mdict,
-            save_topdir=    save_topdir,
-            logger=         self.__log,
-            **kwargs)
-
-        self.__log.info(f'DQN_TFActor initialized')
+        DQN_Actor.__init__(self, save_topdir=save_topdir, **kwargs)
+        self._log.info(f'DQN_TFActor initialized, graph: {self._graph.__name__}')
 
     def _get_model(self):
         return NEModel(
             fwd_func=   self._graph,
-            logger=     None if not self._logger_given else self.__log,
+            logger=     None if not self._logger_given else self._log,
             loglevel=   self._loglevel,
             **self._mdict)
 

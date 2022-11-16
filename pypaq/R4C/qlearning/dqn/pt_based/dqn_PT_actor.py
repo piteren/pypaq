@@ -10,7 +10,6 @@ from abc import ABC
 import numpy as np
 from typing import List
 
-from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.R4C.qlearning.dqn.dqn_actor import DQN_Actor
 from pypaq.R4C.qlearning.dqn.pt_based.dqn_PT_module import LinModel
 from pypaq.torchness.motorch import MOTorch
@@ -21,41 +20,17 @@ class DQN_PTActor(DQN_Actor, ABC):
 
     def __init__(
             self,
-            mdict: dict,
             module=         LinModel,
             save_topdir=    '_models', # just to set default
-            logger=         None,
-            loglevel=       20,
             **kwargs):
-
-        self._logger_given = bool(logger)
-        self._loglevel = loglevel
-        if not self._logger_given:
-            logger = get_pylogger(
-                name=       self.__class__.__name__,
-                add_stamp=  True,
-                folder=     save_topdir,
-                level=      self._loglevel)
-        self.__log = logger
-        self.__log.info('*** DQN_PTActor (PyTorch based) initializes..')
-        self.__log.info(f'> Module: {module.__name__}')
-
         self._module = module
-        self._mdict = mdict
-
-        DQN_Actor.__init__(
-            self,
-            mdict=          self._mdict,
-            save_topdir=    save_topdir,
-            logger=         self.__log,
-            **kwargs)
-
-        self.__log.info(f'DQN_PTActor initialized')
+        DQN_Actor.__init__(self, save_topdir=save_topdir, **kwargs)
+        self._log.info(f'DQN_PTActor initialized, module: {self._module.__name__}')
 
     def _get_model(self):
         return MOTorch(
             module=     self._module,
-            logger=     None if not self._logger_given else self.__log,
+            logger=     None if not self._logger_given else self._log,
             loglevel=   self._loglevel,
             **self._mdict)
 
@@ -83,11 +58,11 @@ class DQN_PTActor(DQN_Actor, ABC):
             full_qvs[pos] = v
             mask[pos] = 1
 
-        self.__log.log(5, f'>>> obs_vecs.shape, len(actions), new_qvs.shape: {obs_vecs.shape}, {len(actions)}, {len(new_qvs)}')
-        self.__log.log(5, f'>>> actions: {actions}')
-        self.__log.log(5, f'>>> new_qvs: {new_qvs}')
-        self.__log.log(5, f'>>> full_qvs: {full_qvs}')
-        self.__log.log(5, f'>>> mask: {mask}')
+        self._log.log(5, f'>>> obs_vecs.shape, len(actions), new_qvs.shape: {obs_vecs.shape}, {len(actions)}, {len(new_qvs)}')
+        self._log.log(5, f'>>> actions: {actions}')
+        self._log.log(5, f'>>> new_qvs: {new_qvs}')
+        self._log.log(5, f'>>> full_qvs: {full_qvs}')
+        self._log.log(5, f'>>> mask: {mask}')
 
         out = self.nn.backward(obs_vecs, full_qvs, mask)
 
