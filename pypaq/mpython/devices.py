@@ -66,11 +66,11 @@ def get_devices(
     force_CPU = False
     # OSX
     if platform.system() == 'Darwin':
-        print('no GPUs available for OSX, using only CPU')
+        logger.warning('no GPUs available for OSX, using only CPU')
         force_CPU = True
     # no GPU @system
     if not force_CPU and not get_available_cuda_id():
-        print('no GPUs available, using only CPU')
+        logger.debug('no GPUs available, using only CPU')
         force_CPU = True
     if force_CPU:
         num = len(devices)
@@ -80,7 +80,10 @@ def get_devices(
     # [] or -1 case >> check available GPU and replace with positive ints
     if not devices or -1 in devices:
         av_dev = get_available_cuda_id()
-        if not av_dev: raise Exception('No available GPUs!')
+        if not av_dev:
+            err_msg = 'No available GPUs!'
+            logger.error(err_msg)
+            raise Exception(err_msg)
         if not devices: devices = av_dev
         else:
             pos_devices = []

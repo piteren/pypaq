@@ -11,6 +11,7 @@ from pypaq.torchness.layers import LayDense
 
 MOTORCH_DIR = f'{flush_tmp_dir()}/motorch'
 print(f'MOTORCH_DIR: {MOTORCH_DIR}')
+MOTorch.SAVE_TOPDIR = MOTORCH_DIR
 
 class LinModel(Module):
 
@@ -54,6 +55,9 @@ class LinModelSeed(LinModel):
 
 class TestMOTorch(unittest.TestCase):
 
+    def setUp(self) -> None:
+        flush_tmp_dir()
+
     def test_base_creation_call(self):
 
         model = MOTorch(module=LinModel)
@@ -79,15 +83,18 @@ class TestMOTorch(unittest.TestCase):
             loss = out['loss']
             acc = out['acc']
             print(loss, acc)
-    """
-    def test_NNWrap_inherited(self):
 
-        model = MOTorch(module=LinModel)
+    def test_class_method(self):
+
+        model = MOTorch(module=LinModel,)
         print(model.name)
+        dna_org = model.get_point()
+        print(dna_org)
         model.save()
-        dna = MOTorch.load_dna(model.name)
+        dna = MOTorch.load_dna(name=model.name)
         print(dna)
-    """
+        self.assertTrue(dna_org == dna)
+
     def test_inherited_interfaces(self):
 
         model = MOTorch(module=LinModel)
@@ -118,7 +125,6 @@ class TestMOTorch(unittest.TestCase):
         loss = out['loss']
         print(loss)
 
-
     def test_name_stamp(self):
 
         model = MOTorch(module=LinModel)
@@ -135,13 +141,11 @@ class TestMOTorch(unittest.TestCase):
         self.assertTrue(model['name'] != 'LinModel')
         self.assertTrue({d for d in '0123456789'} & set([l for l in model['name']]))
 
-
     def test_ParaSave(self):
 
         model = MOTorch(
             module=         LinModel,
-            save_topdir=    MOTORCH_DIR,
-            loglevel=       10,
+            loglevel=       20,
             in_shape=       12,
             out_shape=      12)
         pms = model.get_managed_params()
@@ -152,31 +156,33 @@ class TestMOTorch(unittest.TestCase):
 
         MOTorch.oversave(
             name=           model["name"],
-            save_topdir=    MOTORCH_DIR,
             seed=           252)
 
         # this will not load
-        dna = model.load_dna(name=model["name"])
+        dna = model.load_dna(
+            name=           model["name"],
+            save_topdir=    'other')
         print(dna)
         self.assertFalse(dna)
 
         # this will load
-        dna = model.load_dna(
-            name=           model["name"],
-            save_topdir=    MOTORCH_DIR)
+        dna = model.load_dna(name=model["name"])
         print(dna)
-        for p in pms: self.assertTrue(p in dna)
+        for p in pms:
+            if p not in dna: print(p)
+            self.assertTrue(p in dna)
         self.assertTrue(dna["seed"]==252)
 
         # this model will not load
-        model = MOTorch(module=LinModel)
+        model = MOTorch(
+            module=         LinModel,
+            save_topdir=    '_models')
         print(f'not loaded model in_shape: {model["in_shape"]}')
         self.assertTrue(model['in_shape'] != 12)
 
         # this model will load from MOTORCH_DIR
         model = MOTorch(
             module=         LinModel,
-            save_topdir=    MOTORCH_DIR,
             loglevel=       10)
         print(model['in_shape'])
         self.assertTrue(model['in_shape'] == 12)
@@ -184,7 +190,6 @@ class TestMOTorch(unittest.TestCase):
         model = MOTorch(
             module=         LinModel,
             name_timestamp= True,
-            save_topdir=    MOTORCH_DIR,
             in_shape=       12,
             out_shape=      12)
         model.save()
@@ -192,26 +197,22 @@ class TestMOTorch(unittest.TestCase):
 
         model = MOTorch(
             module=         LinModel,
-            name=           model['name'],
-            save_topdir=    MOTORCH_DIR)
+            name=           model['name'])
         self.assertTrue(model['in_shape'] == 12)
 
         model.copy_saved_dna(
             name_src=           model["name"],
-            name_trg=           'CopiedPS',
-            save_topdir_src=    MOTORCH_DIR)
+            name_trg=           'CopiedPS')
 
         model.gx_saved_dna(
             name_parent_main=           model["name"],
             name_parent_scnd=           None,
-            save_topdir_parent_main=    MOTORCH_DIR,
             name_child=                 'GXed')
 
         psdd = {'seed': [0,1000]}
         model = MOTorch(
             module=         LinModel,
             name=           'GXLin',
-            save_topdir=    MOTORCH_DIR,
             psdd=           psdd)
 
         print(model.gxable)
@@ -227,7 +228,6 @@ class TestMOTorch(unittest.TestCase):
             prob_noise=     1.0,
             prob_axis=      1.0)
         print(dna['seed'])
-
 
     def test_params_resolution(self):
 
@@ -245,7 +245,6 @@ class TestMOTorch(unittest.TestCase):
 
         model = MOTorch(
             module=         LinModelSeed,
-            save_topdir=    MOTORCH_DIR,
             in_shape=       24,
             out_shape=      24)
         print(model['seed'])        # MOTORCH_DEFAULTS overridden with nn.Module defaults
@@ -254,13 +253,11 @@ class TestMOTorch(unittest.TestCase):
 
         model = MOTorch(
             module=         LinModelSeed,
-            save_topdir=    MOTORCH_DIR,
             seed=           212)
         print(model['in_shape'])    # loaded from save
         print(model['seed'])        # saved overridden with kwargs
         self.assertTrue(model['in_shape'] == 24)
         self.assertTrue(model['seed'] == 212)
-
 
     def test_seed_of_torch(self):
 
@@ -283,12 +280,9 @@ class TestMOTorch(unittest.TestCase):
 
         self.assertTrue(np.sum(out1['logits'].cpu().detach().numpy()) == np.sum(out2['logits'].cpu().detach().numpy()))
 
-
     def test_read_only(self):
 
-        model = MOTorch(
-            module=         LinModel,
-            save_topdir=    MOTORCH_DIR)
+        model = MOTorch(module=LinModel)
         model.save()
 
         model = MOTorch(
@@ -296,17 +290,16 @@ class TestMOTorch(unittest.TestCase):
             read_only=      True)
         self.assertRaises(MOTorchException, model.save)
 
-
     def test_save_load(self):
 
         model = MOTorch(
             module=         LinModel,
-            save_topdir=    MOTORCH_DIR,
             in_shape=       256,
             out_shape=      10,
             name_timestamp= True,
             seed=           121)
         name = model.name
+        print(model.name)
 
         inp = np.random.random((5, 256)).astype(np.float32)
 
@@ -316,22 +309,19 @@ class TestMOTorch(unittest.TestCase):
 
         loaded_model = MOTorch(
             module=         LinModel,
-            save_topdir=    MOTORCH_DIR,
             name=           name,
             seed=           123) # although different seed, model will load checkpoint
-
+        print(loaded_model.name)
         out2 = loaded_model(inp)
         print(out2)
         # print(loaded_model)
 
         self.assertTrue(np.sum(out1['logits'].cpu().detach().numpy()) == np.sum(out2['logits'].cpu().detach().numpy()))
 
-
     def test_copy_saved(self):
 
         model = MOTorch(
             module=         LinModel,
-            save_topdir=    MOTORCH_DIR,
             in_shape=       256,
             out_shape=      10,
             name_timestamp= True,
@@ -343,21 +333,17 @@ class TestMOTorch(unittest.TestCase):
         name_copied = f'{name}_copied'
         MOTorch.copy_saved(
             name_src=           name,
-            name_trg=           name_copied,
-            save_topdir_src=    MOTORCH_DIR)
+            name_trg=           name_copied)
 
         model = MOTorch(
             module=         LinModel,
-            name=           name_copied,
-            save_topdir=    MOTORCH_DIR)
+            name=           name_copied)
         print(model)
-
 
     def test_gx_ckpt(self):
 
         model = MOTorch(
             module=         LinModel,
-            save_topdir=    MOTORCH_DIR,
             name_timestamp= True,
             seed=           121)
         name_A = model.name
@@ -365,7 +351,6 @@ class TestMOTorch(unittest.TestCase):
 
         model = MOTorch(
             module=         LinModel,
-            save_topdir=    MOTORCH_DIR,
             name_timestamp= True,
             seed=           121)
         name_B = model.name
@@ -374,15 +359,12 @@ class TestMOTorch(unittest.TestCase):
         MOTorch.gx_ckpt(
             name_A=         name_A,
             name_B=         name_B,
-            name_child=     f'{name_A}_GXed',
-            save_topdir_A=  MOTORCH_DIR)
-
+            name_child=     f'{name_A}_GXed')
 
     def test_gx_saved(self):
 
         model = MOTorch(
             module=         LinModel,
-            save_topdir=    MOTORCH_DIR,
             name_timestamp= True,
             seed=           121)
         name_A = model.name
@@ -390,7 +372,6 @@ class TestMOTorch(unittest.TestCase):
 
         model = MOTorch(
             module=         LinModel,
-            save_topdir=    MOTORCH_DIR,
             name_timestamp= True,
             seed=           121)
         name_B = model.name
@@ -399,9 +380,7 @@ class TestMOTorch(unittest.TestCase):
         MOTorch.gx_saved(
             name_parent_main=           name_A,
             name_parent_scnd=           name_B,
-            name_child=                 f'{name_A}_GXed',
-            save_topdir_parent_main=    MOTORCH_DIR)
-
+            name_child=                 f'{name_A}_GXed')
 
     def test_hpmser_mode(self):
 

@@ -88,27 +88,33 @@ class ParaSave(SubGX):
             save_topdir: str):
         return f'{save_topdir}/{name}'
 
-    @staticmethod
+    @classmethod
     def __obj_fn(
+            cls,
             name: str,
             save_topdir: str,
             save_fn_pfx: str):
-        return f'{ParaSave.__full_dir(name, save_topdir)}/{save_fn_pfx}{ParaSave.OBJ_SUFFIX}'
+        return f'{cls.__full_dir(name, save_topdir)}/{save_fn_pfx}{cls.OBJ_SUFFIX}'
 
-    @staticmethod
+    @classmethod
     def __txt_fn(
+            cls,
             name: str,
             save_topdir: str,
             save_fn_pfx: str):
-        return f'{ParaSave.__full_dir(name, save_topdir)}/{save_fn_pfx}{ParaSave.TXT_SUFFIX}'
+        return f'{cls.__full_dir(name, save_topdir)}/{save_fn_pfx}{cls.TXT_SUFFIX}'
 
     # loads ParaSave DNA from folder
-    @staticmethod
+    @classmethod
     def load_dna(
+            cls,
             name: str,
-            save_topdir: str=   SAVE_TOPDIR,
-            save_fn_pfx: str=   SAVE_FN_PFX) -> POINT:
-        obj_FN = ParaSave.__obj_fn(name, save_topdir, save_fn_pfx or ParaSave.SAVE_FN_PFX)
+            save_topdir: Optional[str]= None,
+            save_fn_pfx: Optional[str]= None) -> POINT:
+        obj_FN = ParaSave.__obj_fn(
+            name=           name,
+            save_topdir=    save_topdir or cls.SAVE_TOPDIR,
+            save_fn_pfx=    save_fn_pfx or cls.SAVE_FN_PFX)
         if os.path.isfile(obj_FN):
             dna: POINT = r_pickle(obj_FN)
             return dna
@@ -143,28 +149,33 @@ class ParaSave(SubGX):
             file.write(s)
 
     # loads, next overrides parameters from given kwargs and saves new ParaSave DNA
-    @staticmethod
+    @classmethod
     def oversave(
+            cls,
             name: str,
-            save_topdir: str=   SAVE_TOPDIR,
-            save_fn_pfx: str=   SAVE_FN_PFX,
+            save_topdir: Optional[str]= None,
+            save_fn_pfx: Optional[str]= None,
             **kwargs):
         psc = ParaSave(
             name=           name,
-            save_topdir=    save_topdir,
-            save_fn_pfx=    save_fn_pfx,
+            save_topdir=    save_topdir or cls.SAVE_TOPDIR,
+            save_fn_pfx=    save_fn_pfx or cls.SAVE_FN_PFX,
             loglevel=       30)
         psc.update(kwargs)
         psc.save_dna()
 
     # copies saved ParaSave DNA from one folder to another
-    @staticmethod
+    @classmethod
     def copy_saved_dna(
+            cls,
             name_src: str,
             name_trg: str,
-            save_topdir_src: str=           SAVE_TOPDIR,
+            save_topdir_src: Optional[str]= None,
             save_topdir_trg: Optional[str]= None,
-            save_fn_pfx: str=               SAVE_FN_PFX):
+            save_fn_pfx: Optional[str]=     None):
+
+        if not save_topdir_src: save_topdir_src = cls.SAVE_TOPDIR
+        if not save_fn_pfx: save_fn_pfx = cls.SAVE_FN_PFX
 
         ps_src = ParaSave(
             name=           name_src,
@@ -185,19 +196,22 @@ class ParaSave(SubGX):
         ps_trg.save_dna()
 
     # performs GX on saved ParaSave DNA (without even building child objects)
-    @staticmethod
+    @classmethod
     def gx_saved_dna(
+            cls,
             name_parent_main: str,
             name_parent_scnd: Optional[str],                        # if not given makes GX only with main parent
             name_child: str,
-            save_topdir_parent_main: str=           SAVE_TOPDIR,    # ParaSave top directory
-            save_topdir_parent_scnd: Optional[str]= None,           # ParaSave top directory of parent scnd
-            save_topdir_child: Optional[str]=       None,           # ParaSave top directory of child
-            save_fn_pfx: str=                       SAVE_FN_PFX,    # ParaSave dna filename prefix
+            save_topdir_parent_main: Optional[str]= None,   # ParaSave top directory
+            save_topdir_parent_scnd: Optional[str]= None,   # ParaSave top directory of parent scnd
+            save_topdir_child: Optional[str]=       None,   # ParaSave top directory of child
+            save_fn_pfx: Optional[str]=             None,   # ParaSave dna filename prefix
     ) -> None:
 
+        if not save_topdir_parent_main: save_topdir_parent_main = cls.SAVE_TOPDIR
         if not save_topdir_parent_scnd: save_topdir_parent_scnd = save_topdir_parent_main
         if not save_topdir_child: save_topdir_child = save_topdir_parent_main
+        if not save_fn_pfx: save_fn_pfx = cls.SAVE_FN_PFX
 
         pm = ParaSave(
             name=           name_parent_main,

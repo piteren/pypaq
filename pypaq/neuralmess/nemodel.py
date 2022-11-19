@@ -60,7 +60,6 @@ from pypaq.lipytools.moving_average import MovAvg
 from pypaq.lipytools.pylogger import get_pylogger, get_hi_child
 from pypaq.mpython.devices import mask_cuda, get_devices
 from pypaq.mpython.mpdecor import proc_wait
-from pypaq.pms.base_types import POINT
 from pypaq.pms.parasave import ParaSave
 from pypaq.neuralmess.get_tf import tf
 from pypaq.neuralmess.base_elements import num_var_floats, lr_scaler, gc_loss_reductor, log_vars, mrg_ckpts, TBwr
@@ -233,11 +232,14 @@ class NEModel(ParaSave):
             name_timestamp=                 False,      # adds timestamp to model name
             fwd_func: Optional[Callable]=   None,       # function building graph (from inputs to loss) - may be not given if model already saved
             opt_func: Optional[Callable]=   opt_graph,  # default function building optimization (OPT) graph (from train_vars & gradients to optimizer)
-            save_topdir: str=               SAVE_TOPDIR,
-            save_fn_pfx: str=               SAVE_FN_PFX,
+            save_topdir: Optional[str]=     None,
+            save_fn_pfx: Optional[str]=     None,
             logger=                         None,
             loglevel=                       20,
             **kwargs):                                  # here go params of FWD & OPT functions
+
+        if not save_topdir: save_topdir = NEModel.SAVE_TOPDIR
+        if not save_fn_pfx: save_fn_pfx = NEModel.SAVE_FN_PFX
 
         self.name = name
         if name_timestamp: self.name += f'_{stamp()}'
@@ -456,8 +458,8 @@ class NEModel(ParaSave):
                     else: self.__log.log(5, ' ### no vars')
                     self.__log.log(5, log_vars(varList))
 
-            if 'loss' not in self: self.__log.warn('NEModel: there is no loss in FWD graph, OPT graph wont be build!')
-            if not self['opt_func']: print(f'\nNEModel: OPT graph wont be build since opt_func is not given')
+            if 'loss' not in self: self.__log.warning('NEModel: there is no loss in FWD graph, OPT graph wont be build!')
+            if not self['opt_func']: self.__log.warning(f'\nNEModel: OPT graph wont be build since opt_func is not given')
 
             # build optimization graph
             if self['opt_func'] and 'loss' in self:
@@ -469,7 +471,7 @@ class NEModel(ParaSave):
                     # check if all train_vars are trainable:
                     for var in train_vars:
                         if var not in all_tvars:
-                            self.__log.warn(f'variable {var.name} is not trainable but is in train_vars, please check the graph!')
+                            self.__log.warning(f'variable {var.name} is not trainable but is in train_vars, please check the graph!')
                 else:
                     for key in saver_vars:
                         for var in saver_vars[key]:
@@ -513,7 +515,7 @@ class NEModel(ParaSave):
                 none_grads = 0
                 for grad in self['gradients']:
                     if grad is None: none_grads += 1
-                if none_grads: self.__log.warn(f'There are None gradients: {none_grads}/{len(self["gradients"])}, some trainVars may be unrelated to loss, please check the graph!')
+                if none_grads: self.__log.warning(f'There are None gradients: {none_grads}/{len(self["gradients"])}, some trainVars may be unrelated to loss, please check the graph!')
 
                 # average gradients
                 if len(self['devices']) > 1:
@@ -572,7 +574,7 @@ class NEModel(ParaSave):
     # updates baseLR in graph - but not saves it to the checkpoint
     def update_baseLR(self, lr: Optional):
         if 'baseLR_var' not in self:
-            self.__log.warn('NEModel: There is no LR variable in graph to update')
+            self.__log.warning('NEModel: There is no LR variable in graph to update')
         else:
             if lr is not None:
                 old = self['baseLR']
@@ -588,7 +590,7 @@ class NEModel(ParaSave):
             tag: str,
             step: int):
         if self['do_TB']: self.__TBwr.add(value=value, tag=tag, step=step)
-        else: self.__log.warn(f'NEModel {self.name} cannot log TensorBoard since do_TB flag is False!')
+        else: self.__log.warning(f'NEModel {self.name} cannot log TensorBoard since do_TB flag is False!')
 
     # **************************************************************************************** baseline training methods
 
@@ -607,7 +609,7 @@ class NEModel(ParaSave):
 
     # builds feed dict from given batch of data
     def build_feed(self, batch: dict, train=True) -> dict:
-        self.__log.warn('NEModel.build_feed() should be overridden!')
+        self.__log.warning('NEModel.build_feed() should be overridden!')
         return {}
 
     # TODO: refactor according to MOTorch train concept
@@ -705,76 +707,23 @@ class NEModel(ParaSave):
             accL.append(acc)
         return sum(accL)/len(accL), sum(lossL)/len(lossL)
 
-    # ************************************* update ParaSave functionality (mostly to override SAVE_TOPDIR & SAVE_FN_PFX)
-
-    @staticmethod
-    def load_dna(
-            name: str,
-            save_topdir: str=   SAVE_TOPDIR,
-            save_fn_pfx: str=   SAVE_FN_PFX) -> POINT:
-        return ParaSave.load_dna(
-            name=           name,
-            save_topdir=    save_topdir,
-            save_fn_pfx=    save_fn_pfx)
-
-    @staticmethod
-    def oversave(
-            name: str,
-            save_topdir: str=   SAVE_TOPDIR,
-            save_fn_pfx: str=   SAVE_FN_PFX,
-            **kwargs):
-        return ParaSave.oversave(
-            name=           name,
-            save_topdir=    save_topdir,
-            save_fn_pfx=    save_fn_pfx,
-            **kwargs)
-
-    @staticmethod
-    def copy_saved_dna(
-            name_src: str,
-            name_trg: str,
-            save_topdir_src: str=           SAVE_TOPDIR,
-            save_topdir_trg: Optional[str]= None,
-            save_fn_pfx: str=               SAVE_FN_PFX):
-        return ParaSave.copy_saved_dna(
-            name_src=           name_src,
-            name_trg=           name_trg,
-            save_topdir_src=    save_topdir_src,
-            save_topdir_trg=    save_topdir_trg,
-            save_fn_pfx=        save_fn_pfx)
-
-    @staticmethod
-    def gx_saved_dna(
-            name_parent_main: str,
-            name_parent_scnd: Optional[str],
-            name_child: str,
-            save_topdir_parent_main: str=           SAVE_TOPDIR,
-            save_topdir_parent_scnd: Optional[str]= None,
-            save_topdir_child: Optional[str]=       None,
-            save_fn_pfx: str=                       SAVE_FN_PFX,
-    ) -> None:
-        return ParaSave.gx_saved_dna(
-            name_parent_main=           name_parent_main,
-            name_parent_scnd=           name_parent_scnd,
-            name_child=                 name_child,
-            save_topdir_parent_main=    save_topdir_parent_main,
-            save_topdir_parent_scnd=    save_topdir_parent_scnd,
-            save_topdir_child=          save_topdir_child,
-            save_fn_pfx=                save_fn_pfx)
-
     # copies full NEModel folder (DNA & checkpoints)
-    @staticmethod
+    @classmethod
     def copy_saved(
+            cls,
             name_src: str,
             name_trg: str,
-            save_topdir_src: str=           SAVE_TOPDIR,
+            save_topdir_src: Optional[str]= None,
             save_topdir_trg: Optional[str]= None,
-            save_fn_pfx: str=               SAVE_FN_PFX):
+            save_fn_pfx: Optional[str]=     None):
+
+        if not save_topdir_src: save_topdir_src = cls.SAVE_TOPDIR
+        if not save_fn_pfx: save_fn_pfx = cls.SAVE_FN_PFX
 
         if save_topdir_trg is None: save_topdir_trg = save_topdir_src
 
         # copy DNA with ParaSave
-        ParaSave.copy_saved_dna(
+        cls.copy_saved_dna(
             name_src=           name_src,
             name_trg=           name_trg,
             save_topdir_src=    save_topdir_src,
@@ -796,17 +745,19 @@ class NEModel(ParaSave):
                 replace_scope=  name_trg)
 
     # GX for two NEModel checkpoints
-    @staticmethod
+    @classmethod
     def gx_ckpt(
+            cls,
             name_A: str,                        # name parent A
             name_B: str,                        # name parent B
             name_child: str,                    # name child
-            folder_A: str=                  SAVE_TOPDIR,
+            folder_A: Optional[str]=        None,
             folder_B: Optional[str]=        None,
             folder_child: Optional[str]=    None,
             ratio: float=                   0.5,
             noise: float=                   0.03):
 
+        if not folder_A: folder_A = cls.SAVE_TOPDIR
         if not folder_B: folder_B = folder_A
         if not folder_child: folder_child = folder_A
 
@@ -827,19 +778,23 @@ class NEModel(ParaSave):
                 noise=          noise)
 
     # performs GX on saved NEModel objects (NEModel as a ParaSave and then checkpoints, without even building child objects)
-    @staticmethod
+    @classmethod
     def gx_saved(
+            cls,
             name_parent_main: str,
-            name_parent_scnd: Optional[str],                # if not given makes GX only with main parent
+            name_parent_scnd: Optional[str],    # if not given makes GX only with main parent
             name_child: str,
-            save_topdir_parent_main: str=               SAVE_TOPDIR,
-            save_topdir_parent_scnd: Optional[str] =    None,
-            save_topdir_child: Optional[str] =          None,
-            save_fn_pfx: Optional[str] =                SAVE_FN_PFX,
-            do_gx_ckpt=                                 True,
-            ratio: float=                               0.5,
-            noise: float=                               0.03
+            save_topdir_parent_main: Optional[str]= None,
+            save_topdir_parent_scnd: Optional[str]= None,
+            save_topdir_child: Optional[str] =      None,
+            save_fn_pfx: Optional[str] =            None,
+            do_gx_ckpt=                             True,
+            ratio: float=                           0.5,
+            noise: float=                           0.03
     ) -> None:
+
+        if not save_topdir_parent_main: save_topdir_parent_main = cls.SAVE_TOPDIR
+        if not save_fn_pfx: save_fn_pfx = cls.SAVE_FN_PFX
 
         # build NEModel and save its ckpt in a separate subprocess
         @proc_wait
@@ -847,7 +802,7 @@ class NEModel(ParaSave):
             nm = NEModel(name=name, save_topdir=save_topdir)
             nm.save_ckpt()
 
-        ParaSave.gx_saved_dna(
+        cls.gx_saved_dna(
             name_parent_main=           name_parent_main,
             name_parent_scnd=           name_parent_scnd,
             name_child=                 name_child,
@@ -857,7 +812,7 @@ class NEModel(ParaSave):
             save_fn_pfx=                save_fn_pfx)
 
         if do_gx_ckpt:
-            NEModel.gx_ckpt(
+            cls.gx_ckpt(
                 name_A=         name_parent_main,
                 name_B=         name_parent_scnd or name_parent_main,
                 name_child=     name_child,

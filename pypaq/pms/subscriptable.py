@@ -87,8 +87,8 @@ class Subscriptable:
                         found.add(tuple(sorted([pa, pb])))
 
         if found:
-            self.__log.warn('Subscriptable was asked to check for params similarity and found:')
-            for pa,pb in found: self.__log.warn(f'> params \'{pa}\' and \'{pb}\' are too CLOSE !!!')
+            self.__log.warning('Subscriptable was asked to check for params similarity and found:')
+            for pa,pb in found: self.__log.warning(f'> params \'{pa}\' and \'{pb}\' are too CLOSE !!!')
 
         return len(found) > 0
 
