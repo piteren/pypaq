@@ -165,9 +165,7 @@ class NNWrap(ParaSave, ABC):
             'save_topdir':  save_topdir,
             'save_fn_pfx':  save_fn_pfx})
 
-        # dna = self.get_point() # TODO: it wont work here
         dna_with_logger = {}
-        # dna_with_logger.update(dna)
         dna_with_logger.update(self._dna)
         dna_with_logger['logger'] = get_hi_child(
             logger= self._log,
