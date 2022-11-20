@@ -67,7 +67,7 @@ class ParaSave(SubGX):
             save_fn_pfx=    self.save_fn_pfx)
         self.update(dna_folder) # 1. update with params from folder
         self.update(kwargs)     # 3. update with params given by user
-        if gxable is not None: self.gxable = gxable  # if user forces it to be True/False
+        if gxable is not None: self.gxable = gxable  # if user forces it to be True/False (no matter what saved)
 
         # _managed_params allows to lock managed params only to those given here
         self._managed_params: Optional[List[str]] = None

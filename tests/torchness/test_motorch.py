@@ -10,8 +10,8 @@ from pypaq.torchness.motorch import MOTorch, Module, MOTorchException
 from pypaq.torchness.layers import LayDense
 
 MOTORCH_DIR = f'{flush_tmp_dir()}/motorch'
-print(f'MOTORCH_DIR: {MOTORCH_DIR}')
 MOTorch.SAVE_TOPDIR = MOTORCH_DIR
+
 
 class LinModel(Module):
 
@@ -58,9 +58,30 @@ class TestMOTorch(unittest.TestCase):
     def setUp(self) -> None:
         flush_tmp_dir()
 
-    def test_base_creation_call(self):
+    def test_base_init(self):
+        model = MOTorch(
+            nngraph=   LinModel,
+            loglevel=   10)
 
-        model = MOTorch(module=LinModel)
+    def test_base_init_raises(self):
+        self.assertRaises(Exception, MOTorch)
+        kwargs = dict(name='LinModel')
+        self.assertRaises(Exception, MOTorch, **kwargs)
+
+    def test_base_save(self):
+        model = MOTorch(nngraph=LinModel)
+        print(model)
+        model.save()
+
+    def test_base_save_and_load(self):
+        model = MOTorch(nngraph=LinModel)
+        name = model.name
+        model.save()
+        model = MOTorch(name=name)
+
+    def test_base_creation_and_call(self):
+
+        model = MOTorch(nngraph=LinModel)
         print(model)
 
         inp = np.random.random((5,784)).astype(np.float32)
@@ -86,7 +107,7 @@ class TestMOTorch(unittest.TestCase):
 
     def test_class_method(self):
 
-        model = MOTorch(module=LinModel,)
+        model = MOTorch(nngraph=LinModel)
         print(model.name)
         dna_org = model.get_point()
         print(dna_org)
@@ -97,7 +118,7 @@ class TestMOTorch(unittest.TestCase):
 
     def test_inherited_interfaces(self):
 
-        model = MOTorch(module=LinModel)
+        model = MOTorch(nngraph=LinModel)
         print(model.parameters())
         model.float()
         print(model.state_dict())
@@ -106,7 +127,7 @@ class TestMOTorch(unittest.TestCase):
     def test_training_mode(self):
 
         model = MOTorch(
-            module=     LinModel,
+            nngraph=    LinModel,
             in_drop=    0.8)
         print(model.training)
 
@@ -127,24 +148,24 @@ class TestMOTorch(unittest.TestCase):
 
     def test_name_stamp(self):
 
-        model = MOTorch(module=LinModel)
-        self.assertTrue(model['name'] == 'LinModel')
+        model = MOTorch(nngraph=LinModel)
+        self.assertTrue(model['name'] == 'MOTorch_LinModel')
 
         model = MOTorch(
-            module=     LinModel,
+            nngraph=    LinModel,
             name=       'LinTest')
         self.assertTrue(model['name'] == 'LinTest')
 
         model = MOTorch(
-            module=         LinModel,
+            nngraph=        LinModel,
             name_timestamp= True)
-        self.assertTrue(model['name'] != 'LinModel')
+        self.assertTrue(model['name'] != 'MOTorch_LinModel')
         self.assertTrue({d for d in '0123456789'} & set([l for l in model['name']]))
 
     def test_ParaSave(self):
 
         model = MOTorch(
-            module=         LinModel,
+            nngraph=        LinModel,
             loglevel=       20,
             in_shape=       12,
             out_shape=      12)
@@ -175,20 +196,20 @@ class TestMOTorch(unittest.TestCase):
 
         # this model will not load
         model = MOTorch(
-            module=         LinModel,
+            nngraph=        LinModel,
             save_topdir=    '_models')
         print(f'not loaded model in_shape: {model["in_shape"]}')
         self.assertTrue(model['in_shape'] != 12)
 
         # this model will load from MOTORCH_DIR
         model = MOTorch(
-            module=         LinModel,
+            nngraph=        LinModel,
             loglevel=       10)
         print(model['in_shape'])
         self.assertTrue(model['in_shape'] == 12)
 
         model = MOTorch(
-            module=         LinModel,
+            nngraph=        LinModel,
             name_timestamp= True,
             in_shape=       12,
             out_shape=      12)
@@ -196,7 +217,7 @@ class TestMOTorch(unittest.TestCase):
         print(model['name'])
 
         model = MOTorch(
-            module=         LinModel,
+            nngraph=        LinModel,
             name=           model['name'])
         self.assertTrue(model['in_shape'] == 12)
 
@@ -211,7 +232,7 @@ class TestMOTorch(unittest.TestCase):
 
         psdd = {'seed': [0,1000]}
         model = MOTorch(
-            module=         LinModel,
+            nngraph=        LinModel,
             name=           'GXLin',
             psdd=           psdd)
 
@@ -231,28 +252,28 @@ class TestMOTorch(unittest.TestCase):
 
     def test_params_resolution(self):
 
-        model = MOTorch(module=LinModel)
+        model = MOTorch(nngraph=LinModel)
         print(model['seed'])        # value from MOTORCH_DEFAULTS
-        print(model['in_shape'])    # value from nn.Module defaults
+        print(model['in_shape'])    # value from nngraph defaults
         self.assertTrue(model['seed'] == 123)
         self.assertTrue(model['in_shape'] == 784)
 
         model = MOTorch(
-            module=         LinModel,
+            nngraph=        LinModel,
             seed=           151)
         print(model['seed'])        # MOTORCH_DEFAULTS overridden with kwargs
         self.assertTrue(model['seed'] == 151)
 
         model = MOTorch(
-            module=         LinModelSeed,
+            nngraph=        LinModelSeed,
             in_shape=       24,
             out_shape=      24)
-        print(model['seed'])        # MOTORCH_DEFAULTS overridden with nn.Module defaults
+        print(model['seed'])        # MOTORCH_DEFAULTS overridden with nngraph defaults
         self.assertTrue(model['seed'] == 111)
         model.save()
 
         model = MOTorch(
-            module=         LinModelSeed,
+            nngraph=        LinModelSeed,
             seed=           212)
         print(model['in_shape'])    # loaded from save
         print(model['seed'])        # saved overridden with kwargs
@@ -262,7 +283,7 @@ class TestMOTorch(unittest.TestCase):
     def test_seed_of_torch(self):
 
         model = MOTorch(
-            module=     LinModel,
+            nngraph=    LinModel,
             seed=       121)
 
         inp = np.random.random((5,784)).astype(np.float32)
@@ -271,7 +292,7 @@ class TestMOTorch(unittest.TestCase):
         print(out1)
 
         model = MOTorch(
-            module=     LinModel,
+            nngraph=    LinModel,
             seed=       121)
 
         out2 = model(inp)
@@ -282,18 +303,18 @@ class TestMOTorch(unittest.TestCase):
 
     def test_read_only(self):
 
-        model = MOTorch(module=LinModel)
+        model = MOTorch(nngraph=LinModel)
         model.save()
 
         model = MOTorch(
-            module=         LinModel,
+            nngraph=        LinModel,
             read_only=      True)
         self.assertRaises(MOTorchException, model.save)
 
     def test_save_load(self):
 
         model = MOTorch(
-            module=         LinModel,
+            nngraph=        LinModel,
             in_shape=       256,
             out_shape=      10,
             name_timestamp= True,
@@ -308,7 +329,7 @@ class TestMOTorch(unittest.TestCase):
         model.save()
 
         loaded_model = MOTorch(
-            module=         LinModel,
+            nngraph=        LinModel,
             name=           name,
             seed=           123) # although different seed, model will load checkpoint
         print(loaded_model.name)
@@ -321,7 +342,7 @@ class TestMOTorch(unittest.TestCase):
     def test_copy_saved(self):
 
         model = MOTorch(
-            module=         LinModel,
+            nngraph=        LinModel,
             in_shape=       256,
             out_shape=      10,
             name_timestamp= True,
@@ -336,21 +357,21 @@ class TestMOTorch(unittest.TestCase):
             name_trg=           name_copied)
 
         model = MOTorch(
-            module=         LinModel,
+            nngraph=        LinModel,
             name=           name_copied)
         print(model)
 
     def test_gx_ckpt(self):
 
         model = MOTorch(
-            module=         LinModel,
+            nngraph=        LinModel,
             name_timestamp= True,
             seed=           121)
         name_A = model.name
         model.save()
 
         model = MOTorch(
-            module=         LinModel,
+            nngraph=        LinModel,
             name_timestamp= True,
             seed=           121)
         name_B = model.name
@@ -364,14 +385,14 @@ class TestMOTorch(unittest.TestCase):
     def test_gx_saved(self):
 
         model = MOTorch(
-            module=         LinModel,
+            nngraph=        LinModel,
             name_timestamp= True,
             seed=           121)
         name_A = model.name
         model.save()
 
         model = MOTorch(
-            module=         LinModel,
+            nngraph=        LinModel,
             name_timestamp= True,
             seed=           121)
         name_B = model.name
@@ -385,7 +406,7 @@ class TestMOTorch(unittest.TestCase):
     def test_hpmser_mode(self):
 
         model = MOTorch(
-            module=         LinModel,
+            nngraph=        LinModel,
             hpmser_mode=    True)
         self.assertRaises(MOTorchException, model.save)
 
