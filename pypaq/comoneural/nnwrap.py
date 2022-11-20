@@ -14,16 +14,14 @@ class NNWrapException(Exception):
 
 class NNWrap(ParaSave, ABC):
 
-    # TODO: extend defaults
-
     # restricted keys for fwd_func DNA and return DNA (if they appear in kwargs, should be named exactly like below)
-    _SPEC_KEYS: set = {
+    SPEC_KEYS: set = {
         'loss',                         # loss
         'acc',                          # accuracy
         'f1'}                           # F1
 
     # defaults (state), may be overridden with kwargs or nngraph (__init__?) attributes
-    _INIT_DEFAULTS: dict = {
+    INIT_DEFAULTS: dict = {
         'seed':             123,        # seed
         'devices':          -1,         # :DevicesParam (check pypaq.mpython.devices)
             # training
@@ -108,7 +106,7 @@ class NNWrap(ParaSave, ABC):
             lock_managed_params=    True,
             logger=                 get_hi_child(self._log, 'ParaSave'),
             **self._dna)
-        self.check_params_sim(params= list(self._SPEC_KEYS) + list(self._INIT_DEFAULTS.keys())) # safety check
+        self.check_params_sim(params= list(self.SPEC_KEYS) + list(self.INIT_DEFAULTS.keys())) # safety check
 
         self._manage_devices()
 
@@ -156,7 +154,7 @@ class NNWrap(ParaSave, ABC):
         if 'logger' in _nngraph_func_params_defaults: _nngraph_func_params_defaults.pop('logger')
 
         # update in proper order
-        self._dna.update(self._INIT_DEFAULTS)
+        self._dna.update(self.INIT_DEFAULTS)
         self._dna.update(_nngraph_func_params_defaults)
         self._dna.update(dna_saved)
         self._dna.update(kwargs)          # update with kwargs given NOW by user
@@ -178,7 +176,7 @@ class NNWrap(ParaSave, ABC):
                 not_used_kwargs[k] = kwargs[k]
 
         self._log.debug(f'> {self.name} DNA sources:')
-        self._log.debug(f'>> {self.name} _INIT_DEFAULTS: {self._INIT_DEFAULTS}')
+        self._log.debug(f'>> {self.name} INIT_DEFAULTS:  {self.INIT_DEFAULTS}')
         self._log.debug(f'>> nngraph defaults:           {_nngraph_func_params_defaults}')
         self._log.debug(f'>> DNA saved:                  {dna_saved}')
         self._log.debug(f'>> given kwargs:               {kwargs}')

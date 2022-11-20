@@ -51,7 +51,7 @@ class MOTorchException(NNWrapException):
 # extends Module (torch.nn.Module) with ParaSave and many others
 class MOTorch(NNWrap, Module):
 
-    _SPEC_KEYS = [
+    SPEC_KEYS = [
         'train_vars',   # list of variables to train (may be returned, otherwise all trainable are taken)
         'opt_vars',     # list of variables returned by opt_func
         'loss',         # loss
@@ -59,7 +59,7 @@ class MOTorch(NNWrap, Module):
         'f1',           # F1
     ]
 
-    _INIT_DEFAULTS = {
+    INIT_DEFAULTS = {
         'seed':             123,                # seed for torch and numpy
         'devices':          -1,                 # :DevicesParam (check pypaq.mpython.devices)
             # training
