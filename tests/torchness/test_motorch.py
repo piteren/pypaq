@@ -17,7 +17,7 @@ class LinModel(Module):
 
     def __init__(
             self,
-            in_drop=    0.0,
+            in_drop: float,
             in_shape=   784,
             out_shape=  10,
             loss_func=  torch.nn.functional.cross_entropy):
@@ -43,14 +43,9 @@ class LinModelSeed(LinModel):
     def __init__(
             self,
             in_drop=    0.0,
-            in_shape=   784,
-            out_shape=  10,
-            seed=       111):
-        LinModel.__init__(
-            self,
-            in_drop=    in_drop,
-            in_shape=   in_shape,
-            out_shape=  out_shape)
+            seed=       111,
+            **kwargs):
+        LinModel.__init__(self, in_drop=in_drop, **kwargs)
 
 
 class TestMOTorch(unittest.TestCase):
@@ -59,13 +54,16 @@ class TestMOTorch(unittest.TestCase):
         flush_tmp_dir()
 
     def test_base_init(self):
-        model = MOTorch(
-            nngraph=   LinModel,
-            loglevel=   10)
+        MOTorch(
+            nngraph=    LinModel,
+            loglevel=   10,
+            in_drop=    0.0)
 
-    def test_base_init_raises(self):
+    def test_init_raises(self):
         self.assertRaises(Exception, MOTorch)
         kwargs = dict(name='LinModel')
+        self.assertRaises(Exception, MOTorch, **kwargs)
+        kwargs = dict(nngraph=LinModel)
         self.assertRaises(Exception, MOTorch, **kwargs)
 
     def test_base_save(self):

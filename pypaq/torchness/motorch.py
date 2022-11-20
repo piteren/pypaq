@@ -45,19 +45,19 @@ class Module(ABC, torch.nn.Module):
     def loss_acc(self, *args, **kwargs) -> Dict:
         raise NotImplementedError
 
+
 class MOTorchException(NNWrapException):
     pass
 
 # extends Module (torch.nn.Module) with ParaSave and many others
 class MOTorch(NNWrap, Module):
 
-    SPEC_KEYS = [
+    SPEC_KEYS = {
         'train_vars',   # list of variables to train (may be returned, otherwise all trainable are taken)
         'opt_vars',     # list of variables returned by opt_func
         'loss',         # loss
         'acc',          # accuracy
-        'f1',           # F1
-    ]
+        'f1'}           # F1
 
     INIT_DEFAULTS = {
         'seed':             123,                # seed for torch and numpy
