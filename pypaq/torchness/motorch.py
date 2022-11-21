@@ -1,8 +1,14 @@
 """
-    MOTorch
+ 2022 (c) piteren
 
-    By default, after init MOTorch is set to train.mode=False. MOTorch manages its train.mode by itself.
+ MOTorch implements NNWrap interface with PyTorch.
 
+    nngraph for MOTorch:
+        - Should be type of Module (defined below).
+        - Should implement forward() and loss_acc() methods.
+
+ MOTorch extends Module. By default, after init, MOTorch is set to train.mode=False.
+ MOTorch manages its train.mode by itself.
 """
 
 from abc import abstractmethod, ABC
@@ -80,8 +86,8 @@ class MOTorch(NNWrap, Module):
         'do_clip':          False,
             # other
         'hpmser_mode':      False,              # it will set model to be read_only and quiet when running with hpmser
-        'read_only':        False,              # sets model to be read only - wont save anything (wont even create self.model_dir)
-        'do_TB':            True}               # runs TensorBard, saves in self.model_dir
+        'read_only':        False,              # sets model to be read only - wont save anything (wont even create self.nnwrap_dir)
+        'do_TB':            True}               # runs TensorBard, saves in self.nnwrap_dir
 
     SAVE_FN_PFX = 'motorch_dna' # filename (DNA) prefix
 
@@ -182,7 +188,7 @@ class MOTorch(NNWrap, Module):
 
     # returns path of checkpoint pickle file
     def __get_ckpt_path(self) -> str:
-        return self.__get_ckpt_path_static(self.model_dir, self.name)
+        return self.__get_ckpt_path_static(self.nnwrap_dir, self.name)
 
     def load_ckpt(self) -> None:
         # TODO: load all that has been saved

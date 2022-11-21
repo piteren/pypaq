@@ -1,13 +1,9 @@
 """
-
  2019 (c) piteren
 
- NEModel class:
+ NEModel implements NNWrap interface with TensorFlow.
 
-    Builds complete NN model object with implemented many features to effectively maintain components and procedures like:
-     graph, GPU resources, save & load (serialize), train/test baseline, TB, GX ..and many others.
-
-    fwd_func:
+    nngraph for NEModel:
         - should build complete model forward graph (FWD): from PH (placeholders) to loss tensor
         - function should return a dict with: PH, tensors, variables lists
             - dict keys should meet naming policy
@@ -20,33 +16,12 @@
         - rather should not be replaced, but if so then it should accept train_vars and gradients parameters
         - should return 'optimizer'
 
-    NEModel manages params of self, FWD & OPT graph functions. Those params may come from different sources**:
-        - NEModel class init defaults
-        - OPT graph defaults
-        - FWD graph defaults
-        - params saved in folder
-        - given kwargs (DNA)
-        ** name - must be given to NEModel
-        ** verb - similar (when not given is always set to 0)
-
-    NEModel keeps all params in self as a Subscriptable. Objects like graph, session, saver, tensors, placeholders, etc.
-    created by NEModel or returned by graphs functions are also kept in self fields and may be easily accessed.
-
- NEModel class implements:
-    - one folder for all model data: DNA and checkpoints (subfolder of save_TFD named with model name)
-    - parameters management with proper resolution
-    - logger (txt file saved into the model folder)
+ NEModel class extends NNWrap with:
     - GPU automated management with multi-GPU training on towers (places model graph elements across available devices)
     - builds optimization (OPT) graph with default OPT function
         - calculates gradients for every tower >> averages them
         - AVT gradient clipping and scaled LR (warmup, annealing)
-    - builds forward (FWD) graph with given function
-    - gots exemplary FWD graph function
-    - MultiSaver (with option of saving/loading sub-lists of variables (separate checkpoints with version management)
-    - inits session, TB writer, MultiSaver loads or inits variables
-    - ParaSave interface + with GXable interface, implements GX on checkpoints
-    - baseline methods for training / testing
-    - sanity check of many graph elements and dependencies
+    - exemplary FWD graph function
 """
 
 import numpy as np
@@ -212,8 +187,8 @@ class NEModel(NNWrap):
         'hpmser_mode':          False,      # it will set model to be read_only and quiet when running with hpmser
         'savers_names':         (None,),    # names of savers for MultiSaver
         'load_saver':           True,       # Optional[bool or str] for None/False does not load, for True loads default
-        'read_only':            False,      # sets model to be read only - wont save anything (wont even create self.model_dir)
-        'do_TB':                True,       # runs TensorBard, saves in self.model_dir
+        'read_only':            False,      # sets model to be read only - wont save anything (wont even create self.nnwrap_dir)
+        'do_TB':                True,       # runs TensorBard, saves in self.nnwrap_dir
         'silent_TF_warnings':   False,      # turns off TF warnings
         'sep_device':           True,       # separate first device for variables, gradients_avg, optimizer (otherwise those ar placed on the first FWD calculations tower)
         'collocate_GWO':        False}      # collocates gradient calculations with tf.OPs (gradients are calculated on every tower with its operations, but remember that vars are on one device...) (otherwise with first FWD calculations tower)
@@ -286,7 +261,7 @@ class NEModel(NNWrap):
         self._dna.update(opt_func_params_defaults)
         self._dna.update(nngraph_func_params_defaults)
         self._dna.update(dna_saved)
-        self._dna.update(kwargs)                  # update with kwargs (params of FWD & OPT) given NOW by user
+        self._dna.update(kwargs)  # update with kwargs (params of FWD & OPT) given NOW by user
         self._dna.update({
             'name':         self.name,
             'save_topdir':  save_topdir,
@@ -306,7 +281,7 @@ class NEModel(NNWrap):
                 not_used_kwargs[k] = kwargs[k]
 
         self._log.debug(f'> {self.name} DNA sources:')
-        self._log.debug(f'>> {self.name} INIT_DEFAULTS:  {self.INIT_DEFAULTS}')
+        self._log.debug(f'>> class INIT_DEFAULTS:        {self.INIT_DEFAULTS}')
         self._log.debug(f'>> nngraph defaults:           {nngraph_func_params_defaults}')
         self._log.debug(f'>> opt_func defaults:          {opt_func_params_defaults}')
         self._log.debug(f'>> DNA saved:                  {dna_saved}')

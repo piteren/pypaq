@@ -49,9 +49,9 @@ NEMODELDUO_DEFAULTS = {
     'save_topdir':  '_models',                  # top folder of model save
     'save_fn_pfx':  'nemodelduo_dna',           # dna filename prefix
     'hpmser_mode':  False,                      # it will set model to be read_only and quiet when running with hpmser
-    'read_only':    False,                      # sets model to be read only - wont save anything (wont even create self.model_dir)
-    'do_logfile':   True,                       # enables saving log file in self.model_dir
-    'do_TB':        True}                       # runs TensorBard, saves in self.model_dir
+    'read_only':    False,                      # sets model to be read only - wont save anything (wont even create self.nnwrap_dir)
+    'do_logfile':   True,                       # enables saving log file in self.nnwrap_dir
+    'do_TB':        True}                       # runs TensorBard, saves in self.nnwrap_dir
 
 
 # exemplary FWD function implementation
@@ -162,12 +162,12 @@ class NEModelDUO(ParaSave):
             self['do_logfile'] = False
             self['do_TB'] = False
 
-        self.model_dir = f'{self.save_topdir}/{self.name}'
-        if self.verb>0: print(f' > NEModelDUO dir: {self.model_dir}{" read only mode!" if self["read_only"] else ""}')
+        self.nnwrap_dir = f'{self.save_topdir}/{self.name}'
+        if self.verb>0: print(f' > NEModelDUO dir: {self.nnwrap_dir}{" read only mode!" if self["read_only"] else ""}')
 
         if self['do_logfile']:
             set_logger(
-                log_folder=     self.model_dir,
+                log_folder=     self.nnwrap_dir,
                 custom_name=    self.name,
                 verb=           self.verb)
 
@@ -263,7 +263,7 @@ class NEModelDUO(ParaSave):
             self.iterations.assign(0)
 
         try:
-            self.train_model.load_weights(filepath=f'{self.model_dir}/weights')
+            self.train_model.load_weights(filepath=f'{self.nnwrap_dir}/weights')
             if self.verb>0: print(f' > train_model weights loaded..')
         except Exception as e:
             if self.verb>0: print(f' > train_model weights NOT loaded ({e})..')
@@ -286,7 +286,7 @@ class NEModelDUO(ParaSave):
 
         self.submodels: Dict[str, tf.keras.Model] = {}
 
-        self.writer = TBwr(logdir=self.model_dir, set_to_CPU=False) if self['do_TB'] else None
+        self.writer = TBwr(logdir=self.nnwrap_dir, set_to_CPU=False) if self['do_TB'] else None
 
         self._model_data = None
         self._batcher = None
@@ -509,7 +509,7 @@ class NEModelDUO(ParaSave):
         assert not self['read_only'], 'ERR: read only NEModelDUO cannot be saved!'
         self.save_dna()
         self.iterations.assign(self['optimizer'].iterations)
-        self.train_model.save_weights(filepath=f'{self.model_dir}/weights')
+        self.train_model.save_weights(filepath=f'{self.nnwrap_dir}/weights')
         if self.verb>0: print(f'model {self.name} saved')
 
 

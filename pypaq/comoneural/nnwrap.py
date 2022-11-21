@@ -1,3 +1,31 @@
+"""
+ 2022 (c) piteren
+
+ NNWrap is an abstract interface of object that wraps neural network (NN) and adds some features.
+
+    NNWrap:
+    - Builds FWD and OPT graph. FWD graph is built with nngraph which may be
+      an object or callable. FWD graph should be built from inputs to loss.
+    - Manages one NNWrap folder (subfolder of SAVE_TOPDIR named with NNWrap name)
+      for all NNWrap data (logs, params, checkpoints). NNWrap supports
+      serialization into this folder.
+    - Extends ParaSave, manages all init parameters. Properly resolves parameters
+      using all possible sources, saves and loads them from NNWrap folder.
+    - Parameters are kept in self as a Subscriptable to be easily accessed.
+    - Properly resolves and holds name of object, adds stamp if needed.
+    - Supports / creates logger.
+    - Allows NNWrap to be read only.
+    - Supports hpmser mode.
+    - Manages seed and guarantees reproducibility.
+    - Manages GPU / CPU devices used by NN.
+    - Adds TensorBoard support.
+    - Defines / implements save / load / copy of whole NNWrap (ParaSave + NN checkpoint).
+    - Defines interface of baseline training & testing with data loaded to Batcher.
+    - Defines / implements GX.
+    - Adds some sanity checks.
+
+"""
+
 from abc import ABC, abstractmethod
 from typing import Optional, Callable, Union, Tuple, Dict
 
@@ -43,8 +71,8 @@ class NNWrap(ParaSave, ABC):
         'do_clip':          False,
             # other
         'hpmser_mode':      False,      # it will set model to be read_only and quiet when running with hpmser
-        'read_only':        False,      # sets model to be read only - wont save anything (wont even create self.model_dir)
-        'do_TB':            True}       # runs TensorBard, saves in self.model_dir
+        'read_only':        False,      # sets model to be read only - wont save anything (wont even create self.nnwrap_dir)
+        'do_TB':            True}       # runs TensorBard, saves in self.nnwrap_dir
 
     SAVE_TOPDIR = '_models'
 
@@ -82,23 +110,23 @@ class NNWrap(ParaSave, ABC):
 
         _read_only = kwargs.get('read_only', False)
 
-        self.model_dir = f'{save_topdir}/{self.name}'
-        if not _read_only: prep_folder(self.model_dir)
+        self.nnwrap_dir = f'{save_topdir}/{self.name}'
+        if not _read_only: prep_folder(self.nnwrap_dir)
 
         if not logger:
             logger = get_pylogger(
                 name=       self.name,
                 add_stamp=  not name_timestamp,
-                folder=     None if _read_only else self.model_dir,
+                folder=     None if _read_only else self.nnwrap_dir,
                 level=      loglevel)
         self._log = logger
         nng_info = self.nngraph.__name__ if self.nngraph else 'nngraph NOT GIVEN (will try to load from saved)'
         self._log.info(f'*** NNWrap *** name: {self.name} initializes for nngraph: {nng_info}')
-        self._log.debug(f'> NNWrap dir: {self.model_dir}{" <- read only mode!" if _read_only else ""}')
+        self._log.debug(f'> NNWrap dir: {self.nnwrap_dir}{" <- read only mode!" if _read_only else ""}')
 
         self._dna = dict(
             nngraph=    self.nngraph,
-            model_dir=  self.model_dir)
+            model_dir=  self.nnwrap_dir)
         self._manage_dna(
             save_topdir=    save_topdir,
             save_fn_pfx=    save_fn_pfx,
@@ -117,7 +145,7 @@ class NNWrap(ParaSave, ABC):
 
         self._build_graph()
 
-        self._TBwr = TBwr(logdir=self.model_dir)  # TensorBoard writer
+        self._TBwr = TBwr(logdir=self.nnwrap_dir)  # TensorBoard writer
 
         self._batcher = None
 
@@ -166,7 +194,7 @@ class NNWrap(ParaSave, ABC):
         self._dna.update(self.INIT_DEFAULTS)
         self._dna.update(nngraph_func_params_defaults)
         self._dna.update(dna_saved)
-        self._dna.update(kwargs)          # update with kwargs given NOW by user
+        self._dna.update(kwargs)  # update with kwargs given NOW by user
         self._dna.update({
             'name':         self.name,
             'save_topdir':  save_topdir,
@@ -185,7 +213,7 @@ class NNWrap(ParaSave, ABC):
                 not_used_kwargs[k] = kwargs[k]
 
         self._log.debug(f'> {self.name} DNA sources:')
-        self._log.debug(f'>> {self.name} INIT_DEFAULTS:  {self.INIT_DEFAULTS}')
+        self._log.debug(f'>> class INIT_DEFAULTS:        {self.INIT_DEFAULTS}')
         self._log.debug(f'>> nngraph defaults:           {nngraph_func_params_defaults}')
         self._log.debug(f'>> DNA saved:                  {dna_saved}')
         self._log.debug(f'>> given kwargs:               {kwargs}')
@@ -216,7 +244,7 @@ class NNWrap(ParaSave, ABC):
     @abstractmethod
     def save_ckpt(self) -> None: pass
 
-    # saves model (ParaSave DNA and model checkpoint)
+    # saves NNWrap (ParaSave DNA and model checkpoint)
     def save(self) -> None:
         if self['read_only']: raise NNWrapException('read only NNWrap cannot be saved!')
         self.save_dna()
@@ -248,7 +276,6 @@ class NNWrap(ParaSave, ABC):
 
         if save_topdir_trg is None: save_topdir_trg = save_topdir_src
 
-        # copy DNA
         cls.copy_saved_dna(
             name_src=           name_src,
             name_trg=           name_trg,
@@ -256,7 +283,6 @@ class NNWrap(ParaSave, ABC):
             save_topdir_trg=    save_topdir_trg,
             save_fn_pfx=        save_fn_pfx)
 
-        # copy checkpoint
         cls.copy_checkpoint(
             name_src=           name_src,
             name_trg=           name_trg,
