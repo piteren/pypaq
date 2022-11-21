@@ -11,8 +11,6 @@ from pypaq.neuralmess.layers import lay_dense
 NEMODEL_DIR = f'{flush_tmp_dir()}/nemodel'
 NEModel.SAVE_TOPDIR = NEMODEL_DIR
 
-DNA = {'seq_len':20, 'emb_num':33, 'seed':111}
-
 
 def fwd_lin_graph(
         in_drop: float,
@@ -90,44 +88,28 @@ class TestNEModel(unittest.TestCase):
         kwargs = dict(nngraph=fwd_lin_graph)
         self.assertRaises(Exception, NEModel, **kwargs)
 
-    def test_init(self):
-        """
-        nnm = NEModel(
-            name=           'nemodel_test_A',
-            nngraph=        fwd_graph,
-            opt_func=       None,
-            **DNA)
-        nnm.save_ckpt()
-        self.assertTrue(nnm['opt_func'] is None and nnm['baseLR'] == 0.003)
-
-        nnm = NEModel(
-            name=           'nemodel_test_B',
-            nngraph=        fwd_graph,
-            **DNA)
-        self.assertTrue(nnm['opt_func'] is not None and nnm['baseLR']==0.003 and 'loss' in nnm)
-        nnm.save_ckpt()
-        """
-        nnm = NEModel(
-            name=       'nemodel_test_C',
+    def test_save_load(self):
+        model = NEModel(
             nngraph=    fwd_lin_graph,
-            loglevel=   10)
-        self.assertTrue(nnm['seed']==111 and nnm['baseLR']==0.003 and 'loss' in nnm)
-        self.assertTrue('loss' not in nnm.get_managed_params())
-        nnm.save()
+            loglevel=   10,
+            in_drop=    0.1)
+        self.assertTrue(model['seed']==121 and model['baseLR']==0.0003 and 'loss' in model)
+        self.assertTrue('loss' not in model.get_managed_params())
+        model.save()
+        name = model.name
 
         print('\nsaved, now loading..')
 
-        nnm = NEModel(
-            name=       'nemodel_test_C',
+        model = NEModel(
+            name=       name,
             loglevel=   10)
-        self.assertTrue(nnm['seq_len']==20 and nnm['emb_num']==33)
+        self.assertTrue(model['in_drop']==0.1 and model['in_shape']==784)
 
     def test_call(self):
 
         nnm = NEModel(
-            name=           'nemodel_test_A',
-            nngraph=        fwd_lin_graph,
-            **DNA)
+            nngraph=    fwd_lin_graph,
+            in_drop=    0.1)
 
         inp = np.random.rand(1,784)
 
@@ -140,9 +122,8 @@ class TestNEModel(unittest.TestCase):
     def test_train(self):
 
         nnm = LinNEModel(
-            name=       'nemodel_test_A',
             nngraph=    fwd_lin_graph,
-            **DNA)
+            in_drop=    0.1)
 
         data = {
             'train': {'inp_PH': np.random.rand(10000,784), 'lbl_PH': np.random.randint(0,9,10000)},
@@ -154,25 +135,32 @@ class TestNEModel(unittest.TestCase):
 
     def test_GX(self):
 
+        # INFO: needs to run saveAB() in a subprocess cause TF elements/graphs do conflict
         @proc_wait
         def saveAB():
             nnm = NEModel(
-                name=       'nemodel_test_A',
-                nngraph=    fwd_lin_graph)
+                name=       'nemodelA',
+                nngraph=    fwd_lin_graph,
+                in_drop=    0.1)
             nnm.save()
             nnm = NEModel(
-                name=       'nemodel_test_B',
-                nngraph=    fwd_lin_graph)
+                name=       'nemodelB',
+                nngraph=    fwd_lin_graph,
+                in_drop=    0.1)
             nnm.save()
 
-        # INFO: needs to run saveAB() in a subprocess cause TF elements/graphs do conflict
         saveAB()
+
         NEModel.gx_saved(
-            name_parent_main=           'nemodel_test_A',
-            name_parent_scnd=           'nemodel_test_B',
-            name_child=                 'nemodel_test_C',
-            #do_gx_ckpt=                 False
-        )
+            name_parent_main=   'nemodelA',
+            name_parent_scnd=   'nemodelB',
+            name_child=         'nemodelC')
+
+        NEModel.gx_saved(
+            name_parent_main=   'nemodelA',
+            name_parent_scnd=   'nemodelB',
+            name_child=         'nemodelD',
+            do_gx_ckpt=         False)
 
 
 if __name__ == '__main__':

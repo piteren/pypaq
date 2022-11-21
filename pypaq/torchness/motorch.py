@@ -288,7 +288,7 @@ class MOTorch(NNWrap, Module):
             tag: str,
             step: int):
 
-        if self['do_TB']: self.__TBwr.add(value=value, tag=tag, step=step)
+        if self['do_TB']: self._TBwr.add(value=value, tag=tag, step=step)
         else: self._log.warning(f'NEModel {self.name} cannot log TensorBoard since do_TB flag is False!')
 
     # **************************************************************************************** baseline training methods
@@ -559,7 +559,7 @@ class MOTorch(NNWrap, Module):
 
     @property
     def tbwr(self):
-        return self.__TBwr
+        return self._TBwr
 
     def __str__(self):
         return f'MOTorch: {self.name}\n{self.nngraph.__str__(self)}{ParaSave.__str__(self)}'

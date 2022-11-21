@@ -114,7 +114,7 @@ class NNWrap(ParaSave, ABC):
 
         self._build_graph()
 
-        self.__TBwr = TBwr(logdir=self.model_dir)  # TensorBoard writer
+        self._TBwr = TBwr(logdir=self.model_dir)  # TensorBoard writer
 
         self._batcher = None
 
@@ -142,20 +142,24 @@ class NNWrap(ParaSave, ABC):
             save_topdir=    save_topdir,
             save_fn_pfx=    save_fn_pfx)
 
-        if not self.nngraph and 'nngraph' not in dna_saved:
+        # in case 'nngraph' was not given with init, try to get it from saved
+        if not self.nngraph:
+            self.nngraph = dna_saved.get('nngraph', None)
+
+        if not self.nngraph:
             msg = 'nngraph was not given and has not been found in saved, cannot continue!'
             self._log.error(msg)
             raise NNWrapException(msg)
 
         # get defaults of given nngraph (object.__init__ or callable)
-        _nngraph_func = self.nngraph.__init__ if type(self.nngraph) is object else self.nngraph
-        _nngraph_func_params = get_params(_nngraph_func)
-        _nngraph_func_params_defaults = _nngraph_func_params['with_defaults']   # get init params defaults
-        if 'logger' in _nngraph_func_params_defaults: _nngraph_func_params_defaults.pop('logger')
+        nngraph_func = self.nngraph.__init__ if type(self.nngraph) is object else self.nngraph
+        nngraph_func_params = get_params(nngraph_func)
+        nngraph_func_params_defaults = nngraph_func_params['with_defaults']   # get init params defaults
+        if 'logger' in nngraph_func_params_defaults: nngraph_func_params_defaults.pop('logger')
 
         # update in proper order
         self._dna.update(self.INIT_DEFAULTS)
-        self._dna.update(_nngraph_func_params_defaults)
+        self._dna.update(nngraph_func_params_defaults)
         self._dna.update(dna_saved)
         self._dna.update(kwargs)          # update with kwargs given NOW by user
         self._dna.update({
@@ -168,7 +172,7 @@ class NNWrap(ParaSave, ABC):
         dna_with_logger['logger'] = get_hi_child(
             logger= self._log,
             name=   f'{self.name}_sublogger'),
-        self._dna_nngraph = get_func_dna(_nngraph_func, dna_with_logger)
+        self._dna_nngraph = get_func_dna(nngraph_func, dna_with_logger)
 
         not_used_kwargs = {}
         for k in kwargs:
@@ -177,7 +181,7 @@ class NNWrap(ParaSave, ABC):
 
         self._log.debug(f'> {self.name} DNA sources:')
         self._log.debug(f'>> {self.name} INIT_DEFAULTS:  {self.INIT_DEFAULTS}')
-        self._log.debug(f'>> nngraph defaults:           {_nngraph_func_params_defaults}')
+        self._log.debug(f'>> nngraph defaults:           {nngraph_func_params_defaults}')
         self._log.debug(f'>> DNA saved:                  {dna_saved}')
         self._log.debug(f'>> given kwargs:               {kwargs}')
         self._log.debug(f'> resolved DNA:')

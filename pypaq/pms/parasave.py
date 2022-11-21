@@ -48,11 +48,10 @@ class ParaSave(SubGX):
                 level=      loglevel)
         self.__log = logger
 
-        if assert_saved:
-            obj_FN = ParaSave.__obj_fn(name, save_topdir, save_fn_pfx)
-            ex_msg = f'ERR: ParaSave {self.name} does not exist!'
+        if assert_saved and not os.path.isfile(ParaSave.__obj_fn(name, save_topdir, save_fn_pfx)):
+            ex_msg = f'ParaSave {self.name} does not exist!'
             self.__log.error(ex_msg)
-            if not os.path.isfile(obj_FN): raise Exception(ex_msg)
+            raise Exception(ex_msg)
 
         self.__log.info(f'*** ParaSave *** name: {self.name} initializes..')
 

@@ -224,8 +224,8 @@ class NEModel(NNWrap):
 
     def __init__(
             self,
-            nngraph: Optional[Callable]=    None,
-            opt_func: Optional[Callable]=   opt_graph,  # default function building optimization (OPT) graph (from train_vars & gradients to optimizer)
+            nngraph: Optional[Callable]=    None,       # forward function
+            opt_func: Optional[Callable]=   opt_graph,  # optimization function building optimization (OPT) graph (from train_vars & gradients to optimizer)
             **kwargs):
 
         if kwargs.get('silent_TF_warnings', False):
@@ -265,21 +265,26 @@ class NEModel(NNWrap):
             save_topdir=    save_topdir,
             save_fn_pfx=    save_fn_pfx)
 
-        if not self.nngraph and 'nngraph' not in dna_saved:
+        # in case 'nngraph' was not given with init, try to get it from saved
+        if not self.nngraph:
+            self.nngraph = dna_saved.get('nngraph', None)
+
+        if not self.nngraph:
             msg = 'nngraph was not given and has not been found in saved, cannot continue!'
             self._log.error(msg)
-            raise NNWrapException(msg)
+            raise NEModelException(msg)
 
+        # get defaults of given nngraph and opt_func
+        nngraph_func_params = get_params(self.nngraph)
+        nngraph_func_params_defaults = nngraph_func_params['with_defaults']  # get nngraph defaults
         opt_func = kwargs['opt_func']
-        _opt_func_params_defaults = get_params(opt_func)['with_defaults'] if opt_func else {}
-        _nngraph_func_params = get_params(self.nngraph)
-        _nngraph_func_params_defaults = _nngraph_func_params['with_defaults']  # get nngraph defaults
-        if 'logger' in _opt_func_params_defaults: _opt_func_params_defaults.pop('logger')
-        if 'logger' in _nngraph_func_params_defaults: _nngraph_func_params_defaults.pop('logger')
+        opt_func_params_defaults = get_params(opt_func)['with_defaults'] if opt_func else {}
+        if 'logger' in nngraph_func_params_defaults: nngraph_func_params_defaults.pop('logger')
+        if 'logger' in opt_func_params_defaults: opt_func_params_defaults.pop('logger')
 
         self._dna.update(self.INIT_DEFAULTS)
-        self._dna.update(_opt_func_params_defaults)
-        self._dna.update(_nngraph_func_params_defaults)
+        self._dna.update(opt_func_params_defaults)
+        self._dna.update(nngraph_func_params_defaults)
         self._dna.update(dna_saved)
         self._dna.update(kwargs)                  # update with kwargs (params of FWD & OPT) given NOW by user
         self._dna.update({
@@ -302,8 +307,8 @@ class NEModel(NNWrap):
 
         self._log.debug(f'> {self.name} DNA sources:')
         self._log.debug(f'>> {self.name} INIT_DEFAULTS:  {self.INIT_DEFAULTS}')
-        self._log.debug(f'>> nngraph defaults:           {_nngraph_func_params_defaults}')
-        self._log.debug(f'>> opt_func defaults:          {_opt_func_params_defaults}')
+        self._log.debug(f'>> nngraph defaults:           {nngraph_func_params_defaults}')
+        self._log.debug(f'>> opt_func defaults:          {opt_func_params_defaults}')
         self._log.debug(f'>> DNA saved:                  {dna_saved}')
         self._log.debug(f'>> given kwargs:               {kwargs}')
         self._log.debug(f'> resolved DNA:')
@@ -559,7 +564,7 @@ class NEModel(NNWrap):
             value,
             tag: str,
             step: int):
-        if self['do_TB']: self.__TBwr.add(value=value, tag=tag, step=step)
+        if self['do_TB']: self._TBwr.add(value=value, tag=tag, step=step)
         else: self._log.warning(f'NEModel {self.name} cannot log TensorBoard since do_TB flag is False!')
 
     # **************************************************************************************** baseline training methods
@@ -575,7 +580,7 @@ class NEModel(NNWrap):
             data_TS=        data['test'] if 'test' in data else None,
             batch_size=     self['batch_size'],
             batching_type=  'random_cov',
-            logger=         get_hi_child(self.__log, 'Batcher'))
+            logger=         get_hi_child(self._log, 'Batcher'))
 
     # builds feed dict from given batch of data
     def build_feed(self, batch: dict, train=True) -> dict:
@@ -812,8 +817,7 @@ class NEModel(NNWrap):
 
     @property
     def tbwr(self):
-        return self.__TBwr
-
+        return self._TBwr
 
     def __str__(self):
         # TODO: add some NEModel-specific output (name, graph info, weights)
