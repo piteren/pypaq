@@ -59,14 +59,12 @@ from pypaq.lipytools.little_methods import short_scin, stamp, get_params, get_fu
 from pypaq.lipytools.moving_average import MovAvg
 from pypaq.lipytools.pylogger import get_pylogger, get_hi_child
 from pypaq.mpython.devices import mask_cuda, get_devices
-from pypaq.mpython.mpdecor import proc_wait
 from pypaq.pms.parasave import ParaSave
 from pypaq.comoneural.nnwrap import NNWrap, NNWrapException
 from pypaq.neuralmess.get_tf import tf
 from pypaq.neuralmess.base_elements import num_var_floats, lr_scaler, gc_loss_reductor, log_vars, mrg_ckpts
 from pypaq.neuralmess.layers import lay_dense
 from pypaq.neuralmess.multi_saver import MultiSaver
-from pypaq.comoneural.batcher import Batcher
 
 
 # default FWD function (forward graph), it is given as an exemplary implementation
@@ -202,8 +200,9 @@ class NEModel(NNWrap):
         'acc',          # accuracy
         'f1'}           # F1
 
+    # some defaults of NEModel are in default opt_func (opt_graph) above
     INIT_DEFAULTS = {
-        'seed':                 12321,      # seed for TF and numpy
+        'seed':                 123,        # seed for TF and numpy
         'devices':              -1,         # : DevicesParam (check pypaq.mpython.devices)
             # training
         'batch_size':           64,         # training batch size
@@ -219,7 +218,6 @@ class NEModel(NNWrap):
         'sep_device':           True,       # separate first device for variables, gradients_avg, optimizer (otherwise those ar placed on the first FWD calculations tower)
         'collocate_GWO':        False}      # collocates gradient calculations with tf.OPs (gradients are calculated on every tower with its operations, but remember that vars are on one device...) (otherwise with first FWD calculations tower)
 
-    SAVE_TOPDIR = '_models'
     SAVE_FN_PFX = 'nemodel_dna' # filename (DNA) prefix
 
     def __init__(
@@ -243,6 +241,8 @@ class NEModel(NNWrap):
             nngraph=    nngraph,
             opt_func=   opt_func, # give with kwargs
             **kwargs)
+
+    # ******************************************************************************************* NNWrap init submethods
 
     def _generate_name(
             self,
@@ -316,7 +316,6 @@ class NEModel(NNWrap):
         self._log.debug(f'opt_func complete DNA:         {self._dna_opt_func}')
         self._log.debug(f'>> kwargs not used by graphs : {not_used_kwargs}')
         self._log.debug(f'{self.name} complete DNA:      {self._dna}')
-
 
     def _manage_devices(self):
 
@@ -535,52 +534,78 @@ class NEModel(NNWrap):
             logger=     get_hi_child(self._log, 'MultiSaver'))
         if self['load_saver']: self.load_ckpt()
 
+    # *********************************************************************************************** load / save / copy
+
     # reloads model checkpoint, updates baseLR
-    def load_ckpt(self):
+    def load_ckpt(self) -> None:
         saver = None if type(self['load_saver']) is bool else self['load_saver']
         self._saver.load(saver=saver)
         if 'baseLR' in self: self.update_baseLR(self['baseLR'])
 
     # saves model checkpoint
-    def save_ckpt(self):
+    def save_ckpt(self) -> None:
         assert not self['read_only'], f'ERR: cannot save NEModel checkpoint {self.name} while model is readonly!'
         self._saver.save()
 
-    # updates baseLR in graph - but not saves it to the checkpoint
-    def update_baseLR(self, lr: Optional):
-        if 'baseLR_var' not in self:
-            self._log.warning('NEModel: There is no LR variable in graph to update')
-        else:
-            if lr is not None:
-                old = self['baseLR']
-                self['baseLR'] = lr
-                self._log.debug(f'NEModel {self.name} updated baseLR from {old} to {self["baseLR"]}')
-            self._session.run(tf.assign(ref=self['baseLR_var'], value=self['baseLR']))
-            self._log.debug(f'NEModel {self.name} updated baseLR_var (graph variable) with baseLR: {self["baseLR"]}')
+    @classmethod
+    def copy_checkpoint(
+            cls,
+            name_src: str,
+            name_trg: str,
+            save_topdir_src: Optional[str]= None,
+            save_topdir_trg: Optional[str]= None):
 
-    # logs value to TB
-    def log_TB(
-            self,
-            value,
-            tag: str,
-            step: int):
-        if self['do_TB']: self._TBwr.add(value=value, tag=tag, step=step)
-        else: self._log.warning(f'NEModel {self.name} cannot log TensorBoard since do_TB flag is False!')
+        if not save_topdir_src: save_topdir_src = cls.SAVE_TOPDIR
+        if not save_topdir_trg: save_topdir_trg = save_topdir_src
 
-    # **************************************************************************************** baseline training methods
+        nm_SFD = f'{save_topdir_src}/{name_src}'
+        ckptL = [cfd for cfd in os.listdir(nm_SFD) if os.path.isdir(os.path.join(nm_SFD, cfd))]
+        if 'opt_vars' in ckptL: ckptL.remove('opt_vars')
+        for ckpt in ckptL:
+            mrg_ckpts(
+                ckptA=          ckpt,
+                ckptA_FD=       nm_SFD,
+                ckptB=          None,
+                ckptB_FD=       None,
+                ckptM=          ckpt,
+                ckptM_FD=       f'{save_topdir_trg}/{name_trg}',
+                replace_scope=  name_trg)
 
-    # loads data to Batcher
-    def load_data(self, data: Dict):
+    # *************************************************************************************************************** GX
 
-        if 'train' not in data: raise NEModelException('given data should be a dict with at least "train" key present!')
+    @classmethod
+    def gx_ckpt(
+            cls,
+            name_A: str,                        # name parent A
+            name_B: str,                        # name parent B
+            name_child: str,                    # name child
+            save_topdir_A: Optional[str]=       None,
+            save_topdir_B: Optional[str]=       None,
+            save_topdir_child: Optional[str]=   None,
+            ratio: float=                       0.5,
+            noise: float=                       0.03):
 
-        self._batcher = Batcher(
-            data_TR=        data['train'],
-            data_VL=        data['valid'] if 'valid' in data else None,
-            data_TS=        data['test'] if 'test' in data else None,
-            batch_size=     self['batch_size'],
-            batching_type=  'random_cov',
-            logger=         get_hi_child(self._log, 'Batcher'))
+        if not save_topdir_A: save_topdir_A = cls.SAVE_TOPDIR
+        if not save_topdir_B: save_topdir_B = save_topdir_A
+        if not save_topdir_child: save_topdir_child = save_topdir_A
+
+        mfd = f'{save_topdir_A}/{name_A}'
+        ckptL = [dI for dI in os.listdir(mfd) if os.path.isdir(os.path.join(mfd,dI))]
+        if 'opt_vars' in ckptL: ckptL.remove('opt_vars')
+
+        for ckpt in ckptL:
+            mrg_ckpts(
+                ckptA=          ckpt,
+                ckptA_FD=       f'{save_topdir_A}/{name_A}/',
+                ckptB=          ckpt,
+                ckptB_FD=       f'{save_topdir_B}/{name_B}/',
+                ckptM=          ckpt,
+                ckptM_FD=       f'{save_topdir_child}/{name_child}/',
+                replace_scope=  name_child,
+                ratio=          ratio,
+                noise=          noise)
+
+    # ***************************************************************************************************** train / test
 
     # builds feed dict from given batch of data
     def build_feed(self, batch: dict, train=True) -> dict:
@@ -589,15 +614,14 @@ class NEModel(NNWrap):
 
     # TODO: refactor according to MOTorch train concept
     #  - load_data()
-    # training method, saves max
     def train(
             self,
             data=                       None,
             n_batches: Optional[int]=   None,
-            test_freq=                  100,    # number of batches between tests, model SHOULD BE tested while training
+            test_freq=                  100,
             mov_avg_factor=             0.1,
-            save=                       True    # allows to save model while training
-    ) -> float:
+            save=                       True,
+            **kwargs) -> float:
 
         if data is not None: self.load_data(data)
         if not self._batcher: raise NEModelException('NEModel has not been given data for training, use load_data() or give it while training!')
@@ -669,8 +693,14 @@ class NEModel(NNWrap):
 
         return ts_wval
 
-    # tests model, returns accuracy and loss (average)
-    def test(self) -> Tuple[float,float]:
+    def test(
+            self,
+            data=   None,
+            **kwargs) -> Tuple[float,float]:
+
+        if data is not None: self.load_data(data)
+        if not self._batcher: raise NEModelException('NEModel has not been given data for testing, use load_data() or give it while testing!')
+
         batches = self._batcher.get_TS_batches()
         lossL = []
         accL = []
@@ -680,132 +710,8 @@ class NEModel(NNWrap):
             loss, acc = self._session.run(fetches, feed)
             lossL.append(loss)
             accL.append(acc)
+
         return sum(accL)/len(accL), sum(lossL)/len(lossL)
-
-    # copies full NEModel folder (DNA & checkpoints)
-    @classmethod
-    def copy_saved(
-            cls,
-            name_src: str,
-            name_trg: str,
-            save_topdir_src: Optional[str]= None,
-            save_topdir_trg: Optional[str]= None,
-            save_fn_pfx: Optional[str]=     None):
-
-        if not save_topdir_src: save_topdir_src = cls.SAVE_TOPDIR
-        if not save_fn_pfx: save_fn_pfx = cls.SAVE_FN_PFX
-
-        if save_topdir_trg is None: save_topdir_trg = save_topdir_src
-
-        # copy DNA with ParaSave
-        cls.copy_saved_dna(
-            name_src=           name_src,
-            name_trg=           name_trg,
-            save_topdir_src=    save_topdir_src,
-            save_topdir_trg=    save_topdir_trg,
-            save_fn_pfx=        save_fn_pfx)
-
-        # copy checkpoints
-        nm_SFD = f'{save_topdir_src}/{name_src}'
-        ckptL = [cfd for cfd in os.listdir(nm_SFD) if os.path.isdir(os.path.join(nm_SFD, cfd))]
-        if 'opt_vars' in ckptL: ckptL.remove('opt_vars')
-        for ckpt in ckptL:
-            mrg_ckpts(
-                ckptA=          ckpt,
-                ckptA_FD=       nm_SFD,
-                ckptB=          None,
-                ckptB_FD=       None,
-                ckptM=          ckpt,
-                ckptM_FD=       f'{save_topdir_trg}/{name_trg}',
-                replace_scope=  name_trg)
-
-    # GX for two NEModel checkpoints
-    @classmethod
-    def gx_ckpt(
-            cls,
-            name_A: str,                        # name parent A
-            name_B: str,                        # name parent B
-            name_child: str,                    # name child
-            folder_A: Optional[str]=        None,
-            folder_B: Optional[str]=        None,
-            folder_child: Optional[str]=    None,
-            ratio: float=                   0.5,
-            noise: float=                   0.03):
-
-        if not folder_A: folder_A = cls.SAVE_TOPDIR
-        if not folder_B: folder_B = folder_A
-        if not folder_child: folder_child = folder_A
-
-        mfd = f'{folder_A}/{name_A}'
-        ckptL = [dI for dI in os.listdir(mfd) if os.path.isdir(os.path.join(mfd,dI))]
-        if 'opt_vars' in ckptL: ckptL.remove('opt_vars')
-
-        for ckpt in ckptL:
-            mrg_ckpts(
-                ckptA=          ckpt,
-                ckptA_FD=       f'{folder_A}/{name_A}/',
-                ckptB=          ckpt,
-                ckptB_FD=       f'{folder_B}/{name_B}/',
-                ckptM=          ckpt,
-                ckptM_FD=       f'{folder_child}/{name_child}/',
-                replace_scope=  name_child,
-                ratio=          ratio,
-                noise=          noise)
-
-    # performs GX on saved NEModel objects (NEModel as a ParaSave and then checkpoints, without even building child objects)
-    @classmethod
-    def gx_saved(
-            cls,
-            name_parent_main: str,
-            name_parent_scnd: Optional[str],    # if not given makes GX only with main parent
-            name_child: str,
-            save_topdir_parent_main: Optional[str]= None,
-            save_topdir_parent_scnd: Optional[str]= None,
-            save_topdir_child: Optional[str] =      None,
-            save_fn_pfx: Optional[str] =            None,
-            do_gx_ckpt=                             True,
-            ratio: float=                           0.5,
-            noise: float=                           0.03
-    ) -> None:
-
-        if not save_topdir_parent_main: save_topdir_parent_main = cls.SAVE_TOPDIR
-        if not save_fn_pfx: save_fn_pfx = cls.SAVE_FN_PFX
-
-        # build NEModel and save its ckpt in a separate subprocess
-        @proc_wait
-        def save(name:str, save_topdir:str):
-            nm = NEModel(name=name, save_topdir=save_topdir)
-            nm.save_ckpt()
-
-        cls.gx_saved_dna(
-            name_parent_main=           name_parent_main,
-            name_parent_scnd=           name_parent_scnd,
-            name_child=                 name_child,
-            save_topdir_parent_main=    save_topdir_parent_main,
-            save_topdir_parent_scnd=    save_topdir_parent_scnd,
-            save_topdir_child=          save_topdir_child,
-            save_fn_pfx=                save_fn_pfx)
-
-        if do_gx_ckpt:
-            cls.gx_ckpt(
-                name_A=         name_parent_main,
-                name_B=         name_parent_scnd or name_parent_main,
-                name_child=     name_child,
-                folder_A=       save_topdir_parent_main,
-                folder_B=       save_topdir_parent_scnd,
-                folder_child=   save_topdir_child,
-                ratio=          ratio,
-                noise=          noise)
-        else: save(
-            name=           name_child,
-            save_topdir=    save_topdir_child or save_topdir_parent_main)
-
-    # saves NEModel (ParaSave DNA and checkpoint)
-    def save(self):
-        assert not self['read_only'], f'ERR: cannot save NEModel {self.name} while model is readonly!'
-        ParaSave.save_dna(self)
-        self.save_ckpt()
-        self._log.info(f'NEMmodel {self.name} saved')
 
     @property
     def gFWD(self):
@@ -815,10 +721,18 @@ class NEModel(NNWrap):
     def session(self):
         return self._session
 
-    @property
-    def tbwr(self):
-        return self._TBwr
+    # updates baseLR in graph - but not saves it to the checkpoint
+    def update_baseLR(self, lr: Optional[float]) -> None:
+        if 'baseLR_var' not in self:
+            self._log.warning('NEModel: There is no LR variable in graph to update')
+        else:
+            if lr is not None:
+                old = self['baseLR']
+                self['baseLR'] = lr
+                self._log.debug(f'NEModel {self.name} updated baseLR from {old} to {self["baseLR"]}')
+            self._session.run(tf.assign(ref=self['baseLR_var'], value=self['baseLR']))
+            self._log.debug(f'NEModel {self.name} updated baseLR_var (graph variable) with baseLR: {self["baseLR"]}')
 
     def __str__(self):
         # TODO: add some NEModel-specific output (name, graph info, weights)
-        return ParaSave.dict_2str(self.get_point())
+        return ParaSave.__str__(self)

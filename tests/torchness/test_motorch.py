@@ -6,7 +6,7 @@ import unittest
 
 from tests.envy import flush_tmp_dir
 
-from pypaq.torchness.motorch import MOTorch, Module, MOTorchException
+from pypaq.torchness.motorch import MOTorch, Module, MOTorchException, NNWrapException
 from pypaq.torchness.layers import LayDense
 
 MOTORCH_DIR = f'{flush_tmp_dir()}/motorch'
@@ -326,7 +326,7 @@ class TestMOTorch(unittest.TestCase):
         model = MOTorch(
             name=       name,
             read_only=  True)
-        self.assertRaises(MOTorchException, model.save)
+        self.assertRaises(NNWrapException, model.save)
 
     def test_save_load_full(self):
 
@@ -429,7 +429,7 @@ class TestMOTorch(unittest.TestCase):
             nngraph=        LinModel,
             hpmser_mode=    True,
             in_drop=        0.1)
-        self.assertRaises(MOTorchException, model.save)
+        self.assertRaises(NNWrapException, model.save)
 
 
 if __name__ == '__main__':

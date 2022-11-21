@@ -17,7 +17,6 @@ from pypaq.lipytools.pylogger import get_hi_child
 from pypaq.pms.parasave import ParaSave
 from pypaq.comoneural.nnwrap import NNWrap, NNWrapException
 from pypaq.mpython.devices import get_devices
-from pypaq.comoneural.batcher import Batcher
 from pypaq.torchness.base_elements import ScaledLR, GradClipperAVT, mrg_ckpts
 
 
@@ -84,7 +83,6 @@ class MOTorch(NNWrap, Module):
         'read_only':        False,              # sets model to be read only - wont save anything (wont even create self.model_dir)
         'do_TB':            True}               # runs TensorBard, saves in self.model_dir
 
-    SAVE_TOPDIR = '_models'
     SAVE_FN_PFX = 'motorch_dna' # filename (DNA) prefix
 
     def __init__(
@@ -101,6 +99,8 @@ class MOTorch(NNWrap, Module):
             self,
             nngraph=    nngraph,
             **kwargs)
+
+    # ******************************************************************************************* NNWrap init submethods
 
     def _generate_name(
             self,
@@ -173,6 +173,8 @@ class MOTorch(NNWrap, Module):
         self.__set_training(False)
         self._log.debug(f'> set MOTorch train.mode to False..')
 
+    # *********************************************************************************************** load / save / copy
+
     # returns path of checkpoint pickle file
     @staticmethod
     def __get_ckpt_path_static(model_dir:str, model_name:str) -> str:
@@ -182,8 +184,7 @@ class MOTorch(NNWrap, Module):
     def __get_ckpt_path(self) -> str:
         return self.__get_ckpt_path_static(self.model_dir, self.name)
 
-    # reloads model checkpoint
-    def load_ckpt(self):
+    def load_ckpt(self) -> None:
         # TODO: load all that has been saved
         """
         print(f'@@@@@ {self._torch_dev}')
@@ -197,7 +198,7 @@ class MOTorch(NNWrap, Module):
         self.load_state_dict(checkpoint['model_state_dict'])
 
     # saves model checkpoint
-    def save_ckpt(self):
+    def save_ckpt(self) -> None:
         # TODO: decide what to save
         torch.save({
             #'epoch': 5,
@@ -205,6 +206,49 @@ class MOTorch(NNWrap, Module):
             # 'optimizer_state_dict': optimizer.state_dict(),
             #'loss': 0.4
         }, self.__get_ckpt_path())
+
+    @classmethod
+    def copy_checkpoint(
+            cls,
+            name_src: str,
+            name_trg: str,
+            save_topdir_src: Optional[str]= None,
+            save_topdir_trg: Optional[str]= None):
+        if not save_topdir_src: save_topdir_src = cls.SAVE_TOPDIR
+        if not save_topdir_trg: save_topdir_trg = save_topdir_src
+        shutil.copyfile(
+            src=    MOTorch.__get_ckpt_path_static(f'{save_topdir_src}/{name_src}', name_src),
+            dst=    MOTorch.__get_ckpt_path_static(f'{save_topdir_trg}/{name_trg}', name_trg))
+
+    # *************************************************************************************************************** GX
+
+    @classmethod
+    def gx_ckpt(
+            cls,
+            name_A: str,                            # name parent A
+            name_B: str,                            # name parent B
+            name_child: str,                        # name child
+            save_topdir_A: Optional[str]=       None,
+            save_topdir_B: Optional[str]=       None,
+            save_topdir_child: Optional[str]=   None,
+            ratio: float=                       0.5,
+            noise: float=                       0.03):
+
+        if not save_topdir_A: save_topdir_A = cls.SAVE_TOPDIR
+        if not save_topdir_B: save_topdir_B = save_topdir_A
+        if not save_topdir_child: save_topdir_child = save_topdir_A
+
+        model_dir_child = f'{save_topdir_child}/{name_child}'
+        prep_folder(model_dir_child)
+
+        mrg_ckpts(
+            ckptA=          MOTorch.__get_ckpt_path_static(f'{save_topdir_A}/{name_A}', name_A),
+            ckptB=          MOTorch.__get_ckpt_path_static(f'{save_topdir_B}/{name_B}', name_B),
+            ckptM=          MOTorch.__get_ckpt_path_static(model_dir_child, name_child),
+            ratio=          ratio,
+            noise=          noise)
+
+    # ***************************************************************************************************** train / test
 
     # converts all values given with args & kwargs to tensors and moves to self._torch_dev (device)
     def __torch_dev(
@@ -281,24 +325,9 @@ class MOTorch(NNWrap, Module):
 
         return out
 
-    # logs value to TB
-    def log_TB(
-            self,
-            value,
-            tag: str,
-            step: int):
-
-        if self['do_TB']: self._TBwr.add(value=value, tag=tag, step=step)
-        else: self._log.warning(f'NEModel {self.name} cannot log TensorBoard since do_TB flag is False!')
-
-    # **************************************************************************************** baseline training methods
-
-    # loads data to Batcher
+    # adds conversion to torch.Tensors and moves to device
     def load_data(self, data: Dict):
 
-        if 'train' not in data: raise MOTorchException('given data should be a dict with at least "train" key present!')
-
-        # eventually convert to torch.Tensors and move to device
         data_td = {}
         for k in data:
             data_td[k] = {}
@@ -308,23 +337,16 @@ class MOTorch(NNWrap, Module):
                 d = d.to(self._torch_dev)
                 data_td[k][l] = d
 
-        self._batcher = Batcher(
-            data_TR=        data_td['train'],
-            data_VL=        data_td['valid'] if 'valid' in data_td else None,
-            data_TS=        data_td['test'] if 'test' in data_td else None,
-            batch_size=     self['batch_size'],
-            batching_type=  'random_cov',
-            logger=         get_hi_child(self._log, 'Batcher'))
+        super(self).load_data(data=data_td)
 
-    # trains model
     def train(
             self,
             data=                       None,
             n_batches: Optional[int]=   None,
-            test_freq=                  100,    # number of batches between tests, model SHOULD BE tested while training
+            test_freq=                  100,
             mov_avg_factor=             0.1,
-            save=                       True    # allows to save model while training
-    ) -> float:
+            save=                       True,
+            **kwargs) -> float:
 
         if data is not None: self.load_data(data)
         if not self._batcher: raise MOTorchException('MOTorch has not been given data for training, use load_data() or give it while training!')
@@ -386,7 +408,7 @@ class MOTorch(NNWrap, Module):
                     ts_acc_max = ts_acc
                     if not self['read_only'] and save: self.save_ckpt() # model is saved for max_ts_acc
 
-        # weighted (linear ascending weight) test value for last 10% test results
+        # weighted (linear ascending weight) test score for last 10% test results
         ts_wval = 0.0
         weight = 1
         sum_weight = 0
@@ -405,7 +427,6 @@ class MOTorch(NNWrap, Module):
 
         return ts_wval
 
-    # tests model, returns accuracy and loss (average)
     def test(
             self,
             data=                           None,
@@ -429,137 +450,10 @@ class MOTorch(NNWrap, Module):
 
         return sum(accL)/len(accL), sum(lossL)/len(lossL)
 
-    # copies just checkpoint
-    @classmethod
-    def copy_checkpoint(
-            cls,
-            name_src: str,
-            name_trg: str,
-            save_topdir_src: Optional[str]= None,
-            save_topdir_trg: Optional[str]= None):
-        if not save_topdir_src: save_topdir_src = cls.SAVE_TOPDIR
-        if not save_topdir_trg: save_topdir_trg = save_topdir_src
-        shutil.copyfile(
-            src=    MOTorch.__get_ckpt_path_static(f'{save_topdir_src}/{name_src}', name_src),
-            dst=    MOTorch.__get_ckpt_path_static(f'{save_topdir_trg}/{name_trg}', name_trg))
-
-    # copies full MOTorch folder (DNA & checkpoints)
-    @classmethod
-    def copy_saved(
-            cls,
-            name_src: str,
-            name_trg: str,
-            save_topdir_src: Optional[str]= None,
-            save_topdir_trg: Optional[str]= None,
-            save_fn_pfx: Optional[str]=     None):
-
-        if not save_topdir_src: save_topdir_src = cls.SAVE_TOPDIR
-        if not save_fn_pfx: save_fn_pfx = cls.SAVE_FN_PFX
-
-        if save_topdir_trg is None: save_topdir_trg = save_topdir_src
-
-        # copy DNA
-        cls.copy_saved_dna(
-            name_src=           name_src,
-            name_trg=           name_trg,
-            save_topdir_src=    save_topdir_src,
-            save_topdir_trg=    save_topdir_trg,
-            save_fn_pfx=        save_fn_pfx)
-
-        # copy checkpoint
-        cls.copy_checkpoint(
-            name_src=           name_src,
-            name_trg=           name_trg,
-            save_topdir_src=    save_topdir_src,
-            save_topdir_trg=    save_topdir_trg)
-
-    # GX for two MOTorch checkpoints
-    @classmethod
-    def gx_ckpt(
-            cls,
-            name_A: str,                            # name parent A
-            name_B: str,                            # name parent B
-            name_child: str,                        # name child
-            save_topdir_A: Optional[str]=       None,
-            save_topdir_B: Optional[str]=       None,
-            save_topdir_child: Optional[str]=   None,
-            ratio: float=                       0.5,
-            noise: float=                       0.03):
-
-        if not save_topdir_A: save_topdir_A = cls.SAVE_TOPDIR
-        if not save_topdir_B: save_topdir_B = save_topdir_A
-        if not save_topdir_child: save_topdir_child = save_topdir_A
-        model_dir_child = f'{save_topdir_child}/{name_child}'
-        prep_folder(model_dir_child)
-
-        mrg_ckpts(
-            ckptA=          MOTorch.__get_ckpt_path_static(f'{save_topdir_A}/{name_A}', name_A),
-            ckptB=          MOTorch.__get_ckpt_path_static(f'{save_topdir_B}/{name_B}', name_B),
-            ckptM=          MOTorch.__get_ckpt_path_static(model_dir_child, name_child),
-            ratio=          ratio,
-            noise=          noise)
-
-
-    # performs GX on saved MOTorch objects (MOTorch as a ParaSave and then checkpoints, without even building child objects)
-    @classmethod
-    def gx_saved(
-            cls,
-            name_parent_main: str,
-            name_parent_scnd: Optional[str],    # if not given makes GX only with main parent
-            name_child: str,
-            save_topdir_parent_main: Optional[str]= None,
-            save_topdir_parent_scnd: Optional[str]= None,
-            save_topdir_child: Optional[str]=       None,
-            save_fn_pfx: Optional[str]=             None,
-            do_gx_ckpt=                             True,
-            ratio: float=                           0.5,
-            noise: float=                           0.03
-    ) -> None:
-
-        if not save_topdir_parent_main: save_topdir_parent_main = cls.SAVE_TOPDIR
-        if not save_fn_pfx: save_fn_pfx = cls.SAVE_FN_PFX
-
-        cls.gx_saved_dna(
-            name_parent_main=           name_parent_main,
-            name_parent_scnd=           name_parent_scnd,
-            name_child=                 name_child,
-            save_topdir_parent_main=    save_topdir_parent_main,
-            save_topdir_parent_scnd=    save_topdir_parent_scnd,
-            save_topdir_child=          save_topdir_child,
-            save_fn_pfx=                save_fn_pfx)
-
-        if do_gx_ckpt:
-            cls.gx_ckpt(
-                name_A=             name_parent_main,
-                name_B=             name_parent_scnd or name_parent_main,
-                name_child=         name_child,
-                save_topdir_A=      save_topdir_parent_main,
-                save_topdir_B=      save_topdir_parent_scnd,
-                save_topdir_child=  save_topdir_child,
-                ratio=              ratio,
-                noise=              noise)
-        else:
-            cls.copy_checkpoint(
-                name_src=           name_parent_main,
-                name_trg=           name_child,
-                save_topdir_src=    save_topdir_parent_main,
-                save_topdir_trg=    save_topdir_child)
-
     # updates scheduler baseLR of 0 group
     def update_baseLR(self, lr: float):
         self['baseLR'] = lr # in case model will be saved >> loaded
         self._scheduler.update_base_lr0(lr)
-
-    # saves MOTorch (ParaSave DNA and checkpoint)
-    def save(self):
-        if self['read_only']: raise MOTorchException('ERR: read only MOTorch cannot be saved!')
-        self.save_dna()
-        self.save_ckpt()
-        self._log.info(f'MOTorch {self.name} saved')
-
-    @property
-    def tbwr(self):
-        return self._TBwr
 
     def __str__(self):
         return f'MOTorch: {self.name}\n{self.nngraph.__str__(self)}{ParaSave.__str__(self)}'

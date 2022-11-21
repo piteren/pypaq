@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Callable, Union
+from typing import Optional, Callable, Union, Tuple, Dict
 
+from pypaq.comoneural.batcher import Batcher
 from pypaq.lipytools.little_methods import get_params, get_func_dna, prep_folder
 from pypaq.lipytools.pylogger import get_pylogger, get_hi_child
 from pypaq.pms.parasave import ParaSave
@@ -44,6 +45,8 @@ class NNWrap(ParaSave, ABC):
         'hpmser_mode':      False,      # it will set model to be read_only and quiet when running with hpmser
         'read_only':        False,      # sets model to be read only - wont save anything (wont even create self.model_dir)
         'do_TB':            True}       # runs TensorBard, saves in self.model_dir
+
+    SAVE_TOPDIR = '_models'
 
     def __init__(
             self,
@@ -93,9 +96,9 @@ class NNWrap(ParaSave, ABC):
         self._log.info(f'*** NNWrap *** name: {self.name} initializes for nngraph: {nng_info}')
         self._log.debug(f'> NNWrap dir: {self.model_dir}{" <- read only mode!" if _read_only else ""}')
 
-        self._dna = {
-            'nngraph':      self.nngraph,
-            'model_dir':    self.model_dir}
+        self._dna = dict(
+            nngraph=    self.nngraph,
+            model_dir=  self.model_dir)
         self._manage_dna(
             save_topdir=    save_topdir,
             save_fn_pfx=    save_fn_pfx,
@@ -120,6 +123,8 @@ class NNWrap(ParaSave, ABC):
 
         self._log.debug(str(self))
         self._log.info(f'NNWrap init finished!')
+
+    # ******************************************************************************************* NNWrap init submethods
 
     # generates NNWrap name
     @abstractmethod
@@ -201,5 +206,173 @@ class NNWrap(ParaSave, ABC):
     @abstractmethod
     def _build_graph(self) -> None: pass
 
+    # *********************************************************************************************** load / save / copy
 
+    # (re)loads model checkpoint
+    @abstractmethod
+    def load_ckpt(self) -> None: pass
 
+    # saves model checkpoint
+    @abstractmethod
+    def save_ckpt(self) -> None: pass
+
+    # saves model (ParaSave DNA and model checkpoint)
+    def save(self) -> None:
+        if self['read_only']: raise NNWrapException('read only NNWrap cannot be saved!')
+        self.save_dna()
+        self.save_ckpt()
+        self._log.info(f'NNWrap {self.name} saved')
+
+    # copies just model checkpoint
+    @classmethod
+    @abstractmethod
+    def copy_checkpoint(
+            cls,
+            name_src: str,
+            name_trg: str,
+            save_topdir_src: Optional[str]= None,
+            save_topdir_trg: Optional[str]= None) -> None: pass
+
+    # copies full NNWrap folder (DNA & checkpoints)
+    @classmethod
+    def copy_saved(
+            cls,
+            name_src: str,
+            name_trg: str,
+            save_topdir_src: Optional[str]= None,
+            save_topdir_trg: Optional[str]= None,
+            save_fn_pfx: Optional[str]=     None):
+
+        if not save_topdir_src: save_topdir_src = cls.SAVE_TOPDIR
+        if not save_fn_pfx: save_fn_pfx = cls.SAVE_FN_PFX
+
+        if save_topdir_trg is None: save_topdir_trg = save_topdir_src
+
+        # copy DNA
+        cls.copy_saved_dna(
+            name_src=           name_src,
+            name_trg=           name_trg,
+            save_topdir_src=    save_topdir_src,
+            save_topdir_trg=    save_topdir_trg,
+            save_fn_pfx=        save_fn_pfx)
+
+        # copy checkpoint
+        cls.copy_checkpoint(
+            name_src=           name_src,
+            name_trg=           name_trg,
+            save_topdir_src=    save_topdir_src,
+            save_topdir_trg=    save_topdir_trg)
+
+    # *************************************************************************************************************** GX
+
+    # GX for two NNWrap checkpoints
+    @classmethod
+    def gx_ckpt(
+            cls,
+            name_A: str,                            # name parent A
+            name_B: str,                            # name parent B
+            name_child: str,                        # name child
+            save_topdir_A: Optional[str]=       None,
+            save_topdir_B: Optional[str]=       None,
+            save_topdir_child: Optional[str]=   None,
+            ratio: float=                       0.5,
+            noise: float=                       0.03) -> None: pass
+
+    # performs GX on saved NNWrap objects, without even building child objects
+    @classmethod
+    def gx_saved(
+            cls,
+            name_parent_main: str,
+            name_parent_scnd: Optional[str],    # if not given makes GX only with main parent
+            name_child: str,
+            save_topdir_parent_main: Optional[str]= None,
+            save_topdir_parent_scnd: Optional[str]= None,
+            save_topdir_child: Optional[str]=       None,
+            save_fn_pfx: Optional[str]=             None,
+            do_gx_ckpt=                             True,
+            ratio: float=                           0.5,
+            noise: float=                           0.03
+    ) -> None:
+
+        if not save_topdir_parent_main: save_topdir_parent_main = cls.SAVE_TOPDIR
+        if not save_fn_pfx: save_fn_pfx = cls.SAVE_FN_PFX
+
+        cls.gx_saved_dna(
+            name_parent_main=           name_parent_main,
+            name_parent_scnd=           name_parent_scnd,
+            name_child=                 name_child,
+            save_topdir_parent_main=    save_topdir_parent_main,
+            save_topdir_parent_scnd=    save_topdir_parent_scnd,
+            save_topdir_child=          save_topdir_child,
+            save_fn_pfx=                save_fn_pfx)
+
+        if do_gx_ckpt:
+            cls.gx_ckpt(
+                name_A=             name_parent_main,
+                name_B=             name_parent_scnd or name_parent_main,
+                name_child=         name_child,
+                save_topdir_A=      save_topdir_parent_main,
+                save_topdir_B=      save_topdir_parent_scnd,
+                save_topdir_child=  save_topdir_child,
+                ratio=              ratio,
+                noise=              noise)
+        else:
+            cls.copy_checkpoint(
+                name_src=           name_parent_main,
+                name_trg=           name_child,
+                save_topdir_src=    save_topdir_parent_main,
+                save_topdir_trg=    save_topdir_child)
+
+    # ***************************************************************************************************** train / test
+
+    # loads data to Batcher
+    def load_data(self, data: Dict):
+
+        if 'train' not in data:
+            msg = 'given data should be a dict with at least "train" key present!'
+            self._log.error(msg)
+            raise NNWrapException(msg)
+
+        self._batcher = Batcher(
+            data_TR=        data['train'],
+            data_VL=        data['valid'] if 'valid' in data else None,
+            data_TS=        data['test'] if 'test' in data else None,
+            batch_size=     self['batch_size'],
+            batching_type=  'random_cov',
+            logger=         get_hi_child(self._log, 'Batcher'))
+
+     # trains model, should save saves max test scored model, returns test score
+    @abstractmethod
+    def train(
+            self,
+            data=                       None,
+            n_batches: Optional[int]=   None,
+            test_freq=                  100,    # number of batches between tests, model SHOULD BE tested while training
+            mov_avg_factor=             0.1,
+            save=                       True,   # allows to save model while training (after max test)
+            **kwargs) -> float: pass
+
+    # tests model, returns accuracy and loss (average)
+    @abstractmethod
+    def test(self, data=None, **kwargs) -> Tuple[float,float]: pass
+
+    # updates model baseLR
+    @abstractmethod
+    def update_baseLR(self, lr: float) -> None: pass
+
+    @property
+    def tbwr(self):
+        return self._TBwr
+
+    # logs value to TB
+    def log_TB(
+            self,
+            value,
+            tag: str,
+            step: int) -> None:
+        if self['do_TB']: self._TBwr.add(value=value, tag=tag, step=step)
+        else: self._log.warning(f'NNWrap {self.name} cannot log TensorBoard since do_TB flag is False!')
+
+    # returns nice string about self
+    @abstractmethod
+    def __str__(self) -> str: pass
