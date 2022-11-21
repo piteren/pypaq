@@ -51,7 +51,7 @@
 
 import numpy as np
 import os
-from typing import Optional, Callable, Tuple, Dict
+from typing import Optional, Callable, Tuple
 import warnings
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
