@@ -181,6 +181,9 @@ class MOTorch(NNWrap, Module):
         self.__set_training(False)
         self._log.debug(f'> set MOTorch train.mode to False..')
 
+    def __call__(self, *args, **kwargs):
+        return torch.nn.Module.__call__(self, *args, **kwargs)
+
     # *********************************************************************************************** load / save / copy
 
     # returns path of checkpoint pickle file
