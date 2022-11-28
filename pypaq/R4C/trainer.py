@@ -65,7 +65,7 @@ class Trainer(ABC):
             logger):
 
         self.__log = logger
-        self.__log.info(f'*** Trainer initializes..')
+        self.__log.info(f'*** Trainer *** initializes..')
         self.__log.info(f'> Envy:          {envy.__class__.__name__}')
         self.__log.info(f'> batch_size:    {batch_size}')
         self.__log.info(f'> memory size:   {batch_size*memsize_batches}')
