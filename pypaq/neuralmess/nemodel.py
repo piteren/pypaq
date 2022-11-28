@@ -512,6 +512,8 @@ class NEModel(NNWrap):
     def __call__(self, fetches, feed_dict):
         return self._session.run(fetches=fetches, feed_dict=feed_dict)
 
+    def backward(self, fetches, feed_dict) -> Tuple:
+        return self.__call__(fetches, feed_dict)
     # *********************************************************************************************** load / save / copy
 
     # reloads model checkpoint, updates baseLR

@@ -16,6 +16,7 @@
     - Supports / creates logger.
     - May be read only.
     - May be called (with __call__) <- runs NN FWD with given data
+    - May be called BWD with backward() <- runs gradient backprop for given data
     - Supports hpmser mode.
     - Manages seed and guarantees reproducibility.
     - Manages GPU / CPU devices used by NN.
@@ -236,6 +237,9 @@ class NNWrap(ParaSave, ABC):
 
     @abstractmethod
     def __call__(self, *args, **kwargs): pass
+
+    @abstractmethod
+    def backward(self, *args, **kwargs) -> object: pass
 
     # *********************************************************************************************** load / save / copy
 

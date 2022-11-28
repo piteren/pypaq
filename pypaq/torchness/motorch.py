@@ -326,10 +326,10 @@ class MOTorch(NNWrap, Module):
             **kwargs)
 
         out['loss'].backward()          # update gradients
-        gnD = self._grad_clipper.clip()  # clip gradients, adds: 'gg_norm' & 'gg_avt_norm' to out
-        self._opt.step()                 # apply optimizer
-        self._opt.zero_grad()            # clear gradients
-        self._scheduler.step()           # apply LR scheduler
+        gnD = self._grad_clipper.clip() # clip gradients, adds: 'gg_norm' & 'gg_avt_norm' to out
+        self._opt.step()                # apply optimizer
+        self._opt.zero_grad()           # clear gradients
+        self._scheduler.step()          # apply LR scheduler
 
         out['currentLR'] = self._scheduler.get_last_lr()[0] # INFO: we take currentLR of first group
         out.update(gnD)

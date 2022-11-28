@@ -64,7 +64,7 @@ class DQN_TFActor(DQN_Actor, ABC):
             new_qvs: List[float],
             inspect=    False) -> float:
 
-        _, loss, gn, gn_avt = self.nnw(
+        _, loss, gn, gn_avt = self.nnw.backward(
             fetches=[
                 self.nnw['optimizer'],
                 self.nnw['loss'],
