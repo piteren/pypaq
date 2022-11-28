@@ -23,7 +23,6 @@
     - Defines interface of baseline training & testing with data loaded to Batcher.
     - Defines / implements GX.
     - Adds some sanity checks.
-
 """
 
 from abc import ABC, abstractmethod

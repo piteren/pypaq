@@ -51,8 +51,10 @@ class Module(ABC, torch.nn.Module):
         raise NotImplementedError
 
 
+
 class MOTorchException(NNWrapException):
     pass
+
 
 # extends Module (torch.nn.Module) with ParaSave and many others
 class MOTorch(NNWrap, Module):
