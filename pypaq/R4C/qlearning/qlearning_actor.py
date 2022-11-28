@@ -39,7 +39,7 @@ class QLearningActor(TrainableActor, ABC):
 
     # updates QV for given observation and action (single observation/action), returns Actor "metric" - loss etc. (float)
     @abstractmethod
-    def upd_QV(
+    def _upd_QV(
             self,
             observation: object,
             action: int,
@@ -54,7 +54,7 @@ class QLearningActor(TrainableActor, ABC):
             inspect=    False) -> float:
         loss = 0.0
         for ob, ac, nq in zip(observations, actions, new_qvs):
-            loss += self.upd_QV(
+            loss += self._upd_QV(
                 observation=    ob,
                 action=         ac,
                 new_qv=         nq)

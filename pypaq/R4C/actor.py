@@ -10,6 +10,7 @@ from abc import abstractmethod, ABC
 import numpy as np
 
 
+
 class Actor(ABC):
 
     # returns Actor action based on observation according to Actor policy, optionally action may be sampled from probability
@@ -31,6 +32,10 @@ class TrainableActor(Actor, ABC):
     @abstractmethod
     def update_with_experience(self, **kwargs) -> float: pass
 
+    # saves (self) Actor state
+    @abstractmethod
+    def save(self) -> None: pass
+
     # returns some info about Actor
     @abstractmethod
-    def __str__(self): pass
+    def __str__(self) -> str: pass

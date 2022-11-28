@@ -6,12 +6,12 @@
 
 """
 
-from abc import ABC, abstractmethod
+from abc import ABC
 
-from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.lipytools.little_methods import stamp
 from pypaq.R4C.qlearning.qlearning_actor import QLearningActor
 from pypaq.R4C.envy import FiniteActionsRLEnvy
+from pypaq.comoneural.nnwrap import NNWrap
 
 
 # DQN (NN based) QLearningActor
@@ -20,46 +20,29 @@ class DQN_Actor(QLearningActor, ABC):
     def __init__(
             self,
             envy: FiniteActionsRLEnvy,
-            mdict: dict,
-            save_topdir,
-            logger=     None,
-            loglevel=   20):
+            nnwrap: type(NNWrap),
+            # mdict: dict, # TODO: give it with kwargs
+            **kwargs):
 
-        self._logger_given = bool(logger)
-        self._loglevel = loglevel
-        if not self._logger_given:
-            logger = get_pylogger(
-                name=       self.__class__.__name__,
-                add_stamp=  True,
-                folder=     save_topdir,
-                level=      self._loglevel)
-        self._log = logger
+        self._envy = envy
 
-        self._mdict = mdict
-        if 'name' not in self._mdict: self._mdict['name'] = f'nn_{self.__class__.__name__}_{stamp()}'
-        self._mdict['num_actions'] = envy.num_actions()
-        self._mdict['observation_width'] = self._get_observation_vec(envy.get_observation()).shape[-1]
-        self._mdict['save_topdir'] = save_topdir
-        
+        if 'name' not in kwargs: kwargs['name'] = f'nn_{self.__class__.__name__}_{stamp()}'
+        kwargs['num_actions'] = self._envy.num_actions()
+        kwargs['observation_width'] = self._get_observation_vec(self._envy.get_observation()).shape[-1]
 
-        self._log.info('*** DQN_Actor (NN based) initializes..')
-        self._log.info(f'> Envy:              {envy.__class__.__name__}')
-        self._log.info(f'> NN model name:     {self._mdict["name"]}')
-        self._log.info(f'> num_actions:       {self._mdict["num_actions"]}')
-        self._log.info(f'> observation_width: {self._mdict["observation_width"]}')
-        self._log.info(f'> save_topdir:       {self._mdict["save_topdir"]}')
-
-        self.nn = self._get_model()
+        nnwrap.__init__(self, **kwargs)
 
         self._upd_step = 0
 
-        self._log.info(f'DQN_Actor initialized')
-
-    @abstractmethod
-    def _get_model(self) -> object: pass
+        self._log.info('*** DQN_Actor (NN based) initialized')
+        self._log.info(f'> Envy:              {self._envy.__class__.__name__}')
+        self._log.info(f'> NN model name:     {self["name"]}')
+        self._log.info(f'> num_actions:       {self["num_actions"]}')
+        self._log.info(f'> observation_width: {self["observation_width"]}')
+        self._log.info(f'> save_topdir:       {self["save_topdir"]}')
 
     # INFO: not used since DQN_Actor updates only with batches
-    def upd_QV(
+    def _upd_QV(
             self,
             observation: object,
             action: int,

@@ -90,7 +90,7 @@ class QTableActor(QLearningActor, ABC):
         obs_vec = self._get_observation_vec(observation)
         return self.__qtable.get_QVs(obs_vec)
 
-    def upd_QV(
+    def _upd_QV(
             self,
             observation: object,
             action: int,
@@ -102,6 +102,9 @@ class QTableActor(QLearningActor, ABC):
             action=         action,
             new_qv=         old_qv + self._update_rate * diff)
         return abs(diff)
+
+    def save(self) -> None:
+        raise Exception('not implemented')
 
     def __str__(self):
         return f'QTableActor, QTable:\n{self.__qtable.__str__()}'

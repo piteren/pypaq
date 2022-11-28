@@ -276,7 +276,7 @@ class MOTorch(NNWrap, Module):
         torch.nn.Module.train(self, mode=mode)
 
     # runs forward on nn.Module (with current nn.Module.training.mode - by default not training)
-    # INFO: since MOTorch is a nn.Module call of forward() should be avoided, instead use just MOTorch.__call__()
+    # INFO: since MOTorch is a nn.Module call forward() call should be avoided, instead use just MOTorch.__call__() /self()
     def forward(
             self,
             *args,
