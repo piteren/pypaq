@@ -9,6 +9,7 @@
 from abc import ABC
 from typing import Optional, Union, Callable
 
+from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.lipytools.little_methods import stamp
 from pypaq.R4C.qlearning.qlearning_actor import QLearningActor
 from pypaq.R4C.envy import FiniteActionsRLEnvy
@@ -24,10 +25,18 @@ class DQN_Actor(QLearningActor, ABC):
             nnwrap: type(NNWrap),
             seed: int,
             logger,
+            loglevel,
             nngraph: Optional[Union[Callable, type]]=   None,
             name: Optional[str]=                        None,
             **kwargs):
 
+        logger_given = bool(logger)
+        if not logger_given:
+            logger = get_pylogger(
+                name=       'DQN_Actor',
+                add_stamp=  True,
+                folder=     None,
+                level=      loglevel)
         self.__log = logger
 
         QLearningActor.__init__(
@@ -44,6 +53,8 @@ class DQN_Actor(QLearningActor, ABC):
         self.nnw: NNWrap = nnwrap(
             nngraph=    nngraph,
             name=       name,
+            logger=     self.__log if logger_given else None,
+            loglevel=   loglevel,
             **kwargs)
 
         self._upd_step = 0

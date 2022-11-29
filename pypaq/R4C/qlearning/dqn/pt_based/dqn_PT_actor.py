@@ -12,7 +12,7 @@ from typing import List, Optional
 
 from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.R4C.qlearning.dqn.dqn_actor import DQN_Actor
-from pypaq.R4C.qlearning.dqn.pt_based.dqn_PT_module import LinModel
+from pypaq.R4C.qlearning.dqn.pt_based.dqn_PT_module import DQNModel
 from pypaq.torchness.motorch import MOTorch, Module
 
 
@@ -21,12 +21,13 @@ class DQN_PTActor(DQN_Actor, ABC):
 
     def __init__(
             self,
-            nngraph: Optional[type(Module)]=    LinModel,
+            nngraph: Optional[type(Module)]=    DQNModel,
             logger=                             None,
             loglevel=                           20,
             **kwargs):
 
-        if not logger:
+        logger_given = bool(logger)
+        if not logger_given:
             logger = get_pylogger(
                 name=       'DQN_PTActor',
                 add_stamp=  True,
@@ -38,7 +39,8 @@ class DQN_PTActor(DQN_Actor, ABC):
             self,
             nnwrap=     MOTorch,
             nngraph=    nngraph,
-            logger=     self.__log,
+            logger=     self.__log if logger_given else None, # if user gives logger we assume it to be nice logger, otherwise we want to pas None up to NNWrap, which manages logger in pretty way
+            loglevel=   loglevel,
             **kwargs)
 
     def _get_QVs(self, observation: object) -> np.ndarray:

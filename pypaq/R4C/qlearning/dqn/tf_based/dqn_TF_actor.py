@@ -26,7 +26,8 @@ class DQN_TFActor(DQN_Actor, ABC):
             loglevel=                       20,
             **kwargs):
 
-        if not logger:
+        logger_given = bool(logger)
+        if not logger_given:
             logger = get_pylogger(
                 name=       'DQN_TFActor',
                 add_stamp=  True,
@@ -38,22 +39,23 @@ class DQN_TFActor(DQN_Actor, ABC):
             self,
             nnwrap=     NEModel,
             nngraph=    nngraph,
-            logger=     self.__log,
+            logger=     self.__log if logger_given else None, # if user gives logger we assume it to be nice logger, otherwise we want to pas None up to NNWrap, which manages logger in pretty way
+            loglevel=   loglevel,
             **kwargs)
 
     def _get_QVs(self, observation: object) -> np.ndarray:
         obs_vec = self._get_observation_vec(observation)
         output = self.nnw(
-            fetches=    self.nnw['output'],
-            feed_dict=  {self.nnw['observations_PH']: [obs_vec]})
+            feed_dict=  {self.nnw['observations_PH']: [obs_vec]},
+            fetches=    self.nnw['output'])
         return output[0] # reduce dim
 
     # optimized with single call to session with a batch of observations
     def get_QVs_batch(self, observations: List[object]) -> np.ndarray:
         obs_vecs = np.array([self._get_observation_vec(o) for o in observations])
         output = self.nnw(
-            fetches=    self.nnw['output'],
-            feed_dict=  {self.nnw['observations_PH']: obs_vecs})
+            feed_dict=  {self.nnw['observations_PH']: obs_vecs},
+            fetches=    self.nnw['output'])
         return output
 
     # optimized with single call to session with a batch of data
@@ -65,15 +67,15 @@ class DQN_TFActor(DQN_Actor, ABC):
             inspect=    False) -> float:
 
         _, loss, gn, gn_avt = self.nnw.backward(
+            feed_dict={
+                self.nnw['observations_PH']: np.array([self._get_observation_vec(o) for o in observations]),
+                self.nnw['enum_actions_PH']: np.array(list(enumerate(actions))),
+                self.nnw['gold_QV_PH']:      np.array(new_qvs)},
             fetches=[
                 self.nnw['optimizer'],
                 self.nnw['loss'],
                 self.nnw['gg_norm'],
-                self.nnw['gg_avt_norm']],
-            feed_dict={
-                self.nnw['observations_PH']: np.array([self._get_observation_vec(o) for o in observations]),
-                self.nnw['enum_actions_PH']: np.array(list(enumerate(actions))),
-                self.nnw['gold_QV_PH']:      np.array(new_qvs)})
+                self.nnw['gg_avt_norm']])
 
         self._upd_step += 1
 

@@ -1,6 +1,6 @@
 """
 
- 2020 (c) piteren
+ 2022 (c) piteren
 
     baseline DQN Module for MOTorch (PyTorch)
 
@@ -13,7 +13,7 @@ from pypaq.torchness.motorch import Module
 from pypaq.torchness.layers import LayDense
 
 
-class LinModel(Module):
+class DQNModel(Module):
 
     def __init__(
             self,
@@ -70,5 +70,5 @@ class LinModel(Module):
         if mask is not None: loss *= mask       # mask
         loss = torch.sum(loss, dim=-1)          # reduce over samples
         out['loss'] = torch.mean(loss)          # average
-        out['acc'] = self.accuracy(logits, lbl) # using baseline
+        out['acc'] = self.accuracy(logits, lbl)
         return out
