@@ -48,13 +48,12 @@ class PG_Actor(TrainableActor, ABC):
             logger= self.__log)
         self._envy = envy  # to update type (for pycharm only)
 
-        if not name: name = f'nn_{self.__class__.__name__}_{stamp()}'
         kwargs['num_actions'] = self._envy.num_actions()
         kwargs['observation_width'] = self._get_observation_vec(self._envy.get_observation()).shape[-1]
 
         self.nnw: NNWrap = nnwrap(
             nngraph=    nngraph,
-            name=       name,
+            name=       name or f'nn_{self.__class__.__name__}_{stamp()}',
             logger=     self.__log if logger_given else None,
             loglevel=   loglevel,
             **kwargs)
