@@ -1,6 +1,6 @@
 import numpy as np
 
-from pypaq.R4C.policy_gradients.pg_TF_actor import PG_TFActor
+from pypaq.R4C.policy_gradients.base.tf_based.pg_TF_actor import PG_TFActor
 from pypaq.R4C.policy_gradients.actor_critic.ac_critic import ACCritic
 from pypaq.R4C.trainer import FATrainer
 

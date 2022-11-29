@@ -14,7 +14,7 @@
     - Parameters are kept in self as a Subscriptable to be easily accessed.
     - Properly resolves and holds name of object, adds stamp if needed.
     - Supports / creates logger.
-    - May be read only.
+    - May be read only (prevents save over).
     - May be called (with __call__) <- runs NN FWD with given data
     - May be called BWD with backward() <- runs gradient backprop for given data
     - Supports hpmser mode.
