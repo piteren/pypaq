@@ -2,7 +2,7 @@
 
  2022 (c) piteren
 
-    DQN_Actor - Actor with NN, common interface
+    DQN_Actor - Deep QLearningActor NN based
 
 """
 
@@ -46,7 +46,7 @@ class DQN_Actor(QLearningActor, ABC):
             logger= self.__log)
         self._envy = envy # to update type (for pycharm only)
 
-        if not name not in kwargs: name = f'nn_{self.__class__.__name__}_{stamp()}'
+        if not name: name = f'nn_{self.__class__.__name__}_{stamp()}'
         kwargs['num_actions'] = self._envy.num_actions()
         kwargs['observation_width'] = self._get_observation_vec(self._envy.get_observation()).shape[-1]
 
