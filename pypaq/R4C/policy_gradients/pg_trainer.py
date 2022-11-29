@@ -9,7 +9,7 @@
 from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.lipytools.plots import two_dim_multi
 from pypaq.R4C.helpers import zscore_norm, extract_from_batch, discounted_return, movavg_return
-from pypaq.R4C.policy_gradients.pg_TF_actor import PG_TFActor
+from pypaq.R4C.policy_gradients.pg_actor import PG_Actor
 from pypaq.R4C.trainer import FATrainer
 
 
@@ -17,7 +17,7 @@ class PGTrainer(FATrainer):
 
     def __init__(
             self,
-            actor: PG_TFActor,
+            actor: PG_Actor,
             discount: float,    # for discounted returns
             use_mavg: bool,     # use movavg to calculate discounted returns
             mavg_factor: float,
