@@ -49,6 +49,7 @@ class PG_PTActor(PG_Actor, ABC):
         obs_vec = self._get_observation_vec(observation)
         return self.nnw(obs_vec)['probs'].detach().cpu().numpy()
 
+    # optimized with batch call to NN
     def get_policy_probs_batch(self, observations) -> np.ndarray:
         obs_vecs = self._get_observation_vec_batch(observations)
         return self.nnw(obs_vecs)['probs'].detach().cpu().numpy()

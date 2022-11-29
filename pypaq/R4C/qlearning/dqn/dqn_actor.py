@@ -24,8 +24,8 @@ class DQN_Actor(QLearningActor, ABC):
             envy: FiniteActionsRLEnvy,
             nnwrap: type(NNWrap),
             seed: int,
-            logger,
-            loglevel,
+            logger: Optional,
+            loglevel: int,
             nngraph: Optional[Union[Callable, type]]=   None,
             name: Optional[str]=                        None,
             **kwargs):

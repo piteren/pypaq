@@ -51,7 +51,7 @@ class PG_TFActor(PG_Actor, ABC):
             fetches=    self.nnw['action_prob'])
         return probs[0]
 
-    # overrides with batch call to NN
+    # optimized with batch call to NN
     def get_policy_probs_batch(self, observations: List[object]) -> np.ndarray:
         obs_vecs = self._get_observation_vec_batch(observations)
         probs = self.nnw(
