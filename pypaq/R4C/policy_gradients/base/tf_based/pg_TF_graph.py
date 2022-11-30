@@ -2,7 +2,7 @@
 
  2020 (c) piteren
 
-    Policy Gradients Actor Graph
+    baseline PG graph for NEModel (TF)
 
 """
 

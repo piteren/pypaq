@@ -14,7 +14,9 @@
     - Parameters are kept in self as a Subscriptable to be easily accessed.
     - Properly resolves and holds name of object, adds stamp if needed.
     - Supports / creates logger.
-    - Allows NNWrap to be read only.
+    - May be read only (prevents save over).
+    - May be called (with __call__) <- runs NN FWD with given data
+    - May be called BWD with backward() <- runs gradient backprop for given data
     - Supports hpmser mode.
     - Manages seed and guarantees reproducibility.
     - Manages GPU / CPU devices used by NN.
@@ -232,6 +234,12 @@ class NNWrap(ParaSave, ABC):
     # builds NNWrap graph
     @abstractmethod
     def _build_graph(self) -> None: pass
+
+    @abstractmethod
+    def __call__(self, *args, **kwargs): pass
+
+    @abstractmethod
+    def backward(self, *args, **kwargs) -> object: pass
 
     # *********************************************************************************************** load / save / copy
 

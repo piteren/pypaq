@@ -2,7 +2,7 @@
 
  2022 (c) piteren
 
-    baseline DQN Module for MOTorch (PyTorch)
+    baseline PG Module for MOTorch (PyTorch)
 
 """
 
@@ -13,13 +13,13 @@ from pypaq.torchness.motorch import Module
 from pypaq.torchness.layers import LayDense
 
 
-class DQNModel(Module):
+class PGModel(Module):
 
     def __init__(
             self,
-            num_actions: int=   4,
             observation_width=  4,
-            hidden_layers=      (12,),
+            num_actions: int=   2,
+            hidden_layers=      (20,),
             seed=               121):
 
         torch.nn.Module.__init__(self)
@@ -46,29 +46,37 @@ class DQNModel(Module):
             out_features=   num_actions,
             activation=     None)
 
-        self.loss = torch.nn.MSELoss(reduction='none')
-
     def forward(self, obs) -> Dict:
+
         out = self.ln(obs)
+
         for lin,ln in zip(self.linL,self.lnL):
             out = lin(out)
             out = ln(out)
+
         logits = self.logits(out)
-        return {'logits': logits}
+        probs = torch.nn.functional.softmax(input=logits, dim=-1)
 
-    @staticmethod
-    def accuracy(
-            logits: torch.Tensor,
-            labels: torch.Tensor) -> float:
-        # no good accuracy for this model
-        return -1
+        max_probs = torch.max(probs, dim=-1)  # max action_probs
+        min_probs = torch.min(probs, dim=-1)  # min action_probs
+        amax_prob = torch.mean(max_probs[0])  # average of batch max action_prob
+        amin_prob = torch.mean(min_probs[0])  # average of batch min action_prob
 
-    def loss_acc(self, obs, lbl, mask=None) -> Dict:
+        return {
+            'logits':       logits,
+            'probs':        probs,
+            'amax_prob':    amax_prob,
+            'amin_prob':    amin_prob}
+
+    def loss_acc(self, obs, lbl, ret) -> Dict:
+
         out = self(obs)
         logits = out['logits']
-        loss = self.loss(logits, lbl)
-        if mask is not None: loss *= mask       # mask
-        loss = torch.sum(loss, dim=-1)          # reduce over samples
-        out['loss'] = torch.mean(loss)          # average
-        out['acc'] = self.accuracy(logits, lbl)
+
+        actor_ce = torch.nn.functional.cross_entropy(logits, lbl, reduction='none')
+
+        out['actor_ce_mean'] = torch.mean(actor_ce)
+        out['loss'] = torch.mean(ret * actor_ce)
+        out['acc'] = self.accuracy(logits, lbl) # using baseline
+
         return out

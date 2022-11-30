@@ -32,7 +32,7 @@ class QLearningTrainer(FATrainer):
                 folder=     None,
                 level=      loglevel)
         self.__log = logger
-        self.__log.info(f'*** QLearningTrainer initializes, gamma: {gamma}')
+        self.__log.info(f'*** QLearningTrainer *** initializes, gamma: {gamma}')
 
         FATrainer.__init__(
             self,

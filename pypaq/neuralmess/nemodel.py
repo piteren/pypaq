@@ -509,6 +509,11 @@ class NEModel(NNWrap):
             logger=     get_hi_child(self._log, 'MultiSaver'))
         if self['load_saver']: self.load_ckpt()
 
+    def __call__(self, feed_dict, fetches):
+        return self._session.run(feed_dict=feed_dict, fetches=fetches)
+
+    def backward(self, feed_dict, fetches) -> Tuple:
+        return self.__call__(feed_dict=feed_dict, fetches=fetches)
     # *********************************************************************************************** load / save / copy
 
     # reloads model checkpoint, updates baseLR

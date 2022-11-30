@@ -2,12 +2,14 @@
 
  2022 (c) piteren
 
-    DQN_Actor - Actor with NN, common interface
+    DQN_Actor - Deep QLearningActor NN based
 
 """
 
 from abc import ABC
+from typing import Optional, Union, Callable
 
+from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.lipytools.little_methods import stamp
 from pypaq.R4C.qlearning.qlearning_actor import QLearningActor
 from pypaq.R4C.envy import FiniteActionsRLEnvy
@@ -21,30 +23,55 @@ class DQN_Actor(QLearningActor, ABC):
             self,
             envy: FiniteActionsRLEnvy,
             nnwrap: type(NNWrap),
-            # mdict: dict, # TODO: give it with kwargs
+            seed: int,
+            logger: Optional,
+            loglevel: int,
+            nngraph: Optional[Union[Callable, type]]=   None,
+            name: Optional[str]=                        None,
             **kwargs):
 
-        self._envy = envy
+        logger_given = bool(logger)
+        if not logger_given:
+            logger = get_pylogger(
+                name=       'DQN_Actor',
+                add_stamp=  True,
+                folder=     None,
+                level=      loglevel)
+        self.__log = logger
 
-        if 'name' not in kwargs: kwargs['name'] = f'nn_{self.__class__.__name__}_{stamp()}'
+        QLearningActor.__init__(
+            self,
+            envy=   envy,
+            seed=   seed,
+            logger= self.__log)
+        self._envy = envy # to update type (for pycharm only)
+
         kwargs['num_actions'] = self._envy.num_actions()
         kwargs['observation_width'] = self._get_observation_vec(self._envy.get_observation()).shape[-1]
 
-        nnwrap.__init__(self, **kwargs)
+        self.nnw: NNWrap = nnwrap(
+            nngraph=    nngraph,
+            name=       name or f'nn_{self.__class__.__name__}_{stamp()}',
+            logger=     self.__log if logger_given else None,
+            loglevel=   loglevel,
+            **kwargs)
 
         self._upd_step = 0
 
-        self._log.info('*** DQN_Actor (NN based) initialized')
-        self._log.info(f'> Envy:              {self._envy.__class__.__name__}')
-        self._log.info(f'> NN model name:     {self["name"]}')
-        self._log.info(f'> num_actions:       {self["num_actions"]}')
-        self._log.info(f'> observation_width: {self["observation_width"]}')
-        self._log.info(f'> save_topdir:       {self["save_topdir"]}')
+        self.__log.info('*** DQN_Actor *** (NN based) initialized')
+        self.__log.info(f'> NNW model name:    {self.nnw["name"]}')
+        self.__log.info(f'> num_actions:       {self.nnw["num_actions"]}')
+        self.__log.info(f'> observation_width: {self.nnw["observation_width"]}')
+        self.__log.info(f'> save_topdir:       {self.nnw["save_topdir"]}')
 
-    # INFO: not used since DQN_Actor updates only with batches
+    # INFO: wont be used since DQN_Actor updates only with batches
     def _upd_QV(
             self,
             observation: object,
             action: int,
             new_qv: float) -> float:
         raise Exception('not implemented')
+
+    def save(self) -> None: self.nnw.save()
+
+    def __str__(self) -> str: return str(self.nnw)
