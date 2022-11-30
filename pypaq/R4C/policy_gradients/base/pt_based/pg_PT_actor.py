@@ -13,13 +13,13 @@ import numpy as np
 from typing import Optional
 
 from pypaq.lipytools.pylogger import get_pylogger
-from pypaq.R4C.policy_gradients.pg_actor import PG_Actor
+from pypaq.R4C.policy_gradients.pg_actor import PGActor
 from pypaq.R4C.policy_gradients.base.pt_based.pg_PT_module import PGModel
 from pypaq.torchness.motorch import MOTorch, Module
 
 
 
-class PG_PTActor(PG_Actor, ABC):
+class PG_PTActor(PGActor, ABC):
 
     def __init__(
             self,
@@ -37,7 +37,7 @@ class PG_PTActor(PG_Actor, ABC):
                 level=      loglevel)
         self.__log = logger
 
-        PG_Actor.__init__(
+        PGActor.__init__(
             self,
             nnwrap=     MOTorch,
             nngraph=    nngraph,

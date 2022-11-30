@@ -18,7 +18,7 @@ def mam(vals: list):
 # mean, std, min, max (from given list of values or np.arr)
 def msmx(vals : list or np.array) -> dict:
 
-    arr = np.asarray(vals) if type(vals) is list else vals
+    arr = np.array(vals) if type(vals) is list else vals
     ret_dict = {
         'mean': float(np.mean(arr)),
         'std':  float(np.std(arr)),

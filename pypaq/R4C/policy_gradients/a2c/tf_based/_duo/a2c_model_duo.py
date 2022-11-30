@@ -4,9 +4,9 @@ import numpy as np
 
 from pypaq.lipytools.little_methods import stamp
 from pypaq.lipytools.plots import two_dim_multi
-from pypaq.R4C.helpers import extract_from_batch, zscore_norm
+from pypaq.R4C.helpers import extract_from_batch
 from pypaq.R4C.actor import Actor
-from pypaq.R4C.policy_gradients.a2c.a2c_graph_duo import a2c_graph_duo
+from pypaq.R4C.policy_gradients.a2c.tf_based._duo.a2c_graph_duo import a2c_graph_duo
 from pypaq.neuralmess_duo.nemodelduo import NEModelDUO
 
 
@@ -60,7 +60,7 @@ class A2CModel_duo(Actor, ABC):
     # USED for step by step actions of Actor
     def get_policy_probs(self, observation) -> np.ndarray:
         ov = self.observation_vec(observation)
-        ov = np.asarray([ov])
+        ov = np.array([ov])
         out = self.nn.call(
             data=   {'observation': ov},
             name=   'probs_model')
@@ -81,28 +81,6 @@ class A2CModel_duo(Actor, ABC):
         else:       action = int(np.argmax(probs))
         return action
 
-    """
-    def get_qvs(self, observation) -> np.ndarray:
-        ov = self.observation_vec(observation)
-        qvs = self.nn.session.run(
-            feed_dict=  {self.nn['observation_PH']: [ov]},
-            fetches=    self.nn['qvs'])
-        return qvs
-
-    def get_qvs_batch(self, observations) -> np.ndarray:
-        ovs = self.observation_vec_batch(observations)
-        qvss = self.nn.session.run(
-            feed_dict=  {self.nn['observation_PH']: ovs},
-            fetches=    self.nn['qvs'])
-        return qvss
-
-    def get_values_batch(self, observations) -> np.ndarray:
-        ovs = self.observation_vec_batch(observations)
-        values = self.nn.session.run(
-            feed_dict=  {self.nn['observation_PH']: ovs},
-            fetches=    self.nn['value'])
-        return values
-    """
     def update_with_experience(self, batch, inspect=False) -> float:
 
         observations =  extract_from_batch(batch, 'observation')
@@ -159,10 +137,10 @@ if __name__ == '__main__':
     class CP_A2CModel(A2CModel_duo):
 
         def observation_vec(self, observation) -> np.ndarray:
-            return np.asarray(observation)
+            return np.array(observation)
 
         def observation_vec_batch(self, observations) -> np.ndarray:
-            return np.asarray(observations)
+            return np.array(observations)
 
     from applied_RL.cart_pole.cart_pole_envy import CartPoleEnvy
 

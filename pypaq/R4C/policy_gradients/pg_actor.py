@@ -19,7 +19,7 @@ from pypaq.R4C.envy import FiniteActionsRLEnvy
 from pypaq.comoneural.nnwrap import NNWrap
 
 
-class PG_Actor(TrainableActor, ABC):
+class PGActor(TrainableActor, ABC):
 
     def __init__(
             self,

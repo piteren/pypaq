@@ -13,12 +13,12 @@ import numpy as np
 from typing import Optional, Callable, List
 
 from pypaq.lipytools.pylogger import get_pylogger
-from pypaq.R4C.policy_gradients.pg_actor import PG_Actor
+from pypaq.R4C.policy_gradients.pg_actor import PGActor
 from pypaq.R4C.policy_gradients.base.tf_based.pg_TF_graph import pga_graph
 from pypaq.neuralmess.nemodel import NEModel
 
 
-class PG_TFActor(PG_Actor, ABC):
+class PG_TFActor(PGActor, ABC):
 
     def __init__(
             self,
@@ -36,7 +36,7 @@ class PG_TFActor(PG_Actor, ABC):
                 level=      loglevel)
         self.__log = logger
 
-        PG_Actor.__init__(
+        PGActor.__init__(
             self,
             nnwrap=     NEModel,
             nngraph=    nngraph,
