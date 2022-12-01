@@ -1,65 +1,75 @@
+"""
+
+ 2022 (c) piteren
+
+    RL Trainer for Actor & Critic acting on RLEnvy
+
+        Implements Actor & Critic update
+
+"""
+
 import numpy as np
 
+from pypaq.R4C.helpers import extract_from_batch
 from pypaq.R4C.policy_gradients.base.tf_based.pg_TF_actor import PG_TFActor
-from pypaq.R4C.policy_gradients.actor_critic.ac_critic import ACCritic
-from pypaq.R4C.trainer import FATrainer
+from pypaq.R4C.policy_gradients.actor_critic.ac_TF_critic import AC_TFCritic
+from pypaq.R4C.policy_gradients.pg_trainer import PGTrainer
 
 
-class ACTrainer(FATrainer):
+class ACTrainer(PGTrainer):
 
     def __init__(
             self,
             actor: PG_TFActor,
-            critic_class: type(ACCritic),
+            critic_class: type(AC_TFCritic),
             critic_mdict: dict,
-            verb=           1,
             **kwargs):
 
-        FATrainer.__init__(self, actor=actor, verb=verb, **kwargs)
+        PGTrainer.__init__(
+            self,
+            actor=  actor,
+            **kwargs)
         self.actor = actor # INFO: type "upgrade" for pycharm editor
 
         self.critic = critic_class(
-            num_actions=    self.envy.num_actions(),
-            observation=    self.envy.get_observation(),
-            mdict=          critic_mdict,
-            verb=           self.verb)
-
-        self.num_of_actions = self.envy.num_actions()
-
-        if self.verb>0:
-            print(f'\n*** ACTrainer for {self.envy.name} initialized')
-            print(f' > actions: {self.envy.num_actions()}, exploration: {self.exploration}')
+            envy=   kwargs['envy'],
+            seed=   kwargs['seed'],
+            **critic_mdict)
 
     # converts one dim arr of ints into two dim one-hot array
     def _actions_OH_encoding(self, actions:np.array) -> np.ndarray:
-        hot = np.zeros((len(actions), self.num_of_actions))
+        hot = np.zeros((len(actions), self.envy.num_actions()))
         hot[np.arange(len(actions)), actions] = 1
         return hot
 
     # sets terminal states QVs to zeroes
     def _update_terminal_QVs(self, qvs, terminals):
-        zeroes = np.zeros(self.num_of_actions)
+        zeroes = np.zeros(self.envy.num_actions())
         for i in range(len(terminals)):
             if terminals[i]:
                 qvs[i] = zeroes
         return qvs
 
-    # update is performed for both: Actor and Critic
-    def update_actor(self, inspect=False):
+    # update is performed for both: Actor & Critic
+    def _update_actor(self, inspect=False):
+
+        # TODO: replace prints with logger
 
         batch = self.memory.get_all()
-        observations =          self._extract_from_batch(batch, 'observation')
-        actions =               self._extract_from_batch(batch, 'action')
-        rewards =               self._extract_from_batch(batch, 'reward')
-        next_observations =     self._extract_from_batch(batch, 'next_observation')
-        terminals =             self._extract_from_batch(batch, 'game_over')
+        self.memory.clear()
+
+        observations =          np.array(extract_from_batch(batch, 'observation'))
+        actions =               np.array(extract_from_batch(batch, 'action'))
+        rewards =               np.array(extract_from_batch(batch, 'reward'))
+        next_observations =              extract_from_batch(batch, 'next_observation')
+        terminals =             np.array(extract_from_batch(batch, 'terminal'))
 
         if inspect:
             print(f'\nBatch size: {len(batch)}')
             print(f'observations: {observations.shape}, {observations[0]}')
             print(f'actions: {actions.shape}, {actions[0]}')
             print(f'rewards {rewards.shape}, {rewards[0]}')
-            print(f'next_observations {next_observations.shape}, {next_observations[0]}')
+            #print(f'next_observations {next_observations.shape}, {next_observations[0]}')
             print(f'terminals {terminals.shape}, {terminals[0]}')
 
         # get next_observations actions_probs (with Actor policy)
@@ -96,7 +106,5 @@ class ACTrainer(FATrainer):
             rewards=            rewards)
 
         if np.isnan(loss_actor) or np.isnan(loss_critic): raise Exception('NaN cost!')
-
-        self.memory.reset()
 
         return loss_actor

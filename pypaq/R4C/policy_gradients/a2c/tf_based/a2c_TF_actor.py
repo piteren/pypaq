@@ -2,15 +2,12 @@ from abc import ABC
 from typing import Optional, Callable
 
 from pypaq.R4C.policy_gradients.base.tf_based.pg_TF_actor import PG_TFActor
-from pypaq.R4C.policy_gradients.a2c.tf_based.a2c_graph import a2c_graph
+from pypaq.R4C.policy_gradients.a2c.tf_based.a2c_TF_graph import a2c_graph
 
 
 class A2C_TFActor(PG_TFActor, ABC):
 
-    def __init__(
-            self,
-            nngraph: Optional[Callable]=    a2c_graph,
-            **kwargs):
+    def __init__(self, nngraph:Optional[Callable]=a2c_graph, **kwargs):
         # TODO: wrong logger name, see pg_TF_actor #33
         PG_TFActor.__init__(self, nngraph=nngraph, **kwargs)
 
