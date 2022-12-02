@@ -36,14 +36,14 @@ class Module(ABC, torch.nn.Module):
         raise NotImplementedError
 
     # baseline accuracy implementation for logits & lables
-    @staticmethod
     def accuracy(
+            self,
             logits: torch.Tensor,
             labels: torch.Tensor) -> float:
         logits = logits.detach().cpu().numpy()
-        labels = labels.cpu().numpy()
         pred = np.argmax(logits, axis=-1)
-        return float(np.average(pred == labels))
+        labels = labels.cpu().numpy()
+        return float(np.average(np.equal(pred, labels)))
 
     # returned dict updates forward() Dict with loss & acc keys (accuracy or any other (increasing) performance float)
     @abstractmethod
@@ -93,20 +93,14 @@ class MOTorch(NNWrap, Module):
 
     SAVE_FN_PFX = 'motorch_dna' # filename (DNA) prefix
 
-    def __init__(
-            self,
-            nngraph: Optional[type(Module)]=    None,
-            **kwargs):
+    def __init__(self, nngraph:Optional[type(Module)]=None, **kwargs):
 
         self._torch_dev = None # will be set by _manage_devices()
         self._opt = None
         self._scheduler = None
         self._grad_clipper = None
 
-        NNWrap.__init__(
-            self,
-            nngraph=    nngraph,
-            **kwargs)
+        NNWrap.__init__(self, nngraph=nngraph, **kwargs)
 
     # ******************************************************************************************* NNWrap init submethods
 
@@ -294,6 +288,13 @@ class MOTorch(NNWrap, Module):
         out = self.nngraph.forward(self, *args, **kwargs)
         if set_training: self.__set_training(False) # eventually roll back to default
         return out
+
+    # without this override accuracy will be taken directly from Module (above)
+    def accuracy(
+            self,
+            logits: torch.Tensor,
+            labels: torch.Tensor) -> float:
+        return self.nngraph.accuracy(self, logits=logits, labels=labels)
 
     # runs loss calculation on nn.Module (with current nn.Module.training.mode - by default not training)
     def loss_acc(

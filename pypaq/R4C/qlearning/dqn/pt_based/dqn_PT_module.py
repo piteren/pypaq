@@ -56,12 +56,12 @@ class DQNModel(Module):
         logits = self.logits(out)
         return {'logits': logits}
 
-    @staticmethod
     def accuracy(
+            self,
             logits: torch.Tensor,
             labels: torch.Tensor) -> float:
         # no good accuracy for this model
-        return -1
+        return 0.0
 
     def loss_acc(self, obs, lbl, mask=None) -> Dict:
         out = self(obs)

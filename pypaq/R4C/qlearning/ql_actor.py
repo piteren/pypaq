@@ -17,11 +17,13 @@ from pypaq.lipytools.softmax import softmax
 
 class QLearningActor(TrainableActor, ABC):
 
-    def __init__(self, envy:FiniteActionsRLEnvy, **kwargs):
+    def __init__(self, envy:FiniteActionsRLEnvy, seed:int=123, **kwargs):
         TrainableActor.__init__(self, envy=envy, **kwargs)
         self._envy = envy  # to update type (for pycharm only)
+        np.random.seed(seed)
         self._log.info('*** QLearningActor *** initialized')
-        self._log.info(f'> number of actions: {self._envy.num_actions()}')
+        self._log.info(f'> num_actions: {self._envy.num_actions()}')
+        self._log.info(f'> seed:        {seed}')
 
     # returns QVs (QV for all actions) for given observation
     @abstractmethod

@@ -31,7 +31,7 @@ class QTable:
         return str(observation)
 
     def __init_hash(self, ha: str):
-        self.__table[ha] = np.zeros(self.__width, dtype=np.float)
+        self.__table[ha] = np.zeros(self.__width, dtype=float)
 
     def get_QVs(self, observation: np.ndarray) -> np.ndarray:
         ha = QTable.__hash(observation)

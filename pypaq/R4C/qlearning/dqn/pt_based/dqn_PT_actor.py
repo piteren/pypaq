@@ -46,11 +46,11 @@ class DQN_PTActor(DQN_Actor, ABC):
             full_qvs[pos] = v
             mask[pos] = 1
 
-        self._log.log(5, f'>>> obs_vecs.shape, len(actions), new_qvs.shape: {obs_vecs.shape}, {len(actions)}, {len(new_qvs)}')
-        self._log.log(5, f'>>> actions: {actions}')
-        self._log.log(5, f'>>> new_qvs: {new_qvs}')
-        self._log.log(5, f'>>> full_qvs: {full_qvs}')
-        self._log.log(5, f'>>> mask: {mask}')
+        self._log.log(5, f'>>> obs_vecs (shape {obs_vecs.shape})\n{obs_vecs}')
+        self._log.log(5, f'>>> actions (len {len(actions)}): {actions}')
+        self._log.log(5, f'>>> new_qvs (len {len(new_qvs)}): {new_qvs}')
+        self._log.log(5, f'>>> full_qvs\n{full_qvs}')
+        self._log.log(5, f'>>> mask\n{mask}')
 
         out = self.nnw.backward(obs_vecs, full_qvs, mask)
 

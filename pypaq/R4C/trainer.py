@@ -58,11 +58,11 @@ class RLTrainer(ABC):
             self,
             envy: RLEnvy,
             actor: TrainableActor,
-            batch_size: int,        # Actor update data size
+            batch_size: int,        # Actor update batch data size
             memsize_batches: int,   # ExperienceMemory size (in number of batches)
             exploration: float,     # train exploration factor
             train_sampled: float,   # how often move is sampled (vs argmax) while training
-            seed: int,
+            seed: int=  123,
             logger=     None,
             loglevel=   20):
 
@@ -261,7 +261,7 @@ class RLTrainer(ABC):
                     n_episodes= test_episodes,
                     max_steps=  test_max_steps)
 
-                self._log.info(f'# term:{n_terminals}(+{n_terminals-last_terminals}) -- TS: {len(actions)} actions, return {sum(rewards):.1f} ({"won" if won else "lost"}) -- {test_episodes}xTS: avg_won: {ts_res[0]*100:.1f}%, avg_return: {ts_res[1]:.1f} -- loss_actor: {loss_mavg():.4f}')
+                self._log.info(f'# {uix:3} term:{n_terminals}(+{n_terminals-last_terminals}) -- TS: {len(actions)} actions, return {sum(rewards):.1f} ({"won" if won else "lost"}) -- {test_episodes}xTS: avg_won: {ts_res[0]*100:.1f}%, avg_return: {ts_res[1]:.1f} -- loss_actor: {loss_mavg():.4f}')
                 last_terminals = n_terminals
 
                 if ts_res[0] == 1:
