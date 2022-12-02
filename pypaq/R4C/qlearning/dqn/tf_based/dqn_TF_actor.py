@@ -19,29 +19,8 @@ from pypaq.neuralmess.nemodel import NEModel
 # DQN (TF NN) based QLearningActor
 class DQN_TFActor(DQN_Actor, ABC):
 
-    def __init__(
-            self,
-            nngraph: Optional[Callable]=    dqn_graph,
-            logger=                         None,
-            loglevel=                       20,
-            **kwargs):
-
-        logger_given = bool(logger)
-        if not logger_given:
-            logger = get_pylogger(
-                name=       'DQN_TFActor',
-                add_stamp=  True,
-                folder=     None,
-                level=      loglevel)
-        self.__log = logger
-
-        DQN_Actor.__init__(
-            self,
-            nnwrap=     NEModel,
-            nngraph=    nngraph,
-            logger=     self.__log if logger_given else None, # if user gives logger we assume it to be nice logger, otherwise we want to pas None up to NNWrap, which manages logger in pretty way
-            loglevel=   loglevel,
-            **kwargs)
+    def __init__(self, nngraph:Optional[Callable]=dqn_graph, **kwargs):
+        DQN_Actor.__init__(self, nnwrap=NEModel, nngraph=nngraph, **kwargs)
 
     def _get_QVs(self, observation: object) -> np.ndarray:
         obs_vec = self._get_observation_vec(observation)

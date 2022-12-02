@@ -46,14 +46,14 @@ class ParaSave(SubGX):
                 name=       self.name,
                 folder=     ParaSave.__full_dir(name=self.name, save_topdir=save_topdir),
                 level=      loglevel)
-        self.__log = logger
+        self._log = logger
 
         if assert_saved and not os.path.isfile(ParaSave.__obj_fn(name, save_topdir, save_fn_pfx)):
             ex_msg = f'ParaSave {self.name} does not exist!'
-            self.__log.error(ex_msg)
+            self._log.error(ex_msg)
             raise Exception(ex_msg)
 
-        self.__log.info(f'*** ParaSave *** name: {self.name} initializes..')
+        self._log.info(f'*** ParaSave *** name: {self.name} initializes..')
 
         self.save_topdir = save_topdir
         self.save_fn_pfx = save_fn_pfx
@@ -72,7 +72,7 @@ class ParaSave(SubGX):
         self._managed_params: Optional[List[str]] = None
         if lock_managed_params: self._managed_params = self.get_managed_params()
 
-        SubGX.__init__(self, logger=get_hi_child(self.__log, 'SubGX'), **self.get_point())
+        SubGX.__init__(self, logger=get_hi_child(self._log), **self.get_point())
 
 
     def get_managed_params(self) -> List[str]:

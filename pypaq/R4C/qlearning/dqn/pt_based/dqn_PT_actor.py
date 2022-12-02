@@ -19,29 +19,8 @@ from pypaq.torchness.motorch import MOTorch, Module
 # DQN (PyTorch NN) based QLearningActor
 class DQN_PTActor(DQN_Actor, ABC):
 
-    def __init__(
-            self,
-            nngraph: Optional[type(Module)]=    DQNModel,
-            logger=                             None,
-            loglevel=                           20,
-            **kwargs):
-
-        logger_given = bool(logger)
-        if not logger_given:
-            logger = get_pylogger(
-                name=       'DQN_PTActor',
-                add_stamp=  True,
-                folder=     None,
-                level=      loglevel)
-        self.__log = logger
-
-        DQN_Actor.__init__(
-            self,
-            nnwrap=     MOTorch,
-            nngraph=    nngraph,
-            logger=     self.__log if logger_given else None, # if user gives logger we assume it to be nice logger, otherwise we want to pas None up to NNWrap, which manages logger in pretty way
-            loglevel=   loglevel,
-            **kwargs)
+    def __init__(self, nngraph:Optional[type(Module)]=DQNModel, **kwargs):
+        DQN_Actor.__init__(self, nnwrap=MOTorch, nngraph=nngraph, **kwargs)
 
     def _get_QVs(self, observation: object) -> np.ndarray:
         obs_vec = self._get_observation_vec(observation)
@@ -67,11 +46,11 @@ class DQN_PTActor(DQN_Actor, ABC):
             full_qvs[pos] = v
             mask[pos] = 1
 
-        self.__log.log(5, f'>>> obs_vecs.shape, len(actions), new_qvs.shape: {obs_vecs.shape}, {len(actions)}, {len(new_qvs)}')
-        self.__log.log(5, f'>>> actions: {actions}')
-        self.__log.log(5, f'>>> new_qvs: {new_qvs}')
-        self.__log.log(5, f'>>> full_qvs: {full_qvs}')
-        self.__log.log(5, f'>>> mask: {mask}')
+        self._log.log(5, f'>>> obs_vecs.shape, len(actions), new_qvs.shape: {obs_vecs.shape}, {len(actions)}, {len(new_qvs)}')
+        self._log.log(5, f'>>> actions: {actions}')
+        self._log.log(5, f'>>> new_qvs: {new_qvs}')
+        self._log.log(5, f'>>> full_qvs: {full_qvs}')
+        self._log.log(5, f'>>> mask: {mask}')
 
         out = self.nnw.backward(obs_vecs, full_qvs, mask)
 

@@ -47,7 +47,7 @@ def get_devices(
         namespace: str=         'TF1',
         logger=                  None) -> List[str]:
 
-    if not logger: logger = get_pylogger(name='get_devices')
+    if not logger: logger = get_pylogger()
 
     if namespace not in ['TF1','TF2','torch']:
         raise NameError('Wrong namespace, supported are: TF1, TF2 or torch')

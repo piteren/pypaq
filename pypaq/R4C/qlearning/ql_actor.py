@@ -11,10 +11,17 @@ import numpy as np
 from typing import List
 
 from pypaq.R4C.actor import TrainableActor
+from pypaq.R4C.envy import FiniteActionsRLEnvy
 from pypaq.lipytools.softmax import softmax
 
 
 class QLearningActor(TrainableActor, ABC):
+
+    def __init__(self, envy:FiniteActionsRLEnvy, **kwargs):
+        TrainableActor.__init__(self, envy=envy, **kwargs)
+        self._envy = envy  # to update type (for pycharm only)
+        self._log.info('*** QLearningActor *** initialized')
+        self._log.info(f'> number of actions: {self._envy.num_actions()}')
 
     # returns QVs (QV for all actions) for given observation
     @abstractmethod

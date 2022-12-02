@@ -4,8 +4,6 @@
 
     PolicyGradients NN Actor, TF based
 
-    TODO: implement parallel training, in batches (many envys)
-
 """
 
 from abc import ABC
@@ -20,29 +18,8 @@ from pypaq.neuralmess.nemodel import NEModel
 
 class PG_TFActor(PGActor, ABC):
 
-    def __init__(
-            self,
-            nngraph: Optional[Callable]=    pga_graph,
-            logger=                         None,
-            loglevel=                       20,
-            **kwargs):
-
-        logger_given = bool(logger)
-        if not logger_given:
-            logger = get_pylogger(
-                name=       'PG_TFActor',
-                add_stamp=  True,
-                folder=     None,
-                level=      loglevel)
-        self.__log = logger
-
-        PGActor.__init__(
-            self,
-            nnwrap=     NEModel,
-            nngraph=    nngraph,
-            logger=     self.__log if logger_given else None, # if user gives logger we assume it to be nice logger, otherwise we want to pas None up to NNWrap, which manages logger in pretty way
-            loglevel=   loglevel,
-            **kwargs)
+    def __init__(self, nngraph:Optional[Callable]=pga_graph, **kwargs):
+        PGActor.__init__(self, nnwrap=NEModel, nngraph=nngraph, **kwargs)
 
     def get_policy_probs(self, observation: object) -> np.ndarray:
         obs_vec = self._get_observation_vec(observation)

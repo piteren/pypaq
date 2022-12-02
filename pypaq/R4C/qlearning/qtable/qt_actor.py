@@ -11,11 +11,11 @@
 
 """
 
-from abc import ABC, abstractmethod
+from abc import ABC
 import numpy as np
 from typing import Hashable, Dict, List
 
-from pypaq.R4C.qlearning.qlearning_actor import QLearningActor
+from pypaq.R4C.qlearning.ql_actor import QLearningActor
 from pypaq.lipytools.pylogger import get_pylogger
 
 
@@ -63,28 +63,29 @@ class QTableActor(QLearningActor, ABC):
 
     def __init__(
             self,
-            num_actions: int,
             update_rate: float= 0.3,
             logger=             None,
-            loglevel=           20):
+            loglevel=           20,
+            **kwargs):
 
-        logger_given = bool(logger)
-        if not logger_given:
+        if not logger:
             logger = get_pylogger(
                 name=       'QTableActor',
                 add_stamp=  True,
                 folder=     None,
                 level=      loglevel)
-        self.__log = logger
-        self.__log.info(f'*** QTableActor initializes, num_actions: {num_actions}, update_rate: {update_rate}')
 
-        self.__qtable = QTable(num_actions)
+        QLearningActor.__init__(self, logger=logger, **kwargs)
+
+        self.__qtable = QTable(self._envy.num_actions())
         self._update_rate = update_rate
 
+        self._log.info(f'*** QTableActor *** initialized')
+        self._log.info(f'> update_rate: {update_rate}')
 
     def set_update_rate(self, update_rate:float):
         self._update_rate = update_rate
-        self.__log.info(f'> QTableActor set update_rate to: {self._update_rate}')
+        self._log.info(f'> QTableActor set update_rate to: {self._update_rate}')
 
     def _get_QVs(self, observation: object) -> np.ndarray:
         obs_vec = self._get_observation_vec(observation)

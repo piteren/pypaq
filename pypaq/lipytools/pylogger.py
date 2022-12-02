@@ -6,13 +6,14 @@ from pypaq.lipytools.little_methods import stamp, prep_folder
 
 # returns formatted Logger
 def get_pylogger(
-        name: str,
+        name: Optional[str]=    None,
         add_stamp=              True,   # to prevent merging loggers from one class many objects
         folder: Optional[str]=  None,   # if given then writes logfile
         level=                  logging.INFO,
         format: str=            '%(asctime)s {%(filename)17s:%(lineno)3d} p%(process)s %(levelname)s: %(message)s',
         to_stdout=              True):
 
+    if not name: name = 'logger'
     if add_stamp: name += '_' + stamp()
 
     formatter = logging.Formatter(format)
@@ -37,7 +38,11 @@ def get_pylogger(
     return logger
 
 # returns child with higher level
-def get_hi_child(logger, name, higher_level=True):
+def get_hi_child(
+        logger,
+        name: Optional[str]=    None,
+        higher_level=           True):
+    if not name: name = '_child'
     clogger = logger.getChild(name)
     if higher_level:
         lvl = clogger.getEffectiveLevel()

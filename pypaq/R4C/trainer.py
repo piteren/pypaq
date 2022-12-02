@@ -16,6 +16,7 @@ import random
 import time
 from typing import List, Tuple, Optional, Dict
 
+from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.lipytools.moving_average import MovAvg
 from pypaq.lipytools.plots import two_dim
 from pypaq.R4C.envy import RLEnvy, FiniteActionsRLEnvy
@@ -50,8 +51,8 @@ class ExperienceMemory:
         return len(self.memory)
 
 
-# RL Trainer for Actor acting on RLEnvy
-class Trainer(ABC):
+# Reinforcement Learning Trainer for Actor acting on RLEnvy
+class RLTrainer(ABC):
 
     def __init__(
             self,
@@ -62,10 +63,11 @@ class Trainer(ABC):
             exploration: float,     # train exploration factor
             train_sampled: float,   # how often move is sampled (vs argmax) while training
             seed: int,
-            logger):
+            logger=     None,
+            loglevel=   20):
 
-        self._log = logger
-        self._log.info(f'*** Trainer *** initializes..')
+        self._log = logger or get_pylogger(level=loglevel)
+        self._log.info(f'*** RLTrainer *** initializes..')
         self._log.info(f'> Envy:          {envy.__class__.__name__}')
         self._log.info(f'> batch_size:    {batch_size}')
         self._log.info(f'> memory size:   {batch_size*memsize_batches}')
@@ -259,7 +261,7 @@ class Trainer(ABC):
                     n_episodes= test_episodes,
                     max_steps=  test_max_steps)
 
-                self._log.info(f' term:{n_terminals}(+{n_terminals-last_terminals}) -- TS: {len(actions)} actions, return {sum(rewards):.1f} ({"won" if won else "lost"}) -- {test_episodes}xTS: avg_won: {ts_res[0]*100:.1f}%, avg_return: {ts_res[1]:.1f} -- loss_actor: {loss_mavg():.4f}')
+                self._log.info(f'# term:{n_terminals}(+{n_terminals-last_terminals}) -- TS: {len(actions)} actions, return {sum(rewards):.1f} ({"won" if won else "lost"}) -- {test_episodes}xTS: avg_won: {ts_res[0]*100:.1f}%, avg_return: {ts_res[1]:.1f} -- loss_actor: {loss_mavg():.4f}')
                 last_terminals = n_terminals
 
                 if ts_res[0] == 1:
@@ -269,7 +271,7 @@ class Trainer(ABC):
 
             if break_ntests and succeeded_row_curr==break_ntests: break
 
-        self._log.info(f'Training finished, time taken: {time.time()-stime:.2f}sec')
+        self._log.info(f'### Training finished, time taken: {time.time()-stime:.2f}sec')
         if self._log.getEffectiveLevel()<30: two_dim(lossL, name='Actor loss')
 
         return { # training_report
@@ -280,14 +282,11 @@ class Trainer(ABC):
 
 
 # FiniteActions RL Trainer (for Actor acting on FiniteActionsRLEnvy)
-class FATrainer(Trainer, ABC):
+class FATrainer(RLTrainer, ABC):
 
-    def __init__(
-            self,
-            envy: FiniteActionsRLEnvy,
-            **kwargs):
-
-        Trainer.__init__(self, envy=envy, **kwargs)
+    def __init__(self, envy:FiniteActionsRLEnvy, seed:int, **kwargs):
+        np.random.seed(seed)
+        RLTrainer.__init__(self, envy=envy, seed=seed, **kwargs)
         self.envy = envy  # INFO: type "upgrade" for pycharm editor
 
         self._log.info(f'*** FATrainer *** initialized')

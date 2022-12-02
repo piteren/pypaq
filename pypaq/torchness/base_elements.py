@@ -24,8 +24,8 @@ class ScaledLR(torch.optim.lr_scheduler._LRScheduler):
             last_epoch=                 -1,
             logger=                     None):
 
-        if not logger: logger = get_pylogger(name='ScaledLR')
-        self.__log = logger
+        if not logger: logger = get_pylogger()
+        self._log = logger
 
         self._step = starting_step
         self.warm_up = warm_up or 0
@@ -33,7 +33,7 @@ class ScaledLR(torch.optim.lr_scheduler._LRScheduler):
         self.ann_step = ann_step
         self.n_wup_off = n_wup_off
 
-        super(ScaledLR, self).__init__(optimizer, last_epoch, verbose=self.__log.getEffectiveLevel()<20)
+        super(ScaledLR, self).__init__(optimizer, last_epoch, verbose=self._log.getEffectiveLevel()<20)
 
     # updates LR of 0 group
     def update_base_lr0(self, lr: float):
@@ -45,14 +45,14 @@ class ScaledLR(torch.optim.lr_scheduler._LRScheduler):
         if self.warm_up:
             wm_ratio = min(self._step, self.warm_up) / self.warm_up
             lrs *= wm_ratio
-            self.__log.debug(f'applied warmUp ({self.warm_up}) to lR')
+            self._log.debug(f'applied warmUp ({self.warm_up}) to lR')
 
         if self.ann_base is not None and self.ann_base != 1.0:
             steps_offs = max(0, self._step - self.warm_up * self.n_wup_off)
             lrs *= self.ann_base ** (steps_offs * self.ann_step)
-            self.__log.debug(f'applied annealing to lR ({self.ann_base:.5f},{self.ann_step:.5f})')
+            self._log.debug(f'applied annealing to lR ({self.ann_base:.5f},{self.ann_step:.5f})')
 
-        self.__log.debug(f'ScaledLR scheduler step: {self._step} lrs: {lrs.tolist()}')
+        self._log.debug(f'ScaledLR scheduler step: {self._step} lrs: {lrs.tolist()}')
         self._step += 1
         return lrs.tolist()
 
@@ -102,7 +102,7 @@ class GradClipperAVT:
             logger=                         None):
 
         if not logger: logger = get_pylogger(name='ScaledLR')
-        self.__log = logger
+        self._log = logger
 
         self.module = module
         self.clip_value = clip_value
@@ -122,7 +122,7 @@ class GradClipperAVT:
         # in case of gg_norm explodes we want to update self.gg_avt_norm with value of self.avt_max_upd * self.gg_avt_norm
         avt_update = min(gg_norm, self.avt_max_upd * self.gg_avt_norm)
         self.gg_avt_norm = (self.gg_avt_norm * (self.avt_window-1) + avt_update) / self.avt_window # update
-        self.__log.debug(f'clipped with: gg_avt_norm({self.gg_avt_norm})')
+        self._log.debug(f'clipped with: gg_avt_norm({self.gg_avt_norm})')
 
         return {
             'gg_norm':      gg_norm,
