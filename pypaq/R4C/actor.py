@@ -30,9 +30,9 @@ class TrainableActor(Actor, ABC):
             logger=     None,
             loglevel=   20):
 
+        self._log = logger or get_pylogger(level=loglevel)
         self._envy = envy
         self.seed = seed
-        self._log = logger or get_pylogger(level=loglevel)
 
         self._log.info('*** TrainableActor *** initialized')
         self._log.info(f'> Envy: {self._envy.__class__.__name__}')

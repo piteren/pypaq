@@ -12,7 +12,6 @@ from abc import ABC, abstractmethod
 import numpy as np
 from typing import Optional, Callable, Union, List
 
-from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.lipytools.little_methods import stamp
 from pypaq.R4C.actor import TrainableActor
 from pypaq.R4C.envy import FiniteActionsRLEnvy

@@ -284,18 +284,10 @@ class RLTrainer(ABC):
 # FiniteActions RL Trainer (for Actor acting on FiniteActionsRLEnvy)
 class FATrainer(RLTrainer, ABC):
 
-    def __init__(
-            self,
-            envy: FiniteActionsRLEnvy,
-            seed: int,
-            **kwargs):
-        self.envy = envy  # INFO: type "upgrade" for pycharm editor
+    def __init__(self, envy:FiniteActionsRLEnvy, seed:int, **kwargs):
         np.random.seed(seed)
-        RLTrainer.__init__(
-            self,
-            envy=   envy,
-            seed=   seed,
-            **kwargs)
+        RLTrainer.__init__(self, envy=envy, seed=seed, **kwargs)
+        self.envy = envy  # INFO: type "upgrade" for pycharm editor
 
     # selects 100% random action from action space
     def _get_exploring_action(self):
