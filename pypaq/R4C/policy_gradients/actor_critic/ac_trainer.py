@@ -22,8 +22,11 @@ class ACTrainer(PGTrainer):
             self,
             actor: PG_TFActor,
             critic_class: type(AC_TFCritic),
-            critic_mdict: dict,
             **kwargs):
+
+        # split kwargs assuming that Critic kwargs starts with 'critic_'
+        c_kwargs = {k[7:]: kwargs[k] for k in kwargs if k.startswith('critic_')}
+        for k in c_kwargs: kwargs.pop(f'critic_{k}')
 
         PGTrainer.__init__(
             self,
@@ -34,7 +37,7 @@ class ACTrainer(PGTrainer):
         self.critic = critic_class(
             envy=   kwargs['envy'],
             seed=   kwargs['seed'],
-            **critic_mdict)
+            **c_kwargs)
 
     # converts one dim arr of ints into two dim one-hot array
     def _actions_OH_encoding(self, actions:np.array) -> np.ndarray:
