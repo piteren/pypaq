@@ -27,13 +27,8 @@ class MultiSaver:
             max_keep: Optional[List[int]]=  None,       # for each saver keeps N last ckpt saves, for None: 1 for each saver
             session=                        None,
             logger=                         None):
-
-        if not logger:
-            logger = get_pylogger(
-                name=       'MultiSaver',
-                add_stamp=  True,
-                folder=     None)
-        self.__log = logger
+            
+        self._log = logger or get_pylogger()
 
         self.save_FD = f'{save_TFD}/{model_name}'
         self.model_name = model_name
@@ -58,11 +53,11 @@ class MultiSaver:
 
         self.s_step = {sv: {var: 0 for var in self.vars} for sv in savers} # self step per saver per vars
 
-        self.__log.info(f'*** MultiSaver for {self.model_name} model')
-        self.__log.debug(f'> MultiSaver folder: {self.save_FD}')
-        self.__log.debug(f'> gots {len(self.vars)} lists of variables')
-        for var in self.vars: self.__log.log(5, f' >> {var} - {len(self.vars[var])} variables')
-        self.__log.debug(f'> for every var list gots {len(savers)} savers: {savers}')
+        self._log.info(f'*** MultiSaver for {self.model_name} model')
+        self._log.debug(f'> MultiSaver folder: {self.save_FD}')
+        self._log.debug(f'> gots {len(self.vars)} lists of variables')
+        for var in self.vars: self._log.log(5, f' >> {var} - {len(self.vars[var])} variables')
+        self._log.debug(f'> for every var list gots {len(savers)} savers: {savers}')
 
     # saves checkpoint of given saver
     def save(
@@ -75,7 +70,7 @@ class MultiSaver:
 
         prep_folder(self.save_FD)
         sv_name = f' {saver}' if saver else ''
-        self.__log.debug(f'MultiSaver{sv_name} saves variables...')
+        self._log.debug(f'MultiSaver{sv_name} saves variables...')
 
         for var in self.vars:
             ckpt_path = f'{self.save_FD}/{var}/{self.model_name}'
@@ -95,7 +90,7 @@ class MultiSaver:
                 write_meta_graph=   False,
                 write_state=        True)
             self.s_step[saver][var] += 1
-            self.__log.debug(f' > saved variables {var}')
+            self._log.debug(f' > saved variables {var}')
 
     # loads last checkpoint of given saver
     def load(
@@ -123,9 +118,9 @@ class MultiSaver:
                     all_tensors=    False)
                 """
                 self.savers[saver][var].restore(session, ckpt)
-                self.__log.debug(f'Variables {var} restored from checkpoint {saver if saver else ""}')
+                self._log.debug(f'Variables {var} restored from checkpoint {saver if saver else ""}')
 
             else:
                 assert allow_init, 'Err: saver load failed: checkpoint not found and not allowInit'
                 session.run(tf.initializers.variables(self.vars[var]))
-                self.__log.debug(f'No checkpoint found, variables {var} initialized with default initializer')
+                self._log.debug(f'No checkpoint found, variables {var} initialized with default initializer')

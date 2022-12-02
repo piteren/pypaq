@@ -41,7 +41,7 @@ def lr_scaler(
         n_wup_off: float=   2.0,    # N warmUp offset of annealing
         logger=             None):
 
-    if not logger: logger = get_pylogger(name='lr_scaler')
+    if not logger: logger = get_pylogger()
     logger.info(f'*** lr_scaler for baseLR: {baseLR}')
     baseLR = tf.convert_to_tensor(baseLR)
 
@@ -79,7 +79,7 @@ def grad_clipper_AVT(
         do_clip=        True,       # disables clipping (just GN calculations)
         logger=         None):
 
-    if not logger: logger = get_pylogger(name='grad_clipper_AVT')
+    if not logger: logger = get_pylogger()
 
     gg_norm = tf.global_norm(gradients) # gradients global norm
     gg_avt_norm = tf.get_variable( # time averaged gradients global norm variable
@@ -123,7 +123,7 @@ def gc_loss_reductor(
         do_clip: bool=      True,
         logger=             None):
 
-    if not logger: logger = get_pylogger(name='gc_loss_reductor')
+    if not logger: logger = get_pylogger()
     if vars is None: vars = tf.trainable_variables()
 
     if gradients is None: gradients = tf.gradients(avg_loss, vars, colocate_gradients_with_ops=False)

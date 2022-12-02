@@ -411,7 +411,7 @@ class MOTorch(NNWrap, Module):
                     self.log_TB(value=ts_loss, tag='ts/loss',    step=self['train_batch_IX'])
                     self.log_TB(value=ts_acc,  tag='ts/acc',     step=self['train_batch_IX'])
                     self.log_TB(value=acc_mav, tag='ts/acc_mav', step=self['train_batch_IX'])
-                self._log.info(f'{self["train_batch_IX"]:5d} TR: {100*sum(tr_accL)/test_freq:.1f} / {sum(tr_lssL)/test_freq:.3f} -- TS: {100*ts_acc:.1f} / {ts_loss:.3f}')
+                self._log.info(f'# {self["train_batch_IX"]:5d} TR: {100*sum(tr_accL)/test_freq:.1f} / {sum(tr_lssL)/test_freq:.3f} -- TS: {100*ts_acc:.1f} / {ts_loss:.3f}')
                 tr_lssL = []
                 tr_accL = []
 
@@ -430,7 +430,7 @@ class MOTorch(NNWrap, Module):
         ts_wval /= sum_weight
 
         if self['do_TB']: self.log_TB(value=ts_wval, tag='ts/ts_wval', step=self['train_batch_IX'])
-        self._log.info(f'model {self.name} finished training')
+        self._log.info(f'### model {self.name} finished training')
         self._log.info(f' > test_acc_max: {ts_acc_max:.4f}')
         self._log.info(f' > test_wval:    {ts_wval:.4f}')
 

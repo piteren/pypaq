@@ -16,6 +16,7 @@ import random
 import time
 from typing import List, Tuple, Optional, Dict
 
+from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.lipytools.moving_average import MovAvg
 from pypaq.lipytools.plots import two_dim
 from pypaq.R4C.envy import RLEnvy, FiniteActionsRLEnvy
@@ -50,8 +51,8 @@ class ExperienceMemory:
         return len(self.memory)
 
 
-# RL Trainer for Actor acting on RLEnvy
-class Trainer(ABC):
+# Reinforcement Learning Trainer for Actor acting on RLEnvy
+class RLTrainer(ABC):
 
     def __init__(
             self,
@@ -62,16 +63,17 @@ class Trainer(ABC):
             exploration: float,     # train exploration factor
             train_sampled: float,   # how often move is sampled (vs argmax) while training
             seed: int,
-            logger):
+            logger=     None,
+            loglevel=   20):
 
-        self.__log = logger
-        self.__log.info(f'*** Trainer *** initializes..')
-        self.__log.info(f'> Envy:          {envy.__class__.__name__}')
-        self.__log.info(f'> batch_size:    {batch_size}')
-        self.__log.info(f'> memory size:   {batch_size*memsize_batches}')
-        self.__log.info(f'> exploration:   {exploration}')
-        self.__log.info(f'> train_sampled: {train_sampled}')
-        self.__log.info(f'> seed:          {seed}')
+        self._log = logger or get_pylogger(level=loglevel)
+        self._log.info(f'*** RLTrainer *** initializes..')
+        self._log.info(f'> Envy:          {envy.__class__.__name__}')
+        self._log.info(f'> batch_size:    {batch_size}')
+        self._log.info(f'> memory size:   {batch_size*memsize_batches}')
+        self._log.info(f'> exploration:   {exploration}')
+        self._log.info(f'> train_sampled: {train_sampled}')
+        self._log.info(f'> seed:          {seed}')
 
         self.envy = envy
         self.actor = actor
@@ -121,7 +123,7 @@ class Trainer(ABC):
             sampled=        0.0,
             render=         False) -> Tuple[List[object], List[object], List[float]]:
 
-        self.__log.log(5,f'playing for {steps} steps..')
+        self._log.log(5,f'playing for {steps} steps..')
         observations = []
         actions = []
         rewards = []
@@ -144,7 +146,7 @@ class Trainer(ABC):
 
             if render: self.envy.render()
 
-        self.__log.log(5,f'played {len(actions)} steps (break_terminal is {break_terminal})')
+        self._log.log(5,f'played {len(actions)} steps (break_terminal is {break_terminal})')
         return observations, actions, rewards
 
     # plays one episode from reset till won or max_steps
@@ -182,7 +184,7 @@ class Trainer(ABC):
                 exploration=    0.0)
             won += int(epd[3])
             reward += sum(epd[2])
-        self.__log.debug(f'Test on {n_episodes} episodes with {max_steps} max_steps finished: WON: {int(won/n_episodes*100)}% avg reward: {reward/n_episodes:.3f}')
+        self._log.debug(f'Test on {n_episodes} episodes with {max_steps} max_steps finished: WON: {int(won/n_episodes*100)}% avg reward: {reward/n_episodes:.3f}')
         return won/n_episodes, reward/n_episodes
 
     # generic RL training procedure
@@ -199,12 +201,12 @@ class Trainer(ABC):
     ) -> Dict:
 
         stime = time.time()
-        self.__log.info(f'Starting train for {num_updates} updates..')
+        self._log.info(f'Starting train for {num_updates} updates..')
 
         self.memory = ExperienceMemory(
             maxsize=    self.memsize,
             seed=       self.seed)
-        self.__log.info(f'> initialized ExperienceMemory of maxsize {self.memsize}')
+        self._log.info(f'> initialized ExperienceMemory of maxsize {self.memsize}')
 
         loss_mavg = MovAvg()
         lossL = []
@@ -236,7 +238,7 @@ class Trainer(ABC):
                 for o,a,r,n,t in zip(observations, actions, rewards, next_observations, terminals):
                     self.memory.append(dict(observation=o, action=a, reward=r, next_observation=n, terminal=t))
 
-                self.__log.debug(f' >> Trainer gots {len(observations):3} observations after play and {len(self.memory):3} in memory, new_actions: {new_actions}' )
+                self._log.debug(f' >> Trainer gots {len(observations):3} observations after play and {len(self.memory):3} in memory, new_actions: {new_actions}' )
 
                 if is_terminal: n_terminals += 1
                 if self.envy.won_episode(): n_won += 1
@@ -259,7 +261,7 @@ class Trainer(ABC):
                     n_episodes= test_episodes,
                     max_steps=  test_max_steps)
 
-                self.__log.info(f' term:{n_terminals}(+{n_terminals-last_terminals}) -- TS: {len(actions)} actions, return {sum(rewards):.1f} ({"won" if won else "lost"}) -- {test_episodes}xTS: avg_won: {ts_res[0]*100:.1f}%, avg_return: {ts_res[1]:.1f} -- loss_actor: {loss_mavg():.4f}')
+                self._log.info(f'# term:{n_terminals}(+{n_terminals-last_terminals}) -- TS: {len(actions)} actions, return {sum(rewards):.1f} ({"won" if won else "lost"}) -- {test_episodes}xTS: avg_won: {ts_res[0]*100:.1f}%, avg_return: {ts_res[1]:.1f} -- loss_actor: {loss_mavg():.4f}')
                 last_terminals = n_terminals
 
                 if ts_res[0] == 1:
@@ -269,8 +271,8 @@ class Trainer(ABC):
 
             if break_ntests and succeeded_row_curr==break_ntests: break
 
-        self.__log.info(f'Training finished, time taken: {time.time()-stime:.2f}sec')
-        if self.__log.getEffectiveLevel()<30: two_dim(lossL, name='Actor loss')
+        self._log.info(f'### Training finished, time taken: {time.time()-stime:.2f}sec')
+        if self._log.getEffectiveLevel()<30: two_dim(lossL, name='Actor loss')
 
         return { # training_report
             'lossL':                lossL,
@@ -280,7 +282,7 @@ class Trainer(ABC):
 
 
 # FiniteActions RL Trainer (for Actor acting on FiniteActionsRLEnvy)
-class FATrainer(Trainer, ABC):
+class FATrainer(RLTrainer, ABC):
 
     def __init__(
             self,
@@ -289,7 +291,7 @@ class FATrainer(Trainer, ABC):
             **kwargs):
         self.envy = envy  # INFO: type "upgrade" for pycharm editor
         np.random.seed(seed)
-        Trainer.__init__(
+        RLTrainer.__init__(
             self,
             envy=   envy,
             seed=   seed,

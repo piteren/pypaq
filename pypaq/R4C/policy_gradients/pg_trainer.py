@@ -22,29 +22,17 @@ class PGTrainer(FATrainer):
             use_mavg: bool,     # use movavg to calculate discounted returns
             mavg_factor: float,
             do_zscore: bool,
-            logger=     None,
-            loglevel=   20,
             **kwargs):
 
-        if not logger:
-            logger = get_pylogger(
-                name=       'PGTrainer',
-                add_stamp=  True,
-                folder=     None,
-                level=      loglevel)
-        self.__log = logger
-        self.__log.info(f'*** PGTrainer initializes, discount: {discount}')
-
-        FATrainer.__init__(
-            self,
-            actor=  actor,
-            logger= self.__log,
-            **kwargs)
+        FATrainer.__init__(self, actor=actor, **kwargs)
         self.actor = actor # INFO: just type "upgrade" for pycharm editor
         self.discount = discount
         self.use_mavg = use_mavg
         self.movavg_factor = mavg_factor
         self.do_zscore = do_zscore
+
+        self._log.info(f'*** PGTrainer *** initialized')
+        self._log.info(f'> discount: {self.discount}')
 
     # PGActor update method
     def _update_actor(self, inspect=False) -> float:

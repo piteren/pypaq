@@ -25,46 +25,29 @@ class PGActor(TrainableActor, ABC):
             self,
             envy: FiniteActionsRLEnvy,
             nnwrap: type(NNWrap),
-            seed: int,
-            logger: Optional,
-            loglevel: int,
             nngraph: Optional[Union[Callable, type]]=   None,
             name: Optional[str]=                        None,
             **kwargs):
 
-        logger_given = bool(logger)
-        if not logger_given:
-            logger = get_pylogger(
-                name=       'PG_Actor',
-                add_stamp=  True,
-                folder=     None,
-                level=      loglevel)
-        self.__log = logger
-
-        TrainableActor.__init__(
-            self,
-            envy=   envy,
-            seed=   seed,
-            logger= self.__log)
+        ta_kwargs = {k: kwargs[k] for k in ['seed','logger','loglevel'] if k in kwargs}
+        TrainableActor.__init__(self, envy=envy, **ta_kwargs)
         self._envy = envy  # to update type (for pycharm only)
 
         kwargs['num_actions'] = self._envy.num_actions()
         kwargs['observation_width'] = self._get_observation_vec(self._envy.get_observation()).shape[-1]
-
+        if 'logger' in kwargs: kwargs.pop('logger') #INFO: NNWrap will always create own loger with given level
         self.nnw: NNWrap = nnwrap(
             nngraph=    nngraph,
             name=       name or f'nn_{self.__class__.__name__}_{stamp()}',
-            logger=     self.__log if logger_given else None,
-            loglevel=   loglevel,
             **kwargs)
 
         self._upd_step = 0
 
-        self.__log.info('*** PG_Actor *** (NN based) initialized')
-        self.__log.info(f'> NNW model name:    {self.nnw["name"]}')
-        self.__log.info(f'> num_actions:       {self.nnw["num_actions"]}')
-        self.__log.info(f'> observation_width: {self.nnw["observation_width"]}')
-        self.__log.info(f'> save_topdir:       {self.nnw["save_topdir"]}')
+        self._log.info('*** PG_Actor *** (NN based) initialized')
+        self._log.info(f'> NNW model name:    {self.nnw["name"]}')
+        self._log.info(f'> num_actions:       {self.nnw["num_actions"]}')
+        self._log.info(f'> observation_width: {self.nnw["observation_width"]}')
+        self._log.info(f'> save_topdir:       {self.nnw["save_topdir"]}')
 
     # vectorization of observations batch, may be overridden with more optimal custom implementation
     def _get_observation_vec_batch(self, observations: List[object]) -> np.ndarray:

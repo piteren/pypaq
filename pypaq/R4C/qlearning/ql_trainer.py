@@ -11,7 +11,7 @@ import numpy as np
 from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.R4C.helpers import extract_from_batch
 from pypaq.R4C.trainer import FATrainer
-from pypaq.R4C.qlearning.qlearning_actor import QLearningActor
+from pypaq.R4C.qlearning.ql_actor import QLearningActor
 
 
 # Q-Learning Trainer
@@ -21,26 +21,14 @@ class QLearningTrainer(FATrainer):
             self,
             actor: QLearningActor,
             gamma: float,       # QLearning gamma (discount)
-            logger=     None,
-            loglevel=   20,
             **kwargs):
 
-        if not logger:
-            logger = get_pylogger(
-                name=       'QLearningTrainer',
-                add_stamp=  True,
-                folder=     None,
-                level=      loglevel)
-        self.__log = logger
-        self.__log.info(f'*** QLearningTrainer *** initializes, gamma: {gamma}')
-
-        FATrainer.__init__(
-            self,
-            actor=  actor,
-            logger= self.__log,
-            **kwargs)
+        FATrainer.__init__(self, actor=actor, **kwargs)
         self.actor = actor  # INFO: just type "upgrade" for pycharm editor
         self.gamma = gamma
+
+        self._log.info(f'*** QLearningTrainer *** initialized')
+        self._log.info(f'> gamma: {self.gamma}')
 
     # updates QLearningActor policy with batch of random data from memory
     def _update_actor(self, inspect=False) -> float:

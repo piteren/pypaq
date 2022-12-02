@@ -117,7 +117,7 @@ class NNWrap(ParaSave, ABC):
         if not logger:
             logger = get_pylogger(
                 name=       self.name,
-                add_stamp=  not name_timestamp,
+                add_stamp=  False,
                 folder=     None if _read_only else self.nnwrap_dir,
                 level=      loglevel)
         self._log = logger
@@ -136,7 +136,7 @@ class NNWrap(ParaSave, ABC):
         ParaSave.__init__(
             self,
             lock_managed_params=    True,
-            logger=                 get_hi_child(self._log, 'ParaSave'),
+            logger=                 get_hi_child(self._log),
             **self._dna)
         self.check_params_sim(params= list(self.SPEC_KEYS) + list(self.INIT_DEFAULTS.keys())) # safety check
 

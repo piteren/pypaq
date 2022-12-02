@@ -1,10 +1,8 @@
 """
 
- 2021 (c) piteren
+ 2022 (c) piteren
 
-    PolicyGradients NN Actor, TF based
-
-    TODO: implement parallel training, in batches (many envys)
+    PolicyGradients NN Actor, PT based
 
 """
 
@@ -12,7 +10,6 @@ from abc import ABC
 import numpy as np
 from typing import Optional
 
-from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.R4C.policy_gradients.pg_actor import PGActor
 from pypaq.R4C.policy_gradients.base.pt_based.pg_PT_module import PGModel
 from pypaq.torchness.motorch import MOTorch, Module
@@ -21,29 +18,8 @@ from pypaq.torchness.motorch import MOTorch, Module
 
 class PG_PTActor(PGActor, ABC):
 
-    def __init__(
-            self,
-            nngraph: Optional[type(Module)]=    PGModel,
-            logger=                             None,
-            loglevel=                           20,
-            **kwargs):
-
-        logger_given = bool(logger)
-        if not logger_given:
-            logger = get_pylogger(
-                name=       'PG_PTActor',
-                add_stamp=  True,
-                folder=     None,
-                level=      loglevel)
-        self.__log = logger
-
-        PGActor.__init__(
-            self,
-            nnwrap=     MOTorch,
-            nngraph=    nngraph,
-            logger=     self.__log if logger_given else None, # if user gives logger we assume it to be nice logger, otherwise we want to pas None up to NNWrap, which manages logger in pretty way
-            loglevel=   loglevel,
-            **kwargs)
+    def __init__(self, nngraph:Optional[type(Module)]=PGModel, **kwargs):
+        PGActor.__init__(self, nnwrap=MOTorch, nngraph=nngraph, **kwargs)
 
     def get_policy_probs(self, observation: object) -> np.ndarray:
         obs_vec = self._get_observation_vec(observation)

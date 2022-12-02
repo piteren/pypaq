@@ -9,6 +9,7 @@
 from abc import abstractmethod, ABC
 import numpy as np
 
+from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.R4C.envy import RLEnvy
 
 
@@ -26,15 +27,16 @@ class TrainableActor(Actor, ABC):
             self,
             envy: RLEnvy,
             seed: int,
-            logger):
+            logger=     None,
+            loglevel=   20):
 
         self._envy = envy
         self.seed = seed
-        self.__log = logger
+        self._log = logger or get_pylogger(level=loglevel)
 
-        self.__log.info('*** TrainableActor *** initialized')
-        self.__log.info(f'> Envy: {envy.__class__.__name__}')
-        self.__log.info(f'> seed: {seed}')
+        self._log.info('*** TrainableActor *** initialized')
+        self._log.info(f'> Envy: {self._envy.__class__.__name__}')
+        self._log.info(f'> seed: {self.seed}')
 
     # prepares numpy vector from observation, it is a private / internal skill of Actor, to be implemented for each Envy
     @abstractmethod

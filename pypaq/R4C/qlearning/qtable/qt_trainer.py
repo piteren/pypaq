@@ -7,8 +7,8 @@
 """
 
 from pypaq.lipytools.pylogger import get_pylogger
-from pypaq.R4C.qlearning.qlearning_trainer import QLearningTrainer
-from pypaq.R4C.qlearning.qtable.qtable_actor import QTableActor
+from pypaq.R4C.qlearning.ql_trainer import QLearningTrainer
+from pypaq.R4C.qlearning.qtable.qt_actor import QTableActor
 
 
 class QTableTrainer(QLearningTrainer):
@@ -27,13 +27,13 @@ class QTableTrainer(QLearningTrainer):
                 add_stamp=  True,
                 folder=     None,
                 level=      loglevel)
-        self.__log = logger
-        self.__log.info(f'*** QTableTrainer initializes, actor: {actor.__class__.__name__}, update_rate: {update_rate}')
+        self._log = logger
+        self._log.info(f'*** QTableTrainer initializes, actor: {actor.__class__.__name__}, update_rate: {update_rate}')
 
         self.actor = actor
         self.actor.set_update_rate(update_rate)
         QLearningTrainer.__init__(
             self,
             actor=      self.actor,
-            logger=     self.__log,
+            logger=     self._log,
             **kwargs)
