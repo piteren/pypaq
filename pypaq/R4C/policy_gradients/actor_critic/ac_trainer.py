@@ -12,7 +12,7 @@ import numpy as np
 
 from pypaq.R4C.helpers import extract_from_batch
 from pypaq.R4C.policy_gradients.base.tf_based.pg_TF_actor import PG_TFActor
-from pypaq.R4C.policy_gradients.actor_critic.ac_TF_critic import AC_TFCritic
+from pypaq.R4C.policy_gradients.actor_critic.tf_based.ac_TF_critic import AC_TFCritic
 from pypaq.R4C.policy_gradients.pg_trainer import PGTrainer
 
 

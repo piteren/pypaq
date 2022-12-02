@@ -142,7 +142,7 @@ if __name__ == '__main__':
         def observation_vec_batch(self, observations) -> np.ndarray:
             return np.array(observations)
 
-    from applied_RL.cart_pole.cart_pole_envy import CartPoleEnvy
+    from applied_RL.other.cart_pole_envy import CartPoleEnvy
 
     envy = CartPoleEnvy(
         reward_scale=   0.1,

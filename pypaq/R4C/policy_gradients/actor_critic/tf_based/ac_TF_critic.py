@@ -3,7 +3,7 @@ import numpy as np
 from typing import Optional, Callable, List
 
 from pypaq.R4C.policy_gradients.base.tf_based.pg_TF_actor import PG_TFActor
-from pypaq.R4C.policy_gradients.actor_critic.ac_TF_critic_graph import critic_graph
+from pypaq.R4C.policy_gradients.actor_critic.tf_based.ac_TF_critic_graph import critic_graph
 
 
 class AC_TFCritic(PG_TFActor, ABC):
