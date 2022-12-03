@@ -9,7 +9,6 @@ from pypaq.R4C.policy_gradients.actor_critic.tf_based.ac_TF_critic_graph import 
 class AC_TFCritic(PG_TFActor, ABC):
 
     def __init__(self, nngraph:Optional[Callable]=critic_graph, **kwargs):
-        # TODO: wrong logger name, see pg_TF_actor #33
         PG_TFActor.__init__(self, nngraph=nngraph, **kwargs)
 
     # AC_TFCritic does not use this method
