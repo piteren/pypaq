@@ -15,6 +15,7 @@
 """
 
 from abc import abstractmethod, ABC
+import numpy as np
 from typing import List
 
 
@@ -63,6 +64,10 @@ class RLEnvy(Envy, ABC):
 
     # Envy rendering (for debug, preview etc.)
     def render(self): pass
+
+    # prepares numpy vector from observation, it may be implemented by RLEnvy, but is not mandatory, otherwise Actor should implement on itself
+    def prep_observation_vec(self, observation: object) -> np.ndarray:
+        raise Exception('RLEnvy not implemented prep_observation_vec()')
 
 
 # interface of RL Environment with finite actions number

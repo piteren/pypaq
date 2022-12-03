@@ -35,9 +35,10 @@ class TrainableActor(Actor, ABC):
         self._log.info('*** TrainableActor *** initialized')
         self._log.info(f'> Envy: {self._envy.__class__.__name__}')
 
-    # prepares numpy vector from observation, it is a private / internal skill of Actor, to be implemented for each Envy
-    @abstractmethod
-    def _get_observation_vec(self, observation: object) -> np.ndarray: pass
+    # prepares numpy vector from observation, first tries to get from RLEnvy
+    def _get_observation_vec(self, observation: object) -> np.ndarray:
+        try: return self._envy.prep_observation_vec(observation)
+        except Exception: raise Exception ('TrainableActor not implemented _get_observation_vec()')
 
     # add sampling (from probability?) option which may be helpful for training
     @abstractmethod
