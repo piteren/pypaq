@@ -20,6 +20,7 @@ class PGModel(Module):
             observation_width=  4,
             num_actions: int=   2,
             hidden_layers=      (20,),
+            lay_norm=           False,
             seed=               121):
 
         torch.nn.Module.__init__(self)
@@ -29,6 +30,8 @@ class PGModel(Module):
         for hl in hidden_layers:
             lay_shapeL.append((next_in,hl))
             next_in = hl
+
+        self.lay_norm = lay_norm
 
         self.ln = torch.nn.LayerNorm(observation_width) # input layer norm
 
@@ -48,11 +51,11 @@ class PGModel(Module):
 
     def forward(self, obs) -> dict:
 
-        out = self.ln(obs)
+        out = self.ln(obs) if self.lay_norm else obs
 
         for lin,ln in zip(self.linL,self.lnL):
             out = lin(out)
-            out = ln(out)
+            if self.lay_norm: out = ln(out)
 
         logits = self.logits(out)
         probs = torch.nn.functional.softmax(input=logits, dim=-1)

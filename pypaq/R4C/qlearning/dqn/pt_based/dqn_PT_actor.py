@@ -61,4 +61,5 @@ class DQN_PTActor(DQN_Actor):
 
         out = self.nnw.backward(obs_vecs, full_qvs, mask)
         out.pop('logits')
+        out.pop('acc') # accuracy for DQN does not make sense
         return out
