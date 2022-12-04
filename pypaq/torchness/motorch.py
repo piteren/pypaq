@@ -32,7 +32,7 @@ class Module(ABC, torch.nn.Module):
 
     # returned dict should have at least 'logits' key with logits tensor
     @abstractmethod
-    def forward(self, *args, **kwargs) -> Dict:
+    def forward(self, *args, **kwargs) -> dict:
         raise NotImplementedError
 
     # baseline accuracy implementation for logits & lables
@@ -47,7 +47,7 @@ class Module(ABC, torch.nn.Module):
 
     # returned dict updates forward() Dict with loss & acc keys (accuracy or any other (increasing) performance float)
     @abstractmethod
-    def loss_acc(self, *args, **kwargs) -> Dict:
+    def loss_acc(self, *args, **kwargs) -> dict:
         raise NotImplementedError
 
 
@@ -175,7 +175,7 @@ class MOTorch(NNWrap, Module):
         self.__set_training(False)
         self._log.debug(f'> set MOTorch train.mode to False..')
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> dict:
         return torch.nn.Module.__call__(self, *args, **kwargs)
 
     # *********************************************************************************************** load / save / copy
@@ -282,7 +282,7 @@ class MOTorch(NNWrap, Module):
             to_torch=   True,                       # converts given data to torch.Tensors
             to_devices= True,                       # moves tensors to devices
             set_training: Optional[bool]=   None,   # for not None forces given training mode for torch.nn.Module
-            **kwargs) -> Dict:
+            **kwargs) -> dict:
         if set_training is not None: self.__set_training(set_training)
         args, kwargs = self.__torch_dev(*args, to_torch=to_torch, to_devices=to_devices, **kwargs)
         out = self.nngraph.forward(self, *args, **kwargs)
@@ -303,7 +303,7 @@ class MOTorch(NNWrap, Module):
             to_torch=                       True,   # converts given data to torch.Tensors
             to_devices=                     True,   # moves tensors to devices
             set_training: Optional[bool]=   None,   # for not None forces given training mode for torch.nn.Module
-            **kwargs) -> Dict:
+            **kwargs) -> dict:
         if set_training is not None: self.__set_training(set_training)
         args, kwargs = self.__torch_dev(*args, to_torch=to_torch, to_devices=to_devices, **kwargs)
         out = self.nngraph.loss_acc(self, *args, **kwargs)
@@ -317,7 +317,7 @@ class MOTorch(NNWrap, Module):
             to_torch=           True,   # converts given data to torch.Tensors
             to_devices=         True,   # moves tensors to devices
             set_training: bool= True,
-            **kwargs) -> Dict:
+            **kwargs) -> dict:
 
         out = self.loss_acc(
             *args,

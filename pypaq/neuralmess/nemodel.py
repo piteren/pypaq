@@ -26,7 +26,7 @@
 
 import numpy as np
 import os
-from typing import Optional, Callable, Tuple
+from typing import Optional, Callable, Tuple, List
 import warnings
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -509,11 +509,13 @@ class NEModel(NNWrap):
             logger=     get_hi_child(self._log, 'MultiSaver'))
         if self['load_saver']: self.load_ckpt()
 
-    def __call__(self, feed_dict, fetches):
-        return self._session.run(feed_dict=feed_dict, fetches=fetches)
+    def __call__(self, feed_dict:dict, fetch:List[str]) -> dict:
+        out = self._session.run(feed_dict=feed_dict, fetches=[self[n] for n in fetch])
+        return {n: e for n,e in zip(fetch,out)}
 
-    def backward(self, feed_dict, fetches) -> Tuple:
-        return self.__call__(feed_dict=feed_dict, fetches=fetches)
+    def backward(self, feed_dict:dict, fetch:List[str]) -> dict:
+        return self.__call__(feed_dict=feed_dict, fetch=fetch)
+
     # *********************************************************************************************** load / save / copy
 
     # reloads model checkpoint, updates baseLR
@@ -625,20 +627,17 @@ class NEModel(NNWrap):
 
             batch = self._batcher.get_batch()
             feed = self.build_feed(batch)
-            fetches = [self['optimizer'], self['loss'], self['acc'], self['gg_norm'], self['gg_avt_norm']]
-            run_out = self._session.run(fetches, feed)
-            _, loss, acc, gg_norm, gg_avt_norm = run_out
+            out = self(feed_dict=feed, fetch=['optimizer','loss','acc','gg_norm','gg_avt_norm'])
+            out.pop('optimizer')
 
             batch_IX += 1
             self['train_batch_IX'] += 1
 
             if self['do_TB']:
-                self.log_TB(value=loss,        tag='tr/loss',    step=self['train_batch_IX'])
-                self.log_TB(value=acc,         tag='tr/acc',     step=self['train_batch_IX'])
-                self.log_TB(value=gg_norm,     tag='tr/gn',      step=self['train_batch_IX'])
-                self.log_TB(value=gg_avt_norm, tag='tr/gn_avt',  step=self['train_batch_IX'])
-            tr_lssL.append(loss)
-            tr_accL.append(acc)
+                for k in out:
+                    self.log_TB(value=out[k], tag=f'tr/{k}', step=self['train_batch_IX'])
+            tr_lssL.append(out['loss'])
+            tr_accL.append(out['acc'])
 
             if batch_IX in ts_bIX:
                 ts_acc, ts_loss = self.test()
@@ -686,10 +685,9 @@ class NEModel(NNWrap):
         accL = []
         for batch in batches:
             feed = self.build_feed(batch)
-            fetches = [self['loss'], self['acc']]
-            loss, acc = self._session.run(fetches, feed)
-            lossL.append(loss)
-            accL.append(acc)
+            out = self(feed_dict=feed, fetch=['loss','acc'])
+            lossL.append(out['loss'])
+            accL.append(out['acc'])
 
         return sum(accL)/len(accL), sum(lossL)/len(lossL)
 

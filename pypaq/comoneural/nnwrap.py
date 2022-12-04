@@ -236,10 +236,10 @@ class NNWrap(ParaSave, ABC):
     def _build_graph(self) -> None: pass
 
     @abstractmethod
-    def __call__(self, *args, **kwargs): pass
+    def __call__(self, *args, **kwargs) -> dict: pass
 
     @abstractmethod
-    def backward(self, *args, **kwargs) -> object: pass
+    def backward(self, *args, **kwargs) -> dict: pass
 
     # *********************************************************************************************** load / save / copy
 
@@ -252,7 +252,7 @@ class NNWrap(ParaSave, ABC):
     def save_ckpt(self) -> None: pass
 
     # saves NNWrap (ParaSave DNA and model checkpoint)
-    def save(self) -> None:
+    def save(self):
         if self['read_only']: raise NNWrapException('read only NNWrap cannot be saved!')
         self.save_dna()
         self.save_ckpt()
