@@ -46,7 +46,7 @@ class PGModel(Module):
             out_features=   num_actions,
             activation=     None)
 
-    def forward(self, obs) -> Dict:
+    def forward(self, obs) -> dict:
 
         out = self.ln(obs)
 
@@ -68,7 +68,7 @@ class PGModel(Module):
             'amax_prob':    amax_prob,
             'amin_prob':    amin_prob}
 
-    def loss_acc(self, obs, lbl, ret) -> Dict:
+    def loss_acc(self, obs, lbl, ret) -> dict:
 
         out = self(obs)
         logits = out['logits']

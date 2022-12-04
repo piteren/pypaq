@@ -27,12 +27,12 @@ class LinModel(Module):
         self.lin = LayDense(in_features=in_shape, out_features=out_shape)
         self.loss_func = loss_func
 
-    def forward(self, inp) -> Dict:
+    def forward(self, inp) -> dict:
         if self.in_drop_lay is not None: inp = self.in_drop_lay(inp)
         logits = self.lin(inp)
         return {'logits': logits}
 
-    def loss_acc(self, inp, lbl) -> Dict:
+    def loss_acc(self, inp, lbl) -> dict:
         out = self(inp)
         out['loss'] = self.loss_func(out['logits'], lbl)
         out['acc'] = self.accuracy(out['logits'], lbl)  # using baseline

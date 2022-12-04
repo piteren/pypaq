@@ -48,7 +48,7 @@ class DQNModel(Module):
 
         self.loss = torch.nn.MSELoss(reduction='none')
 
-    def forward(self, obs) -> Dict:
+    def forward(self, obs) -> dict:
         out = self.ln(obs)
         for lin,ln in zip(self.linL,self.lnL):
             out = lin(out)
@@ -63,7 +63,7 @@ class DQNModel(Module):
         # no good accuracy for this model
         return 0.0
 
-    def loss_acc(self, obs, lbl, mask=None) -> Dict:
+    def loss_acc(self, obs, lbl, mask=None) -> dict:
         out = self(obs)
         logits = out['logits']
         loss = self.loss(logits, lbl)

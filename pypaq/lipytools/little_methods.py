@@ -42,7 +42,7 @@ def get_func_dna(
         func: Optional[Callable],
         dna: Dict,
         remove_self= True # removes self in case of methods (class)
-) -> Dict:
+) -> dict:
     if func is None: return {}
     pms = get_params(func)
     valid_keys = pms['without_defaults'] + list(pms['with_defaults'].keys())

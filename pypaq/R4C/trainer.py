@@ -202,7 +202,7 @@ class RLTrainer(ABC):
             test_render=        False,  # renders one episode while test
             inspect=            False,  # for debug / research
             break_ntests=       0,      # when > 0: breaks training after all test episodes succeeded N times in a row
-    ) -> Dict:
+    ) -> dict:
 
         stime = time.time()
         self._log.info(f'Starting train for {num_updates} updates..')
