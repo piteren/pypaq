@@ -1,23 +1,28 @@
-from abc import ABC
 import numpy as np
-from typing import Optional, Callable, List
+from typing import Optional, Callable
 
-from pypaq.R4C.policy_gradients.base.tf_based.pg_TF_actor import PG_TFActor
+from pypaq.R4C.policy_gradients.pg_actor import PGActor
 from pypaq.R4C.policy_gradients.actor_critic.tf_based.ac_TF_critic_graph import critic_graph
+from pypaq.neuralmess.nemodel import NEModel
 
 
-class AC_TFCritic(PG_TFActor, ABC):
+class AC_TFCritic(PGActor):
 
-    def __init__(self, nngraph:Optional[Callable]=critic_graph, **kwargs):
-        PG_TFActor.__init__(self, nngraph=nngraph, **kwargs)
+    def __init__(
+            self,
+            name: str=                      'AC_TFCritic',
+            nngraph: Optional[Callable]=    critic_graph,
+            **kwargs):
+        PGActor.__init__(
+            self,
+            name=       name,
+            nnwrap=     NEModel,
+            nngraph=    nngraph,
+            **kwargs)
 
-    # AC_TFCritic does not use this method
+    # Critic does not have policy
     def get_policy_probs(self, observation: object) -> np.ndarray:
-        raise Exception('not implemented!')
-
-    # AC_TFCritic does not use this method
-    def get_policy_probs_batch(self, observations: List[object]) -> np.ndarray:
-        raise Exception('not implemented!')
+        raise Exception('not implemented since should not be called')
 
     def get_qvs(self, observation) -> np.ndarray:
         obs_vec = self._get_observation_vec(observation)
@@ -41,7 +46,6 @@ class AC_TFCritic(PG_TFActor, ABC):
             next_actions_probs,
             rewards,
             inspect=    False) -> dict:
-
         obs_vecs = self._get_observation_vec_batch(observations)
         out = self.nnw.backward(
             feed_dict=  {

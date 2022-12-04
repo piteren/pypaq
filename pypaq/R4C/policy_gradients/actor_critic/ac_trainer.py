@@ -39,6 +39,9 @@ class ACTrainer(PGTrainer):
             seed=   kwargs['seed'],
             **c_kwargs)
 
+        self._log.info('*** ACTrainer *** initialized')
+        self._log.info(f'> critic: {critic_class.__name__}')
+
     # converts one dim arr of ints into two dim one-hot array
     def _actions_OH_encoding(self, actions:np.array) -> np.ndarray:
         hot = np.zeros((len(actions), self.envy.num_actions()))
@@ -107,6 +110,8 @@ class ACTrainer(PGTrainer):
             next_action_qvs=    next_actions_qvs,
             next_actions_probs= next_actions_probs,
             rewards=            rewards)
+        for k in crt_metrics:
+            act_metrics[f'critic_{k}'] = crt_metrics[k]
 
         if np.isnan(act_metrics['loss']) or np.isnan(crt_metrics['loss']): raise Exception('NaN loss!')
 

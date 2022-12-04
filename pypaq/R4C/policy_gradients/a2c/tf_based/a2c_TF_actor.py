@@ -8,8 +8,16 @@ from pypaq.R4C.policy_gradients.a2c.tf_based.a2c_TF_graph import a2c_graph
 
 class A2C_TFActor(PG_TFActor, ABC):
 
-    def __init__(self, nngraph:Optional[Callable]=a2c_graph, **kwargs):
-        PG_TFActor.__init__(self, nngraph=nngraph, **kwargs)
+    def __init__(
+            self,
+            name: str=                      'A2C_TFActor',
+            nngraph: Optional[Callable]=    a2c_graph,
+            **kwargs):
+        PG_TFActor.__init__(
+            self,
+            name=       name,
+            nngraph=    nngraph,
+            **kwargs)
 
     # overrides PG_TFActor with more log_TB
     def update_with_experience(

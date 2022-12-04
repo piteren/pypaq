@@ -8,8 +8,16 @@ from pypaq.R4C.policy_gradients.actor_critic_shared.tf_based.ac_shared_TF_graph 
 
 class ACShared_TFActor(PG_TFActor, ABC):
 
-    def __init__(self, nngraph:Optional[Callable]=acs_graph, **kwargs):
-        PG_TFActor.__init__(self, nngraph=nngraph, **kwargs)
+    def __init__(
+            self,
+            name: str=                      'ACShared_TFActor',
+            nngraph: Optional[Callable]=    acs_graph,
+            **kwargs):
+        PG_TFActor.__init__(
+            self,
+            name=       name,
+            nngraph=    nngraph,
+            **kwargs)
 
     def update_with_experience(
             self,

@@ -25,7 +25,6 @@ class PGActor(TrainableActor, ABC):
             envy: FiniteActionsRLEnvy,
             nnwrap: type(NNWrap),
             nngraph: Optional[Union[Callable, type]]=   None,
-            name: Optional[str]=                        None,
             seed: int=                                  123,
             **kwargs):
 
@@ -47,7 +46,7 @@ class PGActor(TrainableActor, ABC):
         self.nnw: NNWrap = nnwrap(nngraph=nngraph, seed=seed, **kwargs)
 
         self._log.info('*** PG_Actor *** (NN based) initialized')
-        self._log.info(f'> NNWrap: {nnwrap.__class__.__name__}')
+        self._log.info(f'> NNWrap: {nnwrap.__name__}')
 
     # vectorization of observations batch, may be overridden with more optimal custom implementation
     def _get_observation_vec_batch(self, observations: List[object]) -> np.ndarray:
@@ -72,15 +71,6 @@ class PGActor(TrainableActor, ABC):
         if sampled: actions = np.random.choice(self._envy.num_actions(), size=probs.shape[-1], p=probs)
         else:       actions = np.argmax(probs, axis=-1)
         return actions
-
-    # updates self NN with batch of data
-    @abstractmethod
-    def update_with_experience(
-            self,
-            observations,
-            actions,
-            dreturns,     # discounted accumulated returns
-            inspect=    False) -> dict: pass
 
     def _get_save_topdir(self) -> str:
         return self.nnw['save_topdir']

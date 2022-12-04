@@ -18,8 +18,17 @@ from pypaq.torchness.motorch import MOTorch, Module
 
 class PG_PTActor(PGActor, ABC):
 
-    def __init__(self, nngraph:Optional[type(Module)]=PGModel, **kwargs):
-        PGActor.__init__(self, nnwrap=MOTorch, nngraph=nngraph, **kwargs)
+    def __init__(
+            self,
+            name: str=                          'PG_PTActor',
+            nngraph: Optional[type(Module)]=    PGModel,
+            **kwargs):
+        PGActor.__init__(
+            self,
+            name=       name,
+            nnwrap=     MOTorch,
+            nngraph=    nngraph,
+            **kwargs)
 
     def get_policy_probs(self, observation: object) -> np.ndarray:
         obs_vec = self._get_observation_vec(observation)

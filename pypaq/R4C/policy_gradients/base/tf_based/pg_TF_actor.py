@@ -18,8 +18,17 @@ from pypaq.neuralmess.nemodel import NEModel
 
 class PG_TFActor(PGActor, ABC):
 
-    def __init__(self, nngraph:Optional[Callable]=pga_graph, **kwargs):
-        PGActor.__init__(self, nnwrap=NEModel, nngraph=nngraph, **kwargs)
+    def __init__(
+            self,
+            name: str=                      'PG_TFActor',
+            nngraph: Optional[Callable]=    pga_graph,
+            **kwargs):
+        PGActor.__init__(
+            self,
+            name=       name,
+            nnwrap=     NEModel,
+            nngraph=    nngraph,
+            **kwargs)
 
     def get_policy_probs(self, observation: object) -> np.ndarray:
         obs_vec = self._get_observation_vec(observation)
