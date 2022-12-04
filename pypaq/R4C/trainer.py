@@ -18,9 +18,9 @@ from typing import List, Tuple, Optional, Dict
 
 from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.lipytools.moving_average import MovAvg
-from pypaq.lipytools.plots import two_dim
 from pypaq.R4C.envy import RLEnvy, FiniteActionsRLEnvy
 from pypaq.R4C.actor import TrainableActor
+from pypaq.torchness.base_elements import TBwr
 
 
 # Trainer Experience Memory (deque od dicts)
@@ -69,6 +69,7 @@ class RLTrainer(ABC):
         self._log = logger or get_pylogger(level=loglevel)
         self._log.info(f'*** RLTrainer *** initializes..')
         self._log.info(f'> Envy:          {envy.__class__.__name__}')
+        self._log.info(f'> Actor:         {actor.__class__.__name__}, name: {actor.name}')
         self._log.info(f'> batch_size:    {batch_size}')
         self._log.info(f'> memory size:   {batch_size*memsize_batches}')
         self._log.info(f'> exploration:   {exploration}')
@@ -85,8 +86,11 @@ class RLTrainer(ABC):
         self.seed = seed
         np.random.seed(self.seed)
 
-    # updates Actor policy, returns Actor "metric" - loss etc. (float), baseline implementation
-    def _update_actor(self, inspect=False) -> float:
+        self._TBwr = TBwr(logdir=self.actor.get_save_dir()) # TensorBoard writer
+        self._upd_step = 0                                  # global update step
+
+    # updates Actor policy, returns dict with Actor "metrics" - loss etc.
+    def _update_actor(self, inspect=False) -> dict:
         batch = self.memory.sample(self.batch_size)
         return self.actor.update_with_experience(
             batch=      batch,
@@ -246,8 +250,15 @@ class RLTrainer(ABC):
                 if upd_on_episode: break
 
             # update Actor
-            loss_actor = self._update_actor(inspect=inspect and uix % test_freq == 0)
-            lossL.append(loss_mavg.upd(loss_actor))
+            upd_metrics = self._update_actor(inspect=inspect and uix % test_freq == 0)
+            self._upd_step += 1
+            if 'loss' in upd_metrics: lossL.append(loss_mavg.upd(upd_metrics['loss']))
+
+            for k in upd_metrics:
+                self._TBwr.add(
+                    value=  upd_metrics[k],
+                    tag=    f'actor_upd/{k}',
+                    step=   self._upd_step)
 
             # test Actor
             if uix % test_freq == 0:
@@ -272,7 +283,6 @@ class RLTrainer(ABC):
             if break_ntests and succeeded_row_curr==break_ntests: break
 
         self._log.info(f'### Training finished, time taken: {time.time()-stime:.2f}sec')
-        if self._log.getEffectiveLevel()<30: two_dim(lossL, name='Actor loss')
 
         return { # training_report
             'lossL':                lossL,

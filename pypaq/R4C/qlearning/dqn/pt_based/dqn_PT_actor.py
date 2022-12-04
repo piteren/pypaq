@@ -6,21 +6,28 @@
 
 """
 
-from abc import ABC
 import numpy as np
 from typing import List, Optional
 
-from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.R4C.qlearning.dqn.dqn_actor import DQN_Actor
 from pypaq.R4C.qlearning.dqn.pt_based.dqn_PT_module import DQNModel
 from pypaq.torchness.motorch import MOTorch, Module
 
 
 # DQN (PyTorch NN) based QLearningActor
-class DQN_PTActor(DQN_Actor, ABC):
+class DQN_PTActor(DQN_Actor):
 
-    def __init__(self, nngraph:Optional[type(Module)]=DQNModel, **kwargs):
-        DQN_Actor.__init__(self, nnwrap=MOTorch, nngraph=nngraph, **kwargs)
+    def __init__(
+            self,
+            name: str=                          'DQN_PTActor',
+            nngraph: Optional[type(Module)]=    DQNModel,
+            **kwargs):
+        DQN_Actor.__init__(
+            self,
+            name=       name,
+            nnwrap=     MOTorch,
+            nngraph=    nngraph,
+            **kwargs)
 
     def _get_QVs(self, observation: object) -> np.ndarray:
         obs_vec = self._get_observation_vec(observation)
@@ -37,33 +44,21 @@ class DQN_PTActor(DQN_Actor, ABC):
             observations: List[object],
             actions: List[int],
             new_qvs: List[float],
-            inspect=    False) -> float:
+            inspect=    False) -> dict:
 
-        obs_vecs = np.array([self._get_observation_vec(o) for o in observations])
+        obs_vecs = self._get_observation_vec_batch(observations)
         full_qvs = np.zeros_like(obs_vecs)
         mask = np.zeros_like(obs_vecs)
         for v,pos in zip(new_qvs, enumerate(actions)):
             full_qvs[pos] = v
             mask[pos] = 1
 
-        self._log.log(5, f'>>> obs_vecs (shape {obs_vecs.shape})\n{obs_vecs}')
-        self._log.log(5, f'>>> actions (len {len(actions)}): {actions}')
-        self._log.log(5, f'>>> new_qvs (len {len(new_qvs)}): {new_qvs}')
-        self._log.log(5, f'>>> full_qvs\n{full_qvs}')
-        self._log.log(5, f'>>> mask\n{mask}')
+        self._log.log(5, f'>> obs_vecs (shape {obs_vecs.shape})\n{obs_vecs}')
+        self._log.log(5, f'>> actions (len {len(actions)}): {actions}')
+        self._log.log(5, f'>> new_qvs (len {len(new_qvs)}): {new_qvs}')
+        self._log.log(5, f'>> full_qvs\n{full_qvs}')
+        self._log.log(5, f'>> mask\n{mask}')
 
         out = self.nnw.backward(obs_vecs, full_qvs, mask)
-
-        self._upd_step += 1
-
-        loss = float(out['loss'])
-        gn = float(out['gg_norm'])
-        gn_avt = float(out['gg_avt_norm'])
-        cLR = float(out['currentLR'])
-
-        self.nnw.log_TB(loss,    'upd/loss',     step=self._upd_step)
-        self.nnw.log_TB(gn,      'upd/gn',       step=self._upd_step)
-        self.nnw.log_TB(gn_avt,  'upd/gn_avt',   step=self._upd_step)
-        self.nnw.log_TB(cLR,     'upd/cLR',      step=self._upd_step)
-
-        return loss
+        out.pop('logits')
+        return out

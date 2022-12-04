@@ -21,17 +21,17 @@ class AC_TFCritic(PG_TFActor, ABC):
 
     def get_qvs(self, observation) -> np.ndarray:
         obs_vec = self._get_observation_vec(observation)
-        qvs = self.nnw(
+        out = self.nnw(
             feed_dict=  {self.nnw['observation_PH']: [obs_vec]},
-            fetches=    self.nnw['qvs'])
-        return qvs
+            fetch=      ['qvs'])
+        return out['qvs']
 
     def get_qvs_batch(self, observations) -> np.ndarray:
         obs_vecs = self._get_observation_vec_batch(observations)
-        qvss = self.nnw(
+        out = self.nnw(
             feed_dict=  {self.nnw['observation_PH']: obs_vecs},
-            fetches=    self.nnw['qvs'])
-        return qvss
+            fetch=      ['qvs'])
+        return out['qvs']
 
     def update_with_experience(
             self,
@@ -40,26 +40,16 @@ class AC_TFCritic(PG_TFActor, ABC):
             next_action_qvs,
             next_actions_probs,
             rewards,
-            inspect=    False) -> float:
+            inspect=    False) -> dict:
 
         obs_vecs = self._get_observation_vec_batch(observations)
-        _, loss, gn, gn_avt = self.nnw.backward(
-            fetches=    [
-                self.nnw['optimizer'],
-                self.nnw['loss'],
-                self.nnw['gg_norm'],
-                self.nnw['gg_avt_norm']],
+        out = self.nnw.backward(
             feed_dict=  {
                 self.nnw['observation_PH']:       obs_vecs,
                 self.nnw['action_OH_PH']:         actions_OH,
                 self.nnw['next_action_qvs_PH']:   next_action_qvs,
                 self.nnw['next_action_probs_PH']: next_actions_probs,
-                self.nnw['reward_PH']:            rewards})
-
-        self._upd_step += 1
-
-        self.nnw.log_TB(loss,    'critic/loss',     step=self._upd_step)
-        self.nnw.log_TB(gn,      'critic/gn',       step=self._upd_step)
-        self.nnw.log_TB(gn_avt,  'critic/gn_avt',   step=self._upd_step)
-
-        return loss
+                self.nnw['reward_PH']:            rewards},
+            fetch=      ['optimizer','loss','gg_norm','gg_avt_norm'])
+        out.pop('optimizer')
+        return out

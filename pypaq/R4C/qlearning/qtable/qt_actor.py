@@ -11,12 +11,10 @@
 
 """
 
-from abc import ABC
 import numpy as np
 from typing import Hashable, Dict, List
 
 from pypaq.R4C.qlearning.ql_actor import QLearningActor
-from pypaq.lipytools.pylogger import get_pylogger
 
 
 class QTable:
@@ -59,29 +57,19 @@ class QTable:
 
 
 # implements QLearningActor with QTable
-class QTableActor(QLearningActor, ABC):
+class QTableActor(QLearningActor):
 
     def __init__(
             self,
-            update_rate: float= 0.3,
-            logger=             None,
-            loglevel=           20,
+            name: str=          'QTableActor',
+            save_topdir: str=   '_models',
             **kwargs):
 
-        if not logger:
-            logger = get_pylogger(
-                name=       'QTableActor',
-                add_stamp=  True,
-                folder=     None,
-                level=      loglevel)
+        QLearningActor.__init__(self, name=name, **kwargs)
 
-        QLearningActor.__init__(self, logger=logger, **kwargs)
-
+        self._save_topdir = save_topdir
         self.__qtable = QTable(self._envy.num_actions())
-        self._update_rate = update_rate
-
-        self._log.info(f'*** QTableActor *** initialized')
-        self._log.info(f'> update_rate: {update_rate}')
+        self._update_rate = None # needs to be set before update
 
     def set_update_rate(self, update_rate:float):
         self._update_rate = update_rate
@@ -96,6 +84,7 @@ class QTableActor(QLearningActor, ABC):
             observation: object,
             action: int,
             new_qv: float) -> float:
+        if self._update_rate is None: raise Exception('Trainer needs to set update_rate of QLearningActor before training!')
         old_qv = self._get_QVs(observation)[action]
         diff = new_qv - old_qv
         self.__qtable.put_QV(
@@ -104,7 +93,10 @@ class QTableActor(QLearningActor, ABC):
             new_qv=         old_qv + self._update_rate * diff)
         return abs(diff)
 
-    def save(self) -> None:
+    def _get_save_topdir(self) -> str:
+        return self._save_topdir
+
+    def save(self):
         raise Exception('not implemented')
 
     def __str__(self):

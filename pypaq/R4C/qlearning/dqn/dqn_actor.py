@@ -7,10 +7,9 @@
 """
 
 from abc import ABC
-from typing import Optional, Union, Callable
+import numpy as np
+from typing import Optional, Union, Callable, List
 
-from pypaq.lipytools.pylogger import get_pylogger
-from pypaq.lipytools.little_methods import stamp
 from pypaq.R4C.qlearning.ql_actor import QLearningActor
 from pypaq.comoneural.nnwrap import NNWrap
 
@@ -22,27 +21,25 @@ class DQN_Actor(QLearningActor, ABC):
             self,
             nnwrap: type(NNWrap),
             nngraph: Optional[Union[Callable, type]]=   None,
-            name: Optional[str]=                        None,
             **kwargs):
 
-        qla_kwargs = {k: kwargs[k] for k in ['envy','seed', 'logger', 'loglevel'] if k in kwargs}
-        QLearningActor.__init__(self, **qla_kwargs)
+        QLearningActor.__init__(self, **kwargs)
 
+        # some overrides and updates
+        kwargs['name'] = self.name
+        kwargs['name_timestamp'] = False                # name timestamp is driven by TrainableActor (with self.name)
+        if 'logger' in kwargs: kwargs.pop('logger')     # NNWrap will always create own logger (since then it is not given) with optionally given level
         kwargs['num_actions'] = self._envy.num_actions()
         kwargs['observation_width'] = self._get_observation_vec(self._envy.get_observation()).shape[-1]
-        if 'logger' in kwargs: kwargs.pop('logger')  # INFO: NNWrap will always create own loger with given level
-        self.nnw: NNWrap = nnwrap(
-            nngraph=    nngraph,
-            name=       name or f'nn_{self.__class__.__name__}_{stamp()}',
-            **kwargs)
 
-        self._upd_step = 0
+        self.nnw: NNWrap = nnwrap(nngraph=nngraph, **kwargs)
 
-        self._log.info('*** DQN_Actor *** (NN based) initialized')
-        self._log.info(f'> NNW model name:    {self.nnw["name"]}')
-        self._log.info(f'> num_actions:       {self.nnw["num_actions"]}')
-        self._log.info(f'> observation_width: {self.nnw["observation_width"]}')
-        self._log.info(f'> save_topdir:       {self.nnw["save_topdir"]}')
+        self._log.info('*** DQN_Actor *** initialized')
+        self._log.info(f'> NNWrap: {nnwrap.__class__.__name__}')
+
+    # vectorization of observations batch, may be overridden with more optimal custom implementation
+    def _get_observation_vec_batch(self, observations: List[object]) -> np.ndarray:
+        return np.array([self._get_observation_vec(v) for v in observations])
 
     # INFO: wont be used since DQN_Actor updates only with batches
     def _upd_QV(
@@ -52,6 +49,11 @@ class DQN_Actor(QLearningActor, ABC):
             new_qv: float) -> float:
         raise Exception('not implemented')
 
-    def save(self) -> None: self.nnw.save()
+    def _get_save_topdir(self) -> str:
+        return self.nnw['save_topdir']
 
-    def __str__(self) -> str: return str(self.nnw)
+    def save(self):
+        self.nnw.save()
+
+    def __str__(self) -> str:
+        return str(self.nnw)

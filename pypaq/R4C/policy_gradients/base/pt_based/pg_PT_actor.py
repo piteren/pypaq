@@ -41,23 +41,6 @@ class PG_PTActor(PGActor, ABC):
         obs_vecs = self._get_observation_vec_batch(observations)
 
         out = self.nnw.backward(obs_vecs, actions, dreturns)
-
-        self._upd_step += 1
-
-        loss = float(out['loss'])
-        gn = float(out['gg_norm'])
-        gn_avt = float(out['gg_avt_norm'])
-        amax_prob = float(out['amax_prob'])
-        amin_prob = float(out['amin_prob'])
-        ace = float(out['actor_ce_mean'])
-        cLR = float(out['currentLR'])
-
-        self.nnw.log_TB(loss,       'upd/loss',             step=self._upd_step)
-        self.nnw.log_TB(gn,         'upd/gn',               step=self._upd_step)
-        self.nnw.log_TB(gn_avt,     'upd/gn_avt',           step=self._upd_step)
-        self.nnw.log_TB(amax_prob,  'upd/amax_prob',        step=self._upd_step)
-        self.nnw.log_TB(amin_prob,  'upd/amin_prob',        step=self._upd_step)
-        self.nnw.log_TB(ace,        'upd/actor_ce_mean',    step=self._upd_step)
-        self.nnw.log_TB(cLR,        'upd/cLR',              step=self._upd_step)
-
-        return loss
+        out.pop('logits')
+        out.pop('probs')
+        return out

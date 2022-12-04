@@ -54,7 +54,7 @@ class ACTrainer(PGTrainer):
         return qvs
 
     # update is performed for both: Actor & Critic
-    def _update_actor(self, inspect=False):
+    def _update_actor(self, inspect=False) -> dict:
 
         # TODO: replace prints with logger
 
@@ -87,7 +87,7 @@ class ACTrainer(PGTrainer):
             print(f'qv_actions {qv_actions.shape}, {qv_actions[0]}')
 
         # update Actor
-        loss_actor = self.actor.update_with_experience(
+        act_metrics = self.actor.update_with_experience(
             observations=   observations,
             actions=        actions,
             dreturns=       qv_actions)
@@ -101,13 +101,13 @@ class ACTrainer(PGTrainer):
         if inspect: print(f'next_action_qvs {next_actions_qvs.shape}, {next_actions_qvs[0]}')
 
         # update Critic
-        loss_critic = self.critic.update_with_experience(
+        crt_metrics = self.critic.update_with_experience(
             observations=       observations,
             actions_OH=         actions_OH,
             next_action_qvs=    next_actions_qvs,
             next_actions_probs= next_actions_probs,
             rewards=            rewards)
 
-        if np.isnan(loss_actor) or np.isnan(loss_critic): raise Exception('NaN cost!')
+        if np.isnan(act_metrics['loss']) or np.isnan(crt_metrics['loss']): raise Exception('NaN loss!')
 
-        return loss_actor
+        return act_metrics

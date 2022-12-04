@@ -8,32 +8,42 @@
 
 from abc import abstractmethod, ABC
 import numpy as np
+from typing import Optional
 
+from pypaq.lipytools.little_methods import stamp
 from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.R4C.envy import RLEnvy
 
 
-
+# just Actor
 class Actor(ABC):
 
     # returns Actor action based on observation according to Actor policy
     @abstractmethod
     def get_policy_action(self, observation: object) -> object: pass
 
-
+# cooperates with RLTrainer, prepares obs_vec, updates, saves
 class TrainableActor(Actor, ABC):
 
     def __init__(
             self,
             envy: RLEnvy,
-            logger=     None,
-            loglevel=   20):
+            name: str=              'TrainableActor',
+            name_timestamp: bool=   True,
+            logger: Optional=       None,
+            loglevel: int=          20,
+            **kwargs):
 
-        self._log = logger or get_pylogger(level=loglevel)
+        if name_timestamp: name += f'_{stamp()}'
+        self.name = name
         self._envy = envy
 
-        self._log.info('*** TrainableActor *** initialized')
-        self._log.info(f'> Envy: {self._envy.__class__.__name__}')
+        self._log = logger or get_pylogger(level=loglevel)
+        self._log.info(f'*** TrainableActor *** initialized')
+        self._log.info(f'> name:              {self.name}')
+        self._log.info(f'> Envy:              {self._envy.__class__.__name__}')
+        self._log.info(f'> observation width: {self._get_observation_vec(self._envy.get_observation()).shape[-1]}')
+        self._log.info(f'> not used kwargs:   {kwargs}')
 
     # prepares numpy vector from observation, first tries to get from RLEnvy
     def _get_observation_vec(self, observation: object) -> np.ndarray:
@@ -44,13 +54,21 @@ class TrainableActor(Actor, ABC):
     @abstractmethod
     def get_policy_action(self, observation:object, sampled=False) -> object: pass
 
-    # updates self with (batch of) experience data (given with kwargs), returns Actor "metric" - loss etc. (float)
+    # updates self with (batch of) experience data (given with kwargs), returns dict with Actor "metrics" - loss etc.
     @abstractmethod
-    def update_with_experience(self, **kwargs) -> float: pass
+    def update_with_experience(self, **kwargs) -> dict: pass
+
+    @abstractmethod
+    # returns Actor TOP save directory
+    def _get_save_topdir(self) -> str: pass
+
+    # returns Actor save directory
+    def get_save_dir(self) -> str:
+        return f'{self._get_save_topdir()}/{self.name}'
 
     # saves (self) Actor state
     @abstractmethod
-    def save(self) -> None: pass
+    def save(self): pass
 
     # returns some info about Actor
     @abstractmethod

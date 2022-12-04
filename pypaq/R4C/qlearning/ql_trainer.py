@@ -8,7 +8,6 @@
 
 import numpy as np
 
-from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.R4C.helpers import extract_from_batch
 from pypaq.R4C.trainer import FATrainer
 from pypaq.R4C.qlearning.ql_actor import QLearningActor
@@ -31,7 +30,7 @@ class QLearningTrainer(FATrainer):
         self._log.info(f'> gamma: {self.gamma}')
 
     # updates QLearningActor policy with batch of random data from memory
-    def _update_actor(self, inspect=False) -> float:
+    def _update_actor(self, inspect=False) -> dict:
 
         batch = self.memory.sample(self.batch_size)
 

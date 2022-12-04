@@ -29,28 +29,25 @@ class PGActor(TrainableActor, ABC):
             seed: int=                                  123,
             **kwargs):
 
-        ta_kwargs = {k: kwargs[k] for k in ['logger','loglevel'] if k in kwargs}
-        TrainableActor.__init__(self, envy=envy, **ta_kwargs)
+        TrainableActor.__init__(
+            self,
+            envy=   envy,
+            **kwargs)
         self._envy = envy  # to update type (for pycharm only)
 
         np.random.seed(seed)
 
+        # some overrides and updates
+        kwargs['name'] = self.name
+        kwargs['name_timestamp'] = False                # name timestamp is driven by TrainableActor (with self.name)
+        if 'logger' in kwargs: kwargs.pop('logger')     # NNWrap will always create own logger (since then it is not given) with optionally given level
         kwargs['num_actions'] = self._envy.num_actions()
         kwargs['observation_width'] = self._get_observation_vec(self._envy.get_observation()).shape[-1]
-        if 'logger' in kwargs: kwargs.pop('logger') #INFO: NNWrap will always create own loger with given level
-        self.nnw: NNWrap = nnwrap(
-            nngraph=    nngraph,
-            name=       name or f'nn_{self.__class__.__name__}_{stamp()}',
-            seed=       seed,
-            **kwargs)
 
-        self._upd_step = 0
+        self.nnw: NNWrap = nnwrap(nngraph=nngraph, seed=seed, **kwargs)
 
         self._log.info('*** PG_Actor *** (NN based) initialized')
-        self._log.info(f'> NNW model name:    {self.nnw["name"]}')
-        self._log.info(f'> num_actions:       {self.nnw["num_actions"]}')
-        self._log.info(f'> observation_width: {self.nnw["observation_width"]}')
-        self._log.info(f'> seed:              {seed}')
+        self._log.info(f'> NNWrap: {nnwrap.__class__.__name__}')
 
     # vectorization of observations batch, may be overridden with more optimal custom implementation
     def _get_observation_vec_batch(self, observations: List[object]) -> np.ndarray:
@@ -83,8 +80,13 @@ class PGActor(TrainableActor, ABC):
             observations,
             actions,
             dreturns,     # discounted accumulated returns
-            inspect=    False) -> float: pass
+            inspect=    False) -> dict: pass
 
-    def save(self) -> None: self.nnw.save()
+    def _get_save_topdir(self) -> str:
+        return self.nnw['save_topdir']
 
-    def __str__(self): return self.nnw.__str__()
+    def save(self):
+        self.nnw.save()
+
+    def __str__(self):
+        return self.nnw.__str__()

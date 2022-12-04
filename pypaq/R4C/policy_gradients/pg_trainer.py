@@ -6,7 +6,6 @@
 
 """
 
-from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.lipytools.plots import two_dim_multi
 from pypaq.R4C.helpers import zscore_norm, extract_from_batch, discounted_return, movavg_return
 from pypaq.R4C.policy_gradients.pg_actor import PGActor
@@ -35,7 +34,7 @@ class PGTrainer(FATrainer):
         self._log.info(f'> discount: {self.discount}')
 
     # PGActor update method
-    def _update_actor(self, inspect=False) -> float:
+    def _update_actor(self, inspect=False) -> dict:
 
         # get all and flush
         batch = self.memory.get_all()
