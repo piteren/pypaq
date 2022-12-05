@@ -55,8 +55,8 @@ class PGModel(Module):
         zsL = []
         for lin,ln in zip(self.linL,self.lnL):
             out = lin(out)
-            if self.lay_norm: out = ln(out)
             zsL.append(zeroes(out))
+            if self.lay_norm: out = ln(out)
 
         logits = self.logits(out)
         probs = torch.nn.functional.softmax(input=logits, dim=-1)

@@ -84,5 +84,4 @@ def zeroes(input :torch.Tensor) -> torch.Tensor:
         other=          torch.zeros_like(input))        # false
     activated_reduced = torch.sum(activated, dim=axes)  # 1 or more for activated, 0 for not activated
     not_activated = torch.eq(activated_reduced, 0)      # true where summed gives zero (~invert)
-    not_activated.to(dtype=torch.int8)                  # cast to int
-    return not_activated
+    return not_activated.to(dtype=torch.int8)           # cast to int
