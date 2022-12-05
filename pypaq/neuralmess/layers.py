@@ -51,10 +51,8 @@ def lay_res(
 
     return output
 
-# returns [0,1] tensor: 1 where input not activated over whole batch, seq... (nane - Not Activated NEurons)
-# we assume that value =< 0 means: not activated
-# we check over all axes but last (feats)
-def zeroes(input :tf.Tensor) -> List[tf.Tensor]:
+# returns [0,1] tensor: 1 where input not activated (value =< 0), looks at last dimension / features
+def zeroes(input :tf.Tensor) -> tf.Tensor:
     axes = [ix for ix in range(len(input.shape))][:-1]      # all but last(feats) axes indexes list like: [0,1,2] for 4d shape
     activated = tf.where(                                   # 1 for value greater than zero, other 0
         condition=  tf.math.greater(input, 0),
@@ -62,7 +60,7 @@ def zeroes(input :tf.Tensor) -> List[tf.Tensor]:
         y=          tf.zeros_like(input))                   # false
     activated_reduced = tf.reduce_sum(activated, axis=axes) # 1 or more for activated, 0 for not activated
     not_activated = tf.equal(activated_reduced, 0)          # true where summed gives zero (~invert)
-    nn_zeros = tf.cast(not_activated, dtype=tf.int8)        # cast to 1 where summed gives zero
+    nn_zeros = tf.cast(not_activated, dtype=tf.int8)        # cast to int
     return nn_zeros
 
 # dense layer
@@ -320,6 +318,7 @@ def tf_drop_example():
         v, v_drop = sess.run([v, v_drop])
         print(v)
         print(v_drop)
+
 
 if __name__ == '__main__':
     #attention_example()

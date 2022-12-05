@@ -52,12 +52,14 @@ class PG_TFActor(PGActor, ABC):
             actions,
             dreturns,
             inspect=    False) -> dict:
+
         obs_vecs = self._get_observation_vec_batch(observations)
+
         out = self.nnw.backward(
             feed_dict=  {
                 self.nnw['observation_PH']:  obs_vecs,
                 self.nnw['action_PH']:       actions,
                 self.nnw['return_PH']:       dreturns},
-            fetch=      ['optimizer','loss','gg_norm','gg_avt_norm','amax_prob','amin_prob','actor_ce_mean'])
+            fetch=      ['optimizer','loss','gg_norm','gg_avt_norm','amax_prob','amin_prob','actor_ce_mean','zeroes'])
         out.pop('optimizer')
         return out

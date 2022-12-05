@@ -6,8 +6,10 @@
 
 """
 
+from typing import List
+
 from pypaq.neuralmess.base_elements import tf
-from pypaq.neuralmess.layers import lay_dense
+from pypaq.neuralmess.layers import lay_dense, zeroes
 
 
 def pga_graph(
@@ -33,6 +35,8 @@ def pga_graph(
             dtype=  tf.float32,
             name=   'return')
 
+        zsL: List[tf.Tensor] = []  # list of zeroes Tensors
+
         layer = observation_PH
         if lay_norm: layer = tf.keras.layers.LayerNormalization(axis=-1)(layer)
         for i in range(len(hidden_layers)):
@@ -42,6 +46,7 @@ def pga_graph(
                 units=      hidden_layers[i],
                 activation= tf.nn.relu,
                 seed=       seed)
+            zsL.append(zeroes(layer))
             if lay_norm: layer = tf.keras.layers.LayerNormalization(axis=-1)(layer)
 
         action_logits = lay_dense(
@@ -70,4 +75,5 @@ def pga_graph(
         'actor_ce_mean':    actor_ce_mean,
         'loss':             loss,
         'amax_prob':        amax_prob,
-        'amin_prob':        amin_prob}
+        'amin_prob':        amin_prob,
+        'zeroes':           zsL}

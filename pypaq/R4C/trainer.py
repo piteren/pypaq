@@ -21,6 +21,7 @@ from pypaq.lipytools.moving_average import MovAvg
 from pypaq.R4C.envy import RLEnvy, FiniteActionsRLEnvy
 from pypaq.R4C.actor import TrainableActor
 from pypaq.torchness.base_elements import TBwr
+from pypaq.comoneural.zeroes_processor import ZeroesProcessor
 
 
 # Trainer Experience Memory (deque od dicts)
@@ -88,6 +89,10 @@ class RLTrainer(ABC):
 
         self._TBwr = TBwr(logdir=self.actor.get_save_dir()) # TensorBoard writer
         self._upd_step = 0                                  # global update step
+
+        self.zepro = ZeroesProcessor(
+            intervals=  (10,50,100),
+            tbwr=       self._TBwr)
 
     # updates Actor policy, returns dict with Actor "metrics" - loss etc.
     def _update_actor(self, inspect=False) -> dict:
@@ -253,6 +258,9 @@ class RLTrainer(ABC):
             upd_metrics = self._update_actor(inspect=inspect and uix % test_freq == 0)
             self._upd_step += 1
             if 'loss' in upd_metrics: lossL.append(loss_mavg.upd(upd_metrics['loss']))
+
+            if 'zeroes' in upd_metrics:
+                self.zepro.process(zs=upd_metrics.pop('zeroes'))
 
             for k in upd_metrics:
                 self._TBwr.add(
