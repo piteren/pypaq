@@ -45,10 +45,8 @@ class PG_PTActor(PGActor, ABC):
             observations,
             actions,
             dreturns,
-            inspect=    False) -> float:
-
+            inspect=    False) -> dict:
         obs_vecs = self._get_observation_vec_batch(observations)
-
         out = self.nnw.backward(obs_vecs, actions, dreturns)
         out.pop('logits')
         out.pop('probs')

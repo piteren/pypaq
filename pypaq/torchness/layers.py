@@ -74,3 +74,15 @@ class Attn(torch.nn.Module):
 
     def __init__(self):
         super(Attn, self).__init__()
+
+# returns [0,1] tensor: 1 where input not activated (value =< 0), looks at last dimension / features
+def zeroes(input :torch.Tensor) -> torch.Tensor:
+    axes = [ix for ix in range(len(input.shape))][:-1]  # all but last(feats) axes indexes list like: [0,1,2] for 4d shape
+    activated = torch.where(                            # 1 for value greater than zero, other 0
+        condition=      torch.gt(input, 0),
+        input=          torch.ones_like(input),         # true
+        other=          torch.zeros_like(input))        # false
+    activated_reduced = torch.sum(activated, dim=axes)  # 1 or more for activated, 0 for not activated
+    not_activated = torch.eq(activated_reduced, 0)      # true where summed gives zero (~invert)
+    not_activated.to(dtype=torch.int8)                  # cast to int
+    return not_activated

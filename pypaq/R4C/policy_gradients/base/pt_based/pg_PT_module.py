@@ -7,10 +7,9 @@
 """
 
 import torch
-from typing import Dict
 
 from pypaq.torchness.motorch import Module
-from pypaq.torchness.layers import LayDense
+from pypaq.torchness.layers import LayDense, zeroes
 
 
 class PGModel(Module):
@@ -53,9 +52,11 @@ class PGModel(Module):
 
         out = self.ln(obs) if self.lay_norm else obs
 
+        zsL = []
         for lin,ln in zip(self.linL,self.lnL):
             out = lin(out)
             if self.lay_norm: out = ln(out)
+            zsL.append(zeroes(out))
 
         logits = self.logits(out)
         probs = torch.nn.functional.softmax(input=logits, dim=-1)
@@ -69,7 +70,8 @@ class PGModel(Module):
             'logits':       logits,
             'probs':        probs,
             'amax_prob':    amax_prob,
-            'amin_prob':    amin_prob}
+            'amin_prob':    amin_prob,
+            'zeroes':       zsL}
 
     def loss_acc(self, obs, lbl, ret) -> dict:
 
