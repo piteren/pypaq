@@ -261,6 +261,7 @@ class RLTrainer(ABC):
 
             if 'loss' in upd_metrics: lossL.append(loss_mavg.upd(upd_metrics['loss']))
 
+            # process / monitor policy probs
             if 'probs' in upd_metrics:
                 for k,v in avg_probs(upd_metrics.pop('probs')).items():
                     self._TBwr.add( value=v, tag=f'actor_upd/{k}', step=self._upd_step)
