@@ -1,11 +1,3 @@
-"""
-
- 2020 (c) piteren
-
-    baseline PG graph for NEModel (TF)
-
-"""
-
 from typing import List
 
 from pypaq.neuralmess.base_elements import tf

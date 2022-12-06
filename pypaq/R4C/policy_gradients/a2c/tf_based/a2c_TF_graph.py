@@ -1,5 +1,7 @@
+from typing import List
+
 from pypaq.neuralmess.base_elements import tf
-from pypaq.neuralmess.layers import lay_dense
+from pypaq.neuralmess.layers import lay_dense, zeroes
 
 
 def a2c_graph(
@@ -32,6 +34,8 @@ def a2c_graph(
             dtype=  tf.float32,
             name=   'return')
 
+        zsL: List[tf.Tensor] = []  # list of zeroes Tensors
+
         hidden_layers = tuple([layer_width] * num_layers)
 
         inp = tf.keras.layers.LayerNormalization(axis=-1)(observation_PH) if lay_norm else observation_PH
@@ -44,6 +48,7 @@ def a2c_graph(
                 units=      hidden_layers[i],
                 activation= tf.nn.relu,
                 seed=       seed)
+            zsL.append(zeroes(layer))
             if lay_norm: layer = tf.keras.layers.LayerNormalization(axis=-1)(layer)
 
         layer_second_tower = layer
@@ -56,6 +61,7 @@ def a2c_graph(
                     units=      hidden_layers[i],
                     activation= tf.nn.relu,
                     seed=       seed)
+                zsL.append(zeroes(layer_second_tower))
                 if lay_norm: layer_second_tower = tf.keras.layers.LayerNormalization(axis=-1)(layer_second_tower)
 
         # Value from critic
@@ -135,4 +141,6 @@ def a2c_graph(
 
         'loss':             loss,
         'loss_actor':       loss_actor_weighted_mean,
-        'loss_critic':      loss_critic_mean}
+        'loss_critic':      loss_critic_mean,
+
+        'zeroes':           zsL}

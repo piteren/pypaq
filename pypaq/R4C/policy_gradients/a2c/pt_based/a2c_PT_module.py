@@ -81,6 +81,7 @@ class A2CModel(Module):
                 zsL.append(zeroes(out_tower))
                 if self.lay_norm: out_tower = ln(out_tower)
         value = self.value(out_tower)
+        value = torch.reshape(value, (value.shape[:-1])) # remove last dim
 
         logits = self.logits(out)
         probs = torch.nn.functional.softmax(input=logits, dim=-1)
