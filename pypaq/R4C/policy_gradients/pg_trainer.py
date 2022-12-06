@@ -66,18 +66,21 @@ class PGTrainer(FATrainer):
             dreturns_disc += discounted_return(rewards=rs, discount=self.discount)
 
         dreturns = dreturns_mavg if self.use_mavg else dreturns_disc
-        dreturns_norm = zscore_norm(dreturns)
         dreturns = np.array(dreturns, dtype=np.float32)
-        dreturns_norm = np.array(dreturns_norm, dtype=np.float32)
+
+        dreturns_zscore = zscore_norm(dreturns)
+        dreturns_zscore = np.array(dreturns_zscore, dtype=np.float32)
+
+        dreturns_final = dreturns_zscore if self.do_zscore else dreturns
 
         if inspect:
             two_dim_multi(
-                ys=         [rewards, dreturns_mavg, dreturns_disc, dreturns_norm],
-                names=      ['rewards', 'dreturns_mavg', 'dreturns_disc', 'dreturns_norm'],
+                ys=         [rewards, dreturns_mavg, dreturns_disc, dreturns_final],
+                names=      ['rewards', 'dreturns_mavg', 'dreturns_disc', 'dreturns_final'],
                 legend_loc= 'lower left')
 
         return self.actor.update_with_experience(
             observations=   observations,
             actions=        actions,
-            dreturns=       dreturns_norm if self.do_zscore else dreturns,
+            dreturns=       dreturns_final,
             inspect=        inspect)
