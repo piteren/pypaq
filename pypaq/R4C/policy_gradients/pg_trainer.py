@@ -5,6 +5,7 @@
     Policy Gradients Trainer
 
 """
+import numpy as np
 
 from pypaq.lipytools.plots import two_dim_multi
 from pypaq.R4C.helpers import zscore_norm, extract_from_batch, discounted_return, movavg_return
@@ -66,6 +67,8 @@ class PGTrainer(FATrainer):
 
         dreturns = dreturns_mavg if self.use_mavg else dreturns_disc
         dreturns_norm = zscore_norm(dreturns)
+        dreturns = np.array(dreturns, dtype=np.float32)
+        dreturns_norm = np.array(dreturns_norm, dtype=np.float32)
 
         if inspect:
             two_dim_multi(

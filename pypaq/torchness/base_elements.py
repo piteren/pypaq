@@ -186,3 +186,26 @@ class TBwr:
         self.sw.add_scalar(tag, value, step)
 
     def flush(self): self.sw.flush()
+
+
+def scaled_cross_entropy(
+        labels,
+        scale,
+        logits: Optional[torch.Tensor]= None,
+        probs: Optional[torch.Tensor]=  None) -> torch.Tensor:
+
+    if logits is None and probs is None:
+        raise Exception('logits OR probs must be given!')
+
+    if probs is None:
+        probs = torch.nn.functional.softmax(input=logits, dim=-1)
+
+    prob_label = probs[range(len(labels)), labels] # probability of class from label
+
+    # merge loss for positive and negative advantage
+    ce = torch.where(
+        condition=  scale > 0,
+        input=      -torch.log(prob_label),
+        other=      -torch.log(1-prob_label))
+
+    return ce * torch.abs(scale)

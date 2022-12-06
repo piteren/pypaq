@@ -34,8 +34,9 @@ def a2c_graph(
 
         hidden_layers = tuple([layer_width] * num_layers)
 
-        layer = observation_PH
-        if lay_norm: layer = tf.keras.layers.LayerNormalization(axis=-1)(layer)
+        inp = tf.keras.layers.LayerNormalization(axis=-1)(observation_PH) if lay_norm else observation_PH
+
+        layer = inp
         for i in range(len(hidden_layers)):
             layer = lay_dense(
                 input=      layer,
@@ -47,8 +48,7 @@ def a2c_graph(
 
         layer_second_tower = layer
         if two_towers:
-            layer_second_tower = observation_PH
-            if lay_norm: layer = tf.keras.layers.LayerNormalization(axis=-1)(layer)
+            layer_second_tower = inp
             for i in range(len(hidden_layers)): # INFO: shape of second tower will be as first one
                 layer_second_tower = lay_dense(
                     input=      layer_second_tower,
@@ -78,18 +78,13 @@ def a2c_graph(
             activation= None,
             seed=       seed)
         if verb > 0: print(f' > action_logits: {action_logits}')
-
-        action_prob = tf.nn.softmax(action_logits)
-        max_probs = tf.reduce_max(action_prob, axis=-1) # max action_probs
-        min_probs = tf.reduce_min(action_prob, axis=-1) # min action_probs
-        amax_prob = tf.reduce_mean(max_probs) # average of batch max action_prob
-        amin_prob = tf.reduce_mean(min_probs) # average of batch min action_prob
+        probs = tf.nn.softmax(action_logits)
 
         # ************************************************************************************************** loss definition
 
         if use_scaled_ce:
 
-            action_prob_selected = tf.gather(params=action_prob, indices=action_PH, axis=1, batch_dims=1)
+            action_prob_selected = tf.gather(params=probs, indices=action_PH, axis=1, batch_dims=1)
             #action_prob_selected = tf.squeeze(action_prob_selected)
             if verb>0: print(f' > action_prob_selected: {action_prob_selected}')
 
@@ -117,7 +112,7 @@ def a2c_graph(
             huber_loss = tf.keras.losses.Huber()
             loss_critic = huber_loss(value, return_PH)
         else:
-            loss_critic = (return_PH - value)^2 # == MSE (advantage^2)
+            loss_critic = advantage^2 # MSE
 
         if verb > 0: print(f' > loss_critic: {loss_critic}')
         loss_critic_mean = tf.reduce_mean(loss_critic)
@@ -133,10 +128,7 @@ def a2c_graph(
         'value':            value,
         'advantage':        advantage,
         'action_logits':    action_logits,
-        'action_prob':      action_prob,
-
-        'amax_prob':        amax_prob,
-        'amin_prob':        amin_prob,
+        'probs':            probs,
 
         'actor_ce':         actor_ce,
         'actor_ce_mean':    actor_ce_mean,

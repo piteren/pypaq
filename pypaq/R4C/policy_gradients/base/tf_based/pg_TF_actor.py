@@ -1,11 +1,3 @@
-"""
-
- 2021 (c) piteren
-
-    PolicyGradients NN Actor, TF based
-
-"""
-
 from abc import ABC
 import numpy as np
 from typing import Optional, Callable, List
@@ -52,9 +44,7 @@ class PG_TFActor(PGActor, ABC):
             actions,
             dreturns,
             inspect=    False) -> dict:
-
         obs_vecs = self._get_observation_vec_batch(observations)
-
         out = self.nnw.backward(
             feed_dict=  {
                 self.nnw['observation_PH']:  obs_vecs,

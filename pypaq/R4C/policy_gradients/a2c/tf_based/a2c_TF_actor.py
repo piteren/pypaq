@@ -1,4 +1,3 @@
-from abc import ABC
 from typing import Optional, Callable
 
 from pypaq.R4C.policy_gradients.base.tf_based.pg_TF_actor import PG_TFActor
@@ -6,7 +5,7 @@ from pypaq.R4C.policy_gradients.a2c.tf_based.a2c_TF_graph import a2c_graph
 
 
 
-class A2C_TFActor(PG_TFActor, ABC):
+class A2C_TFActor(PG_TFActor):
 
     def __init__(
             self,
@@ -32,6 +31,6 @@ class A2C_TFActor(PG_TFActor, ABC):
                 self.nnw['observation_PH']:  obs_vecs,
                 self.nnw['action_PH']:       actions,
                 self.nnw['return_PH']:       dreturns},
-            fetch=      ['optimizer','loss','loss_actor','loss_critic','gg_norm','gg_avt_norm','amax_prob','amin_prob','actor_ce_mean'])
+            fetch=      ['optimizer','probs','loss','loss_actor','loss_critic','gg_norm','gg_avt_norm','actor_ce_mean','zeroes'])
         out.pop('optimizer')
         return out
