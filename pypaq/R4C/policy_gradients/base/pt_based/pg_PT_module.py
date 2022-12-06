@@ -78,19 +78,21 @@ class PGModel(Module):
 
             probs = out['probs']
             prob_action_taken = probs[range(len(action_taken)), action_taken]
-            actor_ce = -torch.log(prob_action_taken)
-            actor_ce_neg = -torch.log(1-prob_action_taken)
 
-            # merge loss for positive and negative advantage
+            # merge loss for positive and negative dreturn
             actor_ce = torch.where(
                 condition=  dreturn > 0,
-                input=      actor_ce,
-                other=      actor_ce_neg)
+                input=      -torch.log(prob_action_taken),
+                other=      -torch.log(1-prob_action_taken))
+
+            actor_ce_scaled = actor_ce * torch.abs(dreturn)
+
         else:
             actor_ce = torch.nn.functional.cross_entropy(logits, action_taken, reduction='none')
+            actor_ce_scaled = actor_ce * dreturn
 
         out['actor_ce_mean'] = torch.mean(actor_ce)
-        out['loss'] = torch.mean(actor_ce * dreturn)
+        out['loss'] = torch.mean(actor_ce_scaled)
         out['acc'] = self.accuracy(logits, action_taken) # using baseline
 
         return out
