@@ -21,6 +21,7 @@ from pypaq.lipytools.moving_average import MovAvg
 from pypaq.R4C.envy import RLEnvy, FiniteActionsRLEnvy
 from pypaq.R4C.actor import TrainableActor
 from pypaq.torchness.base_elements import TBwr
+from pypaq.comoneural.avg_probs import avg_probs
 from pypaq.comoneural.zeroes_processor import ZeroesProcessor
 
 
@@ -254,19 +255,21 @@ class RLTrainer(ABC):
 
                 if upd_on_episode: break
 
-            # update Actor
+            # update Actor & process metrics
             upd_metrics = self._update_actor(inspect=inspect and uix % test_freq == 0)
             self._upd_step += 1
+
             if 'loss' in upd_metrics: lossL.append(loss_mavg.upd(upd_metrics['loss']))
+
+            if 'probs' in upd_metrics:
+                for k,v in avg_probs(upd_metrics.pop('probs')).items():
+                    self._TBwr.add( value=v, tag=f'actor_upd/{k}', step=self._upd_step)
 
             if 'zeroes' in upd_metrics:
                 self.zepro.process(zs=upd_metrics.pop('zeroes'))
 
-            for k in upd_metrics:
-                self._TBwr.add(
-                    value=  upd_metrics[k],
-                    tag=    f'actor_upd/{k}',
-                    step=   self._upd_step)
+            for k,v in upd_metrics.items():
+                self._TBwr.add(value=v, tag=f'actor_upd/{k}', step=self._upd_step)
 
             # test Actor
             if uix % test_freq == 0:

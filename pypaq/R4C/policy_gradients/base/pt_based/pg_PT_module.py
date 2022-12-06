@@ -20,6 +20,7 @@ class PGModel(Module):
             num_actions: int=   2,
             hidden_layers=      (20,),
             lay_norm=           False,
+            use_scaled_ce=      True,  # experimental Scaled Cross Entropy loss
             seed=               121):
 
         torch.nn.Module.__init__(self)
@@ -48,9 +49,11 @@ class PGModel(Module):
             out_features=   num_actions,
             activation=     None)
 
-    def forward(self, obs) -> dict:
+        self.use_scaled_ce = use_scaled_ce
 
-        out = self.ln(obs) if self.lay_norm else obs
+    def forward(self, observation) -> dict:
+
+        out = self.ln(observation) if self.lay_norm else observation
 
         zsL = []
         for lin,ln in zip(self.linL,self.lnL):
@@ -61,27 +64,33 @@ class PGModel(Module):
         logits = self.logits(out)
         probs = torch.nn.functional.softmax(input=logits, dim=-1)
 
-        max_probs = torch.max(probs, dim=-1)  # max action_probs
-        min_probs = torch.min(probs, dim=-1)  # min action_probs
-        amax_prob = torch.mean(max_probs[0])  # average of batch max action_prob
-        amin_prob = torch.mean(min_probs[0])  # average of batch min action_prob
-
         return {
             'logits':       logits,
             'probs':        probs,
-            'amax_prob':    amax_prob,
-            'amin_prob':    amin_prob,
             'zeroes':       zsL}
 
-    def loss_acc(self, obs, lbl, ret) -> dict:
+    def loss_acc(self, observation, action_taken, dreturn) -> dict:
 
-        out = self(obs)
+        out = self(observation)
         logits = out['logits']
 
-        actor_ce = torch.nn.functional.cross_entropy(logits, lbl, reduction='none')
+        if self.use_scaled_ce:
+
+            probs = out['probs']
+            prob_action_taken = probs[range(len(action_taken)), action_taken]
+            actor_ce = -torch.log(prob_action_taken)
+            actor_ce_neg = -torch.log(1-prob_action_taken)
+
+            # merge loss for positive and negative advantage
+            actor_ce = torch.where(
+                condition=  dreturn > 0,
+                input=      actor_ce,
+                other=      actor_ce_neg)
+        else:
+            actor_ce = torch.nn.functional.cross_entropy(logits, action_taken, reduction='none')
 
         out['actor_ce_mean'] = torch.mean(actor_ce)
-        out['loss'] = torch.mean(ret * actor_ce)
-        out['acc'] = self.accuracy(logits, lbl) # using baseline
+        out['loss'] = torch.mean(actor_ce * dreturn)
+        out['acc'] = self.accuracy(logits, action_taken) # using baseline
 
         return out

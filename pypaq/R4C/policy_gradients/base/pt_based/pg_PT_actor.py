@@ -49,5 +49,5 @@ class PG_PTActor(PGActor, ABC):
         obs_vecs = self._get_observation_vec_batch(observations)
         out = self.nnw.backward(obs_vecs, actions, dreturns)
         out.pop('logits')
-        out.pop('probs')
+        if 'probs' in out: out['probs'] = out['probs'].detach().numpy()
         return out
