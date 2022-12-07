@@ -120,10 +120,10 @@ class NNWrap(ParaSave, ABC):
                 add_stamp=  False,
                 folder=     None if _read_only else self.nnwrap_dir,
                 level=      loglevel)
-        self._log = logger
+        self._logger = logger # TODO: NNWrap and itd children use _logger instead of _log
         nng_info = self.nngraph.__name__ if self.nngraph else 'nngraph NOT GIVEN (will try to load from saved)'
-        self._log.info(f'*** NNWrap *** name: {self.name} initializes for nngraph: {nng_info}')
-        self._log.debug(f'> NNWrap dir: {self.nnwrap_dir}{" <- read only mode!" if _read_only else ""}')
+        self._logger.info(f'*** NNWrap *** name: {self.name} initializes for nngraph: {nng_info}')
+        self._logger.info(f'> NNWrap dir: {self.nnwrap_dir}{" <- read only mode!" if _read_only else ""}')
 
         self._dna = dict(
             nngraph=    self.nngraph,
@@ -136,7 +136,7 @@ class NNWrap(ParaSave, ABC):
         ParaSave.__init__(
             self,
             lock_managed_params=    True,
-            logger=                 get_hi_child(self._log),
+            logger=                 get_hi_child(self._logger),
             **self._dna)
         self.check_params_sim(params= list(self.SPEC_KEYS) + list(self.INIT_DEFAULTS.keys())) # safety check
 
@@ -150,8 +150,8 @@ class NNWrap(ParaSave, ABC):
 
         self._batcher = None
 
-        self._log.debug(str(self))
-        self._log.info(f'NNWrap init finished!')
+        self._logger.debug(str(self))
+        self._logger.info(f'NNWrap init finished!')
 
     # ******************************************************************************************* NNWrap init submethods
 
@@ -182,7 +182,7 @@ class NNWrap(ParaSave, ABC):
 
         if not self.nngraph:
             msg = 'nngraph was not given and has not been found in saved, cannot continue!'
-            self._log.error(msg)
+            self._logger.error(msg)
             raise NNWrapException(msg)
 
         # get defaults of given nngraph (object.__init__ or callable)
@@ -204,7 +204,7 @@ class NNWrap(ParaSave, ABC):
         dna_with_logger = {}
         dna_with_logger.update(self._dna)
         dna_with_logger['logger'] = get_hi_child(
-            logger= self._log,
+            logger= self._logger,
             name=   f'{self.name}_sublogger'),
         self._dna_nngraph = get_func_dna(nngraph_func, dna_with_logger)
 
@@ -213,15 +213,15 @@ class NNWrap(ParaSave, ABC):
             if k not in self._dna_nngraph:
                 not_used_kwargs[k] = kwargs[k]
 
-        self._log.debug(f'> {self.name} DNA sources:')
-        self._log.debug(f'>> class INIT_DEFAULTS:        {self.INIT_DEFAULTS}')
-        self._log.debug(f'>> nngraph defaults:           {nngraph_func_params_defaults}')
-        self._log.debug(f'>> DNA saved:                  {dna_saved}')
-        self._log.debug(f'>> given kwargs:               {kwargs}')
-        self._log.debug(f'> resolved DNA:')
-        self._log.debug(f'nngraph complete DNA:          {self._dna_nngraph}')
-        self._log.debug(f'>> kwargs not used by nngraph: {not_used_kwargs}')
-        self._log.debug(f'{self.name} complete DNA:      {self._dna}')
+        self._logger.debug(f'> {self.name} DNA sources:')
+        self._logger.debug(f'>> class INIT_DEFAULTS:        {self.INIT_DEFAULTS}')
+        self._logger.debug(f'>> nngraph defaults:           {nngraph_func_params_defaults}')
+        self._logger.debug(f'>> DNA saved:                  {dna_saved}')
+        self._logger.debug(f'>> given kwargs:               {kwargs}')
+        self._logger.debug(f'> resolved DNA:')
+        self._logger.debug(f'nngraph complete DNA:          {self._dna_nngraph}')
+        self._logger.debug(f'>> kwargs not used by nngraph: {not_used_kwargs}')
+        self._logger.debug(f'{self.name} complete DNA:      {self._dna}')
 
     # manages NNWrap CUDA / CPU devices
     @abstractmethod
@@ -256,7 +256,7 @@ class NNWrap(ParaSave, ABC):
         if self['read_only']: raise NNWrapException('read only NNWrap cannot be saved!')
         self.save_dna()
         self.save_ckpt()
-        self._log.info(f'NNWrap {self.name} saved')
+        self._logger.info(f'NNWrap {self.name} saved')
 
     # copies just model checkpoint
     @classmethod
@@ -363,7 +363,7 @@ class NNWrap(ParaSave, ABC):
 
         if 'train' not in data:
             msg = 'given data should be a dict with at least "train" key present!'
-            self._log.error(msg)
+            self._logger.error(msg)
             raise NNWrapException(msg)
 
         self._batcher = Batcher(
@@ -372,7 +372,7 @@ class NNWrap(ParaSave, ABC):
             data_TS=        data['test'] if 'test' in data else None,
             batch_size=     self['batch_size'],
             batching_type=  'random_cov',
-            logger=         get_hi_child(self._log, 'Batcher'))
+            logger=         get_hi_child(self._logger, 'Batcher'))
 
      # trains model, should save saves max test scored model, returns test score
     @abstractmethod
@@ -404,7 +404,7 @@ class NNWrap(ParaSave, ABC):
             tag: str,
             step: int) -> None:
         if self['do_TB']: self._TBwr.add(value=value, tag=tag, step=step)
-        else: self._log.warning(f'NNWrap {self.name} cannot log TensorBoard since do_TB flag is False!')
+        else: self._logger.warning(f'NNWrap {self.name} cannot log TensorBoard since do_TB flag is False!')
 
     # returns nice string about self
     @abstractmethod
