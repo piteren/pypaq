@@ -45,8 +45,8 @@ class PGActor(TrainableActor, ABC):
 
         self.nnw: NNWrap = nnwrap(nngraph=nngraph, seed=seed, **kwargs)
 
-        self._log.info('*** PG_Actor *** (NN based) initialized')
-        self._log.info(f'> NNWrap: {nnwrap.__name__}')
+        self._rlog.info('*** PG_Actor *** (NN based) initialized')
+        self._rlog.info(f'> NNWrap: {nnwrap.__name__}')
 
     # vectorization of observations batch, may be overridden with more optimal custom implementation
     def _get_observation_vec_batch(self, observations: List[object]) -> np.ndarray:

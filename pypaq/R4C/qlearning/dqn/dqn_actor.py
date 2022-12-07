@@ -34,8 +34,8 @@ class DQN_Actor(QLearningActor, ABC):
 
         self.nnw: NNWrap = nnwrap(nngraph=nngraph, **kwargs)
 
-        self._log.info('*** DQN_Actor *** initialized')
-        self._log.info(f'> NNWrap: {nnwrap.__name__}')
+        self._rlog.info('*** DQN_Actor *** initialized')
+        self._rlog.info(f'> NNWrap: {nnwrap.__name__}')
 
     # vectorization of observations batch, may be overridden with more optimal custom implementation
     def _get_observation_vec_batch(self, observations: List[object]) -> np.ndarray:

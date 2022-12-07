@@ -73,7 +73,7 @@ class QTableActor(QLearningActor):
 
     def set_update_rate(self, update_rate:float):
         self._update_rate = update_rate
-        self._log.info(f'> QTableActor set update_rate to: {self._update_rate}')
+        self._rlog.info(f'> QTableActor set update_rate to: {self._update_rate}')
 
     def _get_QVs(self, observation: object) -> np.ndarray:
         obs_vec = self._get_observation_vec(observation)

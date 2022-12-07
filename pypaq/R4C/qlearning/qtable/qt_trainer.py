@@ -22,5 +22,5 @@ class QTableTrainer(QLearningTrainer):
         self.actor = actor
         self.actor.set_update_rate(update_rate)
 
-        self._log.info('*** QTableTrainer *** initialized')
-        self._log.info('> actor update_rate: {update_rate}')
+        self._rlog.info('*** QTableTrainer *** initialized')
+        self._rlog.info('> actor update_rate: {update_rate}')

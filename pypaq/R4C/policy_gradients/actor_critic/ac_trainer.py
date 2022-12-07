@@ -39,8 +39,8 @@ class ACTrainer(PGTrainer):
             seed=   kwargs['seed'],
             **c_kwargs)
 
-        self._log.info('*** ACTrainer *** initialized')
-        self._log.info(f'> critic: {critic_class.__name__}')
+        self._rlog.info('*** ACTrainer *** initialized')
+        self._rlog.info(f'> critic: {critic_class.__name__}')
 
     # converts one dim arr of ints into two dim one-hot array
     def _actions_OH_encoding(self, actions:np.array) -> np.ndarray:

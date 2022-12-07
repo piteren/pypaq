@@ -38,12 +38,12 @@ class TrainableActor(Actor, ABC):
         self.name = name
         self._envy = envy
 
-        self._log = logger or get_pylogger(level=loglevel)
-        self._log.info(f'*** TrainableActor *** initialized')
-        self._log.info(f'> name:              {self.name}')
-        self._log.info(f'> Envy:              {self._envy.__class__.__name__}')
-        self._log.info(f'> observation width: {self._get_observation_vec(self._envy.get_observation()).shape[-1]}')
-        self._log.info(f'> not used kwargs:   {kwargs}')
+        self._rlog = logger or get_pylogger(level=loglevel)
+        self._rlog.info(f'*** TrainableActor *** initialized')
+        self._rlog.info(f'> name:              {self.name}')
+        self._rlog.info(f'> Envy:              {self._envy.__class__.__name__}')
+        self._rlog.info(f'> observation width: {self._get_observation_vec(self._envy.get_observation()).shape[-1]}')
+        self._rlog.info(f'> not used kwargs:   {kwargs}')
 
     # prepares numpy vector from observation, first tries to get from RLEnvy
     def _get_observation_vec(self, observation: object) -> np.ndarray:

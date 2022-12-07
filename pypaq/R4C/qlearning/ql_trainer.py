@@ -26,8 +26,8 @@ class QLearningTrainer(FATrainer):
         self.actor = actor  # INFO: just type "upgrade" for pycharm editor
         self.gamma = gamma
 
-        self._log.info(f'*** QLearningTrainer *** initialized')
-        self._log.info(f'> gamma: {self.gamma}')
+        self._rlog.info(f'*** QLearningTrainer *** initialized')
+        self._rlog.info(f'> gamma: {self.gamma}')
 
     # updates QLearningActor policy with batch of random data from memory
     def _update_actor(self, inspect=False) -> dict:

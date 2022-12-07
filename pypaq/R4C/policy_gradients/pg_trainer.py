@@ -31,8 +31,8 @@ class PGTrainer(FATrainer):
         self.movavg_factor = mavg_factor
         self.do_zscore = do_zscore
 
-        self._log.info('*** PGTrainer *** initialized')
-        self._log.info(f'> discount: {self.discount}')
+        self._rlog.info('*** PGTrainer *** initialized')
+        self._rlog.info(f'> discount: {self.discount}')
 
     # PGActor update method
     def _update_actor(self, inspect=False) -> dict:

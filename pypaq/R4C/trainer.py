@@ -68,15 +68,15 @@ class RLTrainer(ABC):
             logger=     None,
             loglevel=   20):
 
-        self._log = logger or get_pylogger(level=loglevel)
-        self._log.info(f'*** RLTrainer *** initializes..')
-        self._log.info(f'> Envy:          {envy.__class__.__name__}')
-        self._log.info(f'> Actor:         {actor.__class__.__name__}, name: {actor.name}')
-        self._log.info(f'> batch_size:    {batch_size}')
-        self._log.info(f'> memory size:   {batch_size*memsize_batches}')
-        self._log.info(f'> exploration:   {exploration}')
-        self._log.info(f'> train_sampled: {train_sampled}')
-        self._log.info(f'> seed:          {seed}')
+        self._rlog = logger or get_pylogger(level=loglevel)
+        self._rlog.info(f'*** RLTrainer *** initializes..')
+        self._rlog.info(f'> Envy:          {envy.__class__.__name__}')
+        self._rlog.info(f'> Actor:         {actor.__class__.__name__}, name: {actor.name}')
+        self._rlog.info(f'> batch_size:    {batch_size}')
+        self._rlog.info(f'> memory size:   {batch_size*memsize_batches}')
+        self._rlog.info(f'> exploration:   {exploration}')
+        self._rlog.info(f'> train_sampled: {train_sampled}')
+        self._rlog.info(f'> seed:          {seed}')
 
         self.envy = envy
         self.actor = actor
@@ -133,7 +133,7 @@ class RLTrainer(ABC):
             sampled=        0.0,
             render=         False) -> Tuple[List[object], List[object], List[float]]:
 
-        self._log.log(5,f'playing for {steps} steps..')
+        self._rlog.log(5,f'playing for {steps} steps..')
         observations = []
         actions = []
         rewards = []
@@ -156,7 +156,7 @@ class RLTrainer(ABC):
 
             if render: self.envy.render()
 
-        self._log.log(5,f'played {len(actions)} steps (break_terminal is {break_terminal})')
+        self._rlog.log(5,f'played {len(actions)} steps (break_terminal is {break_terminal})')
         return observations, actions, rewards
 
     # plays one episode from reset till won or max_steps
@@ -194,7 +194,7 @@ class RLTrainer(ABC):
                 exploration=    0.0)
             won += int(epd[3])
             reward += sum(epd[2])
-        self._log.debug(f'Test on {n_episodes} episodes with {max_steps} max_steps finished: WON: {int(won/n_episodes*100)}% avg reward: {reward/n_episodes:.3f}')
+        self._rlog.debug(f'Test on {n_episodes} episodes with {max_steps} max_steps finished: WON: {int(won/n_episodes*100)}% avg reward: {reward/n_episodes:.3f}')
         return won/n_episodes, reward/n_episodes
 
     # generic RL training procedure
@@ -211,12 +211,12 @@ class RLTrainer(ABC):
     ) -> dict:
 
         stime = time.time()
-        self._log.info(f'Starting train for {num_updates} updates..')
+        self._rlog.info(f'Starting train for {num_updates} updates..')
 
         self.memory = ExperienceMemory(
             maxsize=    self.memsize,
             seed=       self.seed)
-        self._log.info(f'> initialized ExperienceMemory of maxsize {self.memsize}')
+        self._rlog.info(f'> initialized ExperienceMemory of maxsize {self.memsize}')
 
         loss_mavg = MovAvg()
         lossL = []
@@ -248,7 +248,7 @@ class RLTrainer(ABC):
                 for o,a,r,n,t in zip(observations, actions, rewards, next_observations, terminals):
                     self.memory.append(dict(observation=o, action=a, reward=r, next_observation=n, terminal=t))
 
-                self._log.debug(f' >> Trainer gots {len(observations):3} observations after play and {len(self.memory):3} in memory, new_actions: {new_actions}' )
+                self._rlog.debug(f' >> Trainer gots {len(observations):3} observations after play and {len(self.memory):3} in memory, new_actions: {new_actions}' )
 
                 if is_terminal: n_terminals += 1
                 if self.envy.won_episode(): n_won += 1
@@ -284,7 +284,7 @@ class RLTrainer(ABC):
                     n_episodes= test_episodes,
                     max_steps=  test_max_steps)
 
-                self._log.info(f'# {uix:3} term:{n_terminals}(+{n_terminals-last_terminals}) -- TS: {len(actions)} actions, return {sum(rewards):.1f} ({"won" if won else "lost"}) -- {test_episodes}xTS: avg_won: {ts_res[0]*100:.1f}%, avg_return: {ts_res[1]:.1f} -- loss_actor: {loss_mavg():.4f}')
+                self._rlog.info(f'# {uix:3} term:{n_terminals}(+{n_terminals-last_terminals}) -- TS: {len(actions)} actions, return {sum(rewards):.1f} ({"won" if won else "lost"}) -- {test_episodes}xTS: avg_won: {ts_res[0]*100:.1f}%, avg_return: {ts_res[1]:.1f} -- loss_actor: {loss_mavg():.4f}')
                 last_terminals = n_terminals
 
                 if ts_res[0] == 1:
@@ -294,7 +294,7 @@ class RLTrainer(ABC):
 
             if break_ntests and succeeded_row_curr==break_ntests: break
 
-        self._log.info(f'### Training finished, time taken: {time.time()-stime:.2f}sec')
+        self._rlog.info(f'### Training finished, time taken: {time.time()-stime:.2f}sec')
 
         return { # training_report
             'lossL':                lossL,
@@ -311,8 +311,8 @@ class FATrainer(RLTrainer, ABC):
         RLTrainer.__init__(self, envy=envy, seed=seed, **kwargs)
         self.envy = envy  # INFO: type "upgrade" for pycharm editor
 
-        self._log.info(f'*** FATrainer *** initialized')
-        self._log.info(f'> number of actions: {self.envy.num_actions()}')
+        self._rlog.info(f'*** FATrainer *** initialized')
+        self._rlog.info(f'> number of actions: {self.envy.num_actions()}')
 
     # selects 100% random action from action space, (np. seed is fixed at Trainer)
     def _get_exploring_action(self):

@@ -30,9 +30,9 @@ class QLearningActor(TrainableActor, ABC):
 
         np.random.seed(seed)
 
-        self._log.info('*** QLearningActor *** initialized')
-        self._log.info(f'> num_actions: {self._envy.num_actions()}')
-        self._log.info(f'> seed:        {seed}')
+        self._rlog.info('*** QLearningActor *** initialized')
+        self._rlog.info(f'> num_actions: {self._envy.num_actions()}')
+        self._rlog.info(f'> seed:        {seed}')
 
     # returns QVs (QV for all actions) for given observation
     @abstractmethod
