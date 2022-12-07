@@ -18,19 +18,3 @@ class A2C_PTActor(PG_PTActor):
             name=       name,
             nngraph=    nngraph,
             **kwargs)
-
-    # removes 'value'
-    def update_with_experience(
-            self,
-            observations,
-            actions,
-            dreturns,
-            inspect=    False) -> dict:
-        out = PG_PTActor.update_with_experience(
-            self,
-            observations=   observations,
-            actions=        actions,
-            dreturns=       dreturns,
-            inspect=        inspect)
-        if 'value' in out: out.pop('value')
-        return out

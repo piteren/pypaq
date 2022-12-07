@@ -95,19 +95,22 @@ class A2CModel(Module):
     def loss_acc(self, observation, action_taken, dreturn) -> dict:
 
         out = self(observation)
+
         value = out['value']
         logits = out['logits']
 
         advantage = dreturn - value
 
+        advantage_nograd = advantage.detach() # to prevent flow of Actor loss gradients to Critic network
+        advantage_nograd = torch.clamp(advantage_nograd, min=-0.5, max=0.5)
         if self.use_scaled_ce:
             actor_ce_scaled = scaled_cross_entropy(
                 labels= action_taken,
-                scale=  advantage,
+                scale=  advantage_nograd,
                 probs=  out['probs'])
         else:
             actor_ce = torch.nn.functional.cross_entropy(logits, action_taken, reduction='none')
-            actor_ce_scaled = actor_ce * advantage
+            actor_ce_scaled = actor_ce * advantage_nograd
 
         loss_actor_scaled_mean = torch.mean(actor_ce_scaled)
 
@@ -117,6 +120,7 @@ class A2CModel(Module):
         loss_critic_mean = torch.mean(loss_critic)
 
         out.update({
+            'advantage':        advantage,
             'loss_actor':       loss_actor_scaled_mean,
             'loss_critic':      loss_critic_mean,
             'loss':             loss_actor_scaled_mean + loss_critic_mean,

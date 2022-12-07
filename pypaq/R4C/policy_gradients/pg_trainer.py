@@ -58,29 +58,63 @@ class PGTrainer(FATrainer):
                 cep = []
         if cep: episode_rewards.append(cep)
 
-        # prepare both for inspect
-        dreturns_mavg = []
-        dreturns_disc = []
-        for rs in episode_rewards:
-            dreturns_mavg += movavg_return(rewards=rs, factor=self.movavg_factor)
-            dreturns_disc += discounted_return(rewards=rs, discount=self.discount)
+        if inspect:
 
-        dreturns = dreturns_mavg if self.use_mavg else dreturns_disc
+            # prepare all 4 for inspect
+            ret_mavg = []
+            ret_disc = []
+            for rs in episode_rewards:
+                ret_mavg += movavg_return(rewards=rs, factor=self.movavg_factor)
+                ret_disc += discounted_return(rewards=rs, discount=self.discount)
+            ret_mavg_norm = zscore_norm(ret_mavg)
+            ret_disc_norm = zscore_norm(ret_disc)
+
+            two_dim_multi(
+                ys=     [
+                    rewards,
+                    ret_mavg,
+                    ret_disc,
+                    ret_mavg_norm,
+                    ret_disc_norm],
+                names=  [
+                    'rewards',
+                    'ret_mavg',
+                    'ret_disc',
+                    'ret_mavg_norm',
+                    'ret_disc_norm'],
+                legend_loc= 'lower left')
+
+        dreturns = []
+        if self.use_mavg:
+            for rs in episode_rewards:
+                dreturns += movavg_return(rewards=rs, factor=self.movavg_factor)
+        else:
+            for rs in episode_rewards:
+                dreturns += discounted_return(rewards=rs, discount=self.discount)
+        if self.do_zscore: dreturns = zscore_norm(dreturns)
         dreturns = np.array(dreturns, dtype=np.float32)
 
-        dreturns_zscore = zscore_norm(dreturns)
-        dreturns_zscore = np.array(dreturns_zscore, dtype=np.float32)
+        out = self.actor.update_with_experience(
+            observations=   observations,
+            actions=        actions,
+            dreturns=       dreturns,
+            inspect=        inspect)
 
-        dreturns_final = dreturns_zscore if self.do_zscore else dreturns
+        value = out.pop('value').cpu().detach().numpy()
+        advantage = out.pop('advantage').cpu().detach().numpy()
 
         if inspect:
             two_dim_multi(
-                ys=         [rewards, dreturns_mavg, dreturns_disc, dreturns_final],
-                names=      ['rewards', 'dreturns_mavg', 'dreturns_disc', 'dreturns_final'],
+                ys=     [
+                    dreturns,
+                    value,
+                    advantage,
+                ],
+                names=  [
+                    'dreturns',
+                    'value',
+                    'advantage',
+                ],
                 legend_loc= 'lower left')
 
-        return self.actor.update_with_experience(
-            observations=   observations,
-            actions=        actions,
-            dreturns=       dreturns_final,
-            inspect=        inspect)
+        return out
