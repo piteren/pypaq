@@ -115,13 +115,13 @@ class MOTorch(NNWrap, Module):
     # sets CPU / GPU devices for MOTorch
     def _manage_devices(self):
 
-        self._logger.debug(f'> MOTorch resolves devices, given: {self["devices"]}, torch.cuda.is_available(): {torch.cuda.is_available()}')
+        self._nwwlog.debug(f'> MOTorch resolves devices, given: {self["devices"]}, torch.cuda.is_available(): {torch.cuda.is_available()}')
 
         self['devices'] = get_devices(
             devices=    self['devices'],
             namespace=  'torch',
-            logger=     get_hi_child(self._logger, 'get_devices'))
-        self._logger.info(f'> MOTorch will use devices: {self["devices"]}')
+            logger=     get_hi_child(self._nwwlog, 'get_devices'))
+        self._nwwlog.info(f'> MOTorch will use devices: {self["devices"]}')
         # TODO: by now supported is only the first given device
         self._torch_dev = torch.device(self['devices'][0])
 
@@ -136,16 +136,16 @@ class MOTorch(NNWrap, Module):
     # builds MOTorch graph (Module)
     def _build_graph(self) -> None:
 
-        self._logger.info('MOTorch builds graph')
+        self._nwwlog.info('MOTorch builds graph')
         self.nngraph.__init__(self, **self._dna_nngraph)
         self.to(self._torch_dev)
-        self._logger.debug(f'{self.name} (MOTorch) Module initialized!')
+        self._nwwlog.debug(f'{self.name} (MOTorch) Module initialized!')
 
         try:
             self.load_ckpt()
-            self._logger.info(f'> MOTorch checkpoint loaded from {self.__get_ckpt_path()}')
+            self._nwwlog.info(f'> MOTorch checkpoint loaded from {self.__get_ckpt_path()}')
         except Exception as e:
-            self._logger.info(f'> MOTorch checkpoint NOT loaded ({e})..')
+            self._nwwlog.info(f'> MOTorch checkpoint NOT loaded ({e})..')
 
         self._opt = self['opt_class'](
             params= self.parameters(),
@@ -161,7 +161,7 @@ class MOTorch(NNWrap, Module):
             ann_base=       self['ann_base'],
             ann_step=       self['ann_step'],
             n_wup_off=      self['n_wup_off'],
-            logger=         get_hi_child(self._logger, 'ScaledLR'))
+            logger=         get_hi_child(self._nwwlog, 'ScaledLR'))
 
         self._grad_clipper = GradClipperAVT(
             module=         self,
@@ -170,10 +170,10 @@ class MOTorch(NNWrap, Module):
             avt_window=     self['avt_window'],
             avt_max_upd=    self['avt_max_upd'],
             do_clip=        self['do_clip'],
-            logger=         get_hi_child(self._logger, 'GradClipperAVT'))
+            logger=         get_hi_child(self._nwwlog, 'GradClipperAVT'))
 
         self.__set_training(False)
-        self._logger.debug(f'> set MOTorch train.mode to False..')
+        self._nwwlog.debug(f'> set MOTorch train.mode to False..')
 
     def __call__(self, *args, **kwargs) -> dict:
         return torch.nn.Module.__call__(self, *args, **kwargs)
@@ -363,7 +363,7 @@ class MOTorch(NNWrap, Module):
         if data is not None: self.load_data(data)
         if not self._batcher: raise MOTorchException('MOTorch has not been given data for training, use load_data() or give it while training!')
 
-        self._logger.info(f'{self.name} - training starts [acc/loss]')
+        self._nwwlog.info(f'{self.name} - training starts [acc/loss]')
 
         self.__set_training(True)
 
@@ -412,7 +412,7 @@ class MOTorch(NNWrap, Module):
                     self.log_TB(value=ts_loss, tag='ts/loss',    step=self['train_batch_IX'])
                     self.log_TB(value=ts_acc,  tag='ts/acc',     step=self['train_batch_IX'])
                     self.log_TB(value=acc_mav, tag='ts/acc_mav', step=self['train_batch_IX'])
-                self._logger.info(f'# {self["train_batch_IX"]:5d} TR: {100*sum(tr_accL)/test_freq:.1f} / {sum(tr_lssL)/test_freq:.3f} -- TS: {100*ts_acc:.1f} / {ts_loss:.3f}')
+                self._nwwlog.info(f'# {self["train_batch_IX"]:5d} TR: {100*sum(tr_accL)/test_freq:.1f} / {sum(tr_lssL)/test_freq:.3f} -- TS: {100*ts_acc:.1f} / {ts_loss:.3f}')
                 tr_lssL = []
                 tr_accL = []
 
@@ -431,9 +431,9 @@ class MOTorch(NNWrap, Module):
         ts_wval /= sum_weight
 
         if self['do_TB']: self.log_TB(value=ts_wval, tag='ts/ts_wval', step=self['train_batch_IX'])
-        self._logger.info(f'### model {self.name} finished training')
-        self._logger.info(f' > test_acc_max: {ts_acc_max:.4f}')
-        self._logger.info(f' > test_wval:    {ts_wval:.4f}')
+        self._nwwlog.info(f'### model {self.name} finished training')
+        self._nwwlog.info(f' > test_acc_max: {ts_acc_max:.4f}')
+        self._nwwlog.info(f' > test_wval:    {ts_wval:.4f}')
 
         self.__set_training(False)
 
