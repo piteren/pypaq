@@ -29,7 +29,7 @@ from pypaq.pms.paspa import PaSpa
 class Subscriptable:
 
     def __init__(self, logger=None):
-        self._log = logger or get_pylogger()
+        self.__log = logger or get_pylogger()
 
     def __getitem__(self, key):
         return getattr(self, key)
@@ -86,8 +86,8 @@ class Subscriptable:
                         found.add(tuple(sorted([pa, pb])))
 
         if found:
-            self._log.warning('Subscriptable was asked to check for params similarity and found:')
-            for pa,pb in found: self._log.warning(f'> params \'{pa}\' and \'{pb}\' are too CLOSE !!!')
+            self.__log.warning('Subscriptable was asked to check for params similarity and found:')
+            for pa,pb in found: self.__log.warning(f'> params \'{pa}\' and \'{pb}\' are too CLOSE !!!')
 
         return len(found) > 0
 
@@ -111,9 +111,9 @@ class SubGX(Subscriptable):
             logger=                 None,
             **kwargs):
 
-        self._log = logger or get_pylogger()
+        self.__log = logger or get_pylogger()
 
-        Subscriptable.__init__(self, logger=get_hi_child(self._log))
+        Subscriptable.__init__(self, logger=get_hi_child(self.__log))
 
         self.name = name
         self.family = family
@@ -121,7 +121,7 @@ class SubGX(Subscriptable):
         self.update(kwargs)
         # INFO: all keys of self.psdd should be present in self
         #  - it is not checked now (while init) since self may be updated even after init, IT IS checked while GX
-        self._log.info(f'*** Subscriptable *** name: {self.name} initialized, family: {self.family}, psdd: {self.psdd}')
+        self.__log.info(f'*** Subscriptable *** name: {self.name} initialized, family: {self.family}, psdd: {self.psdd}')
 
     # returns self POINT limited to axes included in self.psdd
     def get_gxable_point(self) -> POINT:

@@ -26,7 +26,7 @@ from pypaq.pms.base_types import P_VAL, POINT, PSDD
 NO_REF = '__NO-REF__'
 
 
-# Parameters Space Class
+# Parameters Space
 class PaSpa:
 
     def __init__(

@@ -9,9 +9,7 @@ class ZeroesProcessor:
             self,
             intervals: tuple=   (50,500,5000),
             tag_pfx=            'nane',     # prefix of tag in TB, (Not Activated NEurons)
-            tbwr: Optional=     None,       # if given will put summaries to TB with intervals frequencies
-    ):
-
+            tbwr: Optional=     None):      # if given will put summaries to TB with intervals frequencies
         self.intervals = intervals
         self.zsL = {k: [] for k in self.intervals}
         self.single = []

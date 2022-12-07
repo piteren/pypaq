@@ -37,7 +37,7 @@ class Batcher:
             seed=               123,
             logger=             None):
 
-        self._log = logger or get_pylogger()
+        self.__log = logger or get_pylogger()
 
         self.seed_counter = seed
 
@@ -62,10 +62,10 @@ class Batcher:
         self._VL_batches = None
         self._TS_batches = None
 
-        self._log.info(f'*** Batcher *** initialized with {self._data_len_TR} samples of data in keys, batch size: {batch_size}')
-        self._log.debug('> Batcher keys:')
+        self.__log.info(f'*** Batcher *** initialized with {self._data_len_TR} samples of data in keys, batch size: {batch_size}')
+        self.__log.debug('> Batcher keys:')
         for k in self._data_keys:
-            self._log.debug(f'>> {k}, shape: {self._data_TR[k].shape}, type:{type(self._data_TR[k][0])}')
+            self.__log.debug(f'>> {k}, shape: {self._data_TR[k].shape}, type:{type(self._data_TR[k][0])}')
 
 
     def _extend_ixmap(self):
@@ -125,7 +125,7 @@ class Batcher:
         if self._TS_batches is None:
             if self._data_TS is None:
                 err = 'ERR: cannot prepare TS batches - data nat given'
-                self._log.error(err)
+                self.__log.error(err)
                 raise BatcherException(err)
             self._TS_batches = Batcher.__split_data(self._data_TS, self._batch_size * self._bs_mul)
         return self._TS_batches
