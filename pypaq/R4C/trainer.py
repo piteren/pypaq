@@ -138,13 +138,11 @@ class RLTrainer(ABC):
         actions = []
         rewards = []
 
-        if self.envy.is_terminal(): self.envy.reset()
-
+        self.envy.reset()
         while len(actions) < steps:
 
             if self.envy.is_terminal():
                 if break_terminal: break
-                self.envy.reset()
 
             observation, action, reward = self._ex_move(
                 exploration=    exploration,
@@ -168,7 +166,6 @@ class RLTrainer(ABC):
             render=         False
     ) -> Tuple[List[object], List[object], List[float], bool]:
 
-        self.envy.reset()
         observations, actions, rewards = self.play(
             steps=          max_steps,
             break_terminal= True,

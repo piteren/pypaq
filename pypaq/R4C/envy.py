@@ -18,6 +18,8 @@ from abc import abstractmethod, ABC
 import numpy as np
 from typing import List
 
+class EnvyException(Exception): pass
+
 
 # base Environment interface
 class Envy(ABC):
@@ -67,7 +69,7 @@ class RLEnvy(Envy, ABC):
 
     # prepares numpy vector from observation, it may be implemented by RLEnvy, but is not mandatory, otherwise Actor should implement on itself
     def prep_observation_vec(self, observation: object) -> np.ndarray:
-        raise Exception('RLEnvy not implemented prep_observation_vec()')
+        raise EnvyException('RLEnvy not implemented prep_observation_vec()')
 
 
 # interface of RL Environment with finite actions number
