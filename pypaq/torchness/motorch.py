@@ -147,9 +147,13 @@ class MOTorch(NNWrap, Module):
         except Exception as e:
             self._nwwlog.info(f'> MOTorch checkpoint NOT loaded ({e})..')
 
+        # optimizer params may be given with 'opt_' prefix
+        opt_params = {k[4:]: self[k] for k in self.get_managed_params() if k.startswith('opt_')}
+        opt_params.pop('class')
         self._opt = self['opt_class'](
             params= self.parameters(),
-            lr=     self['baseLR'])
+            lr=     self['baseLR'],
+            **opt_params)
         #print(len(self._opt.param_groups))
         #print(self._opt.param_groups[0].keys())
 

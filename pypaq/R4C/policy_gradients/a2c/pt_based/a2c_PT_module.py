@@ -1,4 +1,5 @@
 import torch
+from typing import Optional
 
 from pypaq.torchness.motorch import Module
 from pypaq.torchness.layers import LayDense, zeroes
@@ -9,15 +10,20 @@ class A2CModel(Module):
 
     def __init__(
             self,
-            observation_width=  4,
-            num_actions: int=   2,
-            two_towers=         False,  # builds separate towers for Actor & Critic
-            num_layers=         1,
-            layer_width=        50,
-            lay_norm=           False,
-            use_scaled_ce=      True,  # experimental Scaled Cross Entropy loss
-            use_huber=          False,  # for True uses Huber loss for Critic
-            seed=               121):
+            observation_width: int=             4,
+            num_actions: int=                   2,
+            two_towers: bool=                   False,  # builds separate towers for Actor & Critic
+            num_layers: int=                    1,
+            layer_width: int=                   50,
+            lay_norm: bool=                     False,
+            clamp_advantage: Optional[float]=   0.5,    #
+            use_scaled_ce: bool=                True,   # experimental Scaled Cross Entropy loss
+            use_huber: bool=                    False,  # for True uses Huber loss for Critic
+            opt_class=                          torch.optim.SGD, # torch.optim.Adam,
+            opt_momentum=                       0.5,
+            opt_nesterov=                       True,
+            # RMSProp, Adadelta
+    ):
 
         torch.nn.Module.__init__(self)
 
@@ -59,6 +65,7 @@ class A2CModel(Module):
             out_features=   num_actions,
             activation=     None)
 
+        self.clamp_advantage = clamp_advantage
         self.use_scaled_ce = use_scaled_ce
         self.use_huber = use_huber
 
@@ -102,7 +109,12 @@ class A2CModel(Module):
         advantage = dreturn - value
 
         advantage_nograd = advantage.detach() # to prevent flow of Actor loss gradients to Critic network
-        advantage_nograd = torch.clamp(advantage_nograd, min=-0.5, max=0.5)
+        if self.clamp_advantage is not None:
+            advantage_nograd = torch.clamp(
+                input=  advantage_nograd,
+                min=    -self.clamp_advantage,
+                max=    self.clamp_advantage)
+
         if self.use_scaled_ce:
             actor_ce_scaled = scaled_cross_entropy(
                 labels= action_taken,
