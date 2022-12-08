@@ -132,10 +132,9 @@ class A2CModel(Module):
         loss_critic_mean = torch.mean(loss_critic)
 
         out.update({
-            'advantage':        advantage,
-            'loss_actor':       loss_actor_scaled_mean,
-            'loss_critic':      loss_critic_mean,
-            'loss':             loss_actor_scaled_mean + loss_critic_mean,
-            'acc':              self.accuracy(logits, action_taken)})
+            'advantage':    advantage,
+            'loss_actor':   loss_actor_scaled_mean,
+            'loss_critic':  loss_critic_mean,
+            'loss':         loss_actor_scaled_mean + loss_critic_mean})
 
         return out

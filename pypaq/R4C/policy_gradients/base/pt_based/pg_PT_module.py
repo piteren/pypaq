@@ -84,8 +84,6 @@ class PGModel(Module):
             actor_ce = torch.nn.functional.cross_entropy(logits, action_taken, reduction='none')
             actor_ce_scaled = actor_ce * dreturn
 
-        out.update({
-            'loss':             torch.mean(actor_ce_scaled),
-            'acc':              self.accuracy(logits, action_taken)})
+        out.update({'loss': torch.mean(actor_ce_scaled)})
 
         return out
