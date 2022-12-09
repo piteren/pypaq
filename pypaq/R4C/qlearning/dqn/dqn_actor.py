@@ -11,6 +11,7 @@ import numpy as np
 from typing import Optional, Union, Callable, List
 
 from pypaq.R4C.qlearning.ql_actor import QLearningActor
+from pypaq.R4C.helpers import RLException
 from pypaq.comoneural.nnwrap import NNWrap
 
 
@@ -47,7 +48,7 @@ class DQN_Actor(QLearningActor, ABC):
             observation: object,
             action: int,
             new_qv: float) -> float:
-        raise Exception('not implemented')
+        raise RLException('not implemented')
 
     def _get_save_topdir(self) -> str:
         return self.nnw['save_topdir']

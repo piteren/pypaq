@@ -20,6 +20,7 @@ from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.lipytools.moving_average import MovAvg
 from pypaq.R4C.envy import RLEnvy, FiniteActionsRLEnvy
 from pypaq.R4C.actor import TrainableActor
+from pypaq.R4C.helpers import RLException
 from pypaq.torchness.base_elements import TBwr
 from pypaq.comoneural.avg_probs import avg_probs
 from pypaq.comoneural.zeroes_processor import ZeroesProcessor
@@ -173,6 +174,9 @@ class RLTrainer(ABC):
             max_steps: Optional[int]=   None,  # if max steps is given then single play for max_steps is considered to be won
     ) -> Tuple[List[object], List[object], List[float], bool]:
 
+        if max_steps is None and self.envy.get_max_steps() is None:
+            raise RLException('Cannot play episode for Envy where max_steps is None and given max_steps is also None')
+
         observations, actions, rewards, terminals, wons = self.play(
             steps=          max_steps or self.envy.get_max_steps(),
             reset=          True,
@@ -279,13 +283,17 @@ class RLTrainer(ABC):
             # test Actor
             if uix % test_freq == 0:
 
+                # single episode
                 observations, actions, rewards, won = self._play_episode(
                     exploration=    0.0,
                     sampled=        0.0,
                     render=         test_render,
                     max_steps=      test_max_steps)
 
-                avg_won, avg_return = self.test_on_episodes(n_episodes=test_episodes)
+                # few tests
+                avg_won, avg_return = self.test_on_episodes(
+                    n_episodes=     test_episodes,
+                    max_steps=      test_max_steps)
 
                 self._rlog.info(f'# {uix:3} term:{n_terminals}(+{n_terminals-last_terminals}) -- TS: {len(actions)} actions, return {sum(rewards):.1f} ({"won" if won else "lost"}) -- {test_episodes}xTS: avg_won: {avg_won*100:.1f}%, avg_return: {avg_return:.1f} -- loss_actor: {loss_mavg():.4f}')
                 last_terminals = n_terminals

@@ -10,7 +10,7 @@
 
 import numpy as np
 
-from pypaq.R4C.helpers import extract_from_batch
+from pypaq.R4C.helpers import extract_from_batch, RLException
 from pypaq.R4C.policy_gradients.base.tf_based.pg_TF_actor import PG_TFActor
 from pypaq.R4C.policy_gradients.actor_critic.tf_based.ac_TF_critic import AC_TFCritic
 from pypaq.R4C.policy_gradients.pg_trainer import PGTrainer
@@ -113,6 +113,6 @@ class ACTrainer(PGTrainer):
         for k in crt_metrics:
             act_metrics[f'critic_{k}'] = crt_metrics[k]
 
-        if np.isnan(act_metrics['loss']) or np.isnan(crt_metrics['loss']): raise Exception('NaN loss!')
+        if np.isnan(act_metrics['loss']) or np.isnan(crt_metrics['loss']): raise RLException('NaN loss!')
 
         return act_metrics

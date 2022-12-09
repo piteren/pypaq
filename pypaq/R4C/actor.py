@@ -13,6 +13,7 @@ from typing import Optional
 from pypaq.lipytools.little_methods import stamp
 from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.R4C.envy import RLEnvy
+from pypaq.R4C.helpers import RLException
 
 
 # just Actor
@@ -48,7 +49,7 @@ class TrainableActor(Actor, ABC):
     # prepares numpy vector from observation, first tries to get from RLEnvy
     def _get_observation_vec(self, observation: object) -> np.ndarray:
         try: return self._envy.prep_observation_vec(observation)
-        except Exception: raise Exception ('TrainableActor not implemented _get_observation_vec()')
+        except RLException: raise RLException ('TrainableActor not implemented _get_observation_vec()')
 
     # add sampling (from probability?) option which may be helpful for training
     @abstractmethod

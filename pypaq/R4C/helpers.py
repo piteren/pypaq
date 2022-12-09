@@ -2,6 +2,11 @@ import numpy as np
 from typing import List
 
 
+
+# ReinforcementLearning Exception
+class RLException(Exception): pass
+
+
 # extracts array of data from a batch
 def extract_from_batch(
         batch :List[dict],

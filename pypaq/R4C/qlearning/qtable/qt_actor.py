@@ -15,6 +15,7 @@ import numpy as np
 from typing import Hashable, Dict, List
 
 from pypaq.R4C.qlearning.ql_actor import QLearningActor
+from pypaq.R4C.helpers import RLException
 
 
 class QTable:
@@ -84,7 +85,7 @@ class QTableActor(QLearningActor):
             observation: object,
             action: int,
             new_qv: float) -> float:
-        if self._update_rate is None: raise Exception('Trainer needs to set update_rate of QLearningActor before training!')
+        if self._update_rate is None: raise RLException('Trainer needs to set update_rate of QLearningActor before training!')
         old_qv = self._get_QVs(observation)[action]
         diff = new_qv - old_qv
         self.__qtable.put_QV(
@@ -97,7 +98,7 @@ class QTableActor(QLearningActor):
         return self._save_topdir
 
     def save(self):
-        raise Exception('not implemented')
+        raise RLException('not implemented')
 
     def __str__(self):
         return f'QTableActor, QTable:\n{self.__qtable.__str__()}'

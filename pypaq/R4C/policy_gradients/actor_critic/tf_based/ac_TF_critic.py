@@ -3,6 +3,7 @@ from typing import Optional, Callable
 
 from pypaq.R4C.policy_gradients.pg_actor import PGActor
 from pypaq.R4C.policy_gradients.actor_critic.tf_based.ac_TF_critic_graph import critic_graph
+from pypaq.R4C.helpers import RLException
 from pypaq.neuralmess.nemodel import NEModel
 
 
@@ -22,7 +23,7 @@ class AC_TFCritic(PGActor):
 
     # Critic does not have policy
     def get_policy_probs(self, observation: object) -> np.ndarray:
-        raise Exception('not implemented since should not be called')
+        raise RLException('not implemented since should not be called')
 
     def get_qvs(self, observation) -> np.ndarray:
         obs_vec = self._get_observation_vec(observation)

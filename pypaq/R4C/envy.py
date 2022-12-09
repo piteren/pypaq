@@ -19,8 +19,8 @@ import numpy as np
 from typing import List, Tuple, Optional
 
 from pypaq.lipytools.pylogger import get_pylogger
+from pypaq.R4C.helpers import RLException
 
-class EnvyException(Exception): pass
 
 
 # base Environment interface
@@ -68,25 +68,12 @@ class RLEnvy(Envy, ABC):
         bool    # has won
     ]: pass
 
-    """
-    # returns True if episode finished and has been won, for some Envies it wont return True whenever
-    @abstractmethod
-    def won_episode(self) -> bool: pass
-
-    # returns True if episode finished and has been lost, for some Envies it wont return True whenever
-    @abstractmethod
-    def lost_episode(self) -> bool: pass
-
-    # returns True if is in terminal state (won or lost >> episode finished)
-    def is_terminal(self) -> bool:
-        return self.lost_episode() or self.won_episode()
-    """
     # Envy rendering (for debug, preview etc.)
     def render(self): pass
 
     # prepares numpy vector from observation, it may be implemented by RLEnvy, but is not mandatory, otherwise Actor should implement on itself
     def prep_observation_vec(self, observation: object) -> np.ndarray:
-        raise EnvyException('RLEnvy not implemented prep_observation_vec()')
+        raise RLException('RLEnvy not implemented prep_observation_vec()')
 
 
 # interface of RL Environment with finite actions number
