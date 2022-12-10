@@ -49,6 +49,7 @@ class SRL(Sized):
         self.__distances = []               # distances cache (by SeRes id)
         self.__scores = []                  # scores cache (by SeRes id)
         self.__avg_dst = 1                  # average distance of SRL for self.__np_smooth
+        self.prec = 8                       # print precision, will be updated while adding new points
 
     # ****************************************************************************************************** load & save
 
@@ -76,6 +77,7 @@ class SRL(Sized):
         self.__distances =              obj.__distances
         self.__scores =                 obj.__scores
         self.__avg_dst =                obj.__avg_dst
+        self.prec=                      obj.prec
 
         if self.verb>0: print(f' > SRL loaded {len(self.__srL)} results')
 
@@ -152,7 +154,8 @@ class SRL(Sized):
             all_w = [w - subs for w in all_w]
             all_p = list(all_p)
             sample = random.choices(all_p, weights=all_w, k=1)[0]
-            print(f'   % sampled #{all_p.index(sample)}/{len(all_p)} from: {maxs:.4f}-{mins:.4f} {_str_weights(all_w)}')
+            pf = f'.{self.prec}f'
+            print(f'   % sampled #{all_p.index(sample)}/{len(all_p)} from: {maxs:{pf}}-{mins:{pf}} {_str_weights(all_w)}')
 
         est_score, _, _ =  self.smooth_point(sample)
 
@@ -185,7 +188,8 @@ class SRL(Sized):
                 all_w = [w - subs for w in all_w]
                 all_p = list(all_p)
                 sample = random.choices(all_p, weights=all_w, k=1)[0]
-                print(f'   % sampled #{all_p.index(sample)}/{len(all_p)} from: {maxs:.4f}-{mins:.4f} {_str_weights(all_w)}')
+                pf = f'.{self.prec}f'
+                print(f'   % sampled #{all_p.index(sample)}/{len(all_p)} from: {maxs:{pf}}-{mins:{pf}} {_str_weights(all_w)}')
             # GX from top points
             else:
                 n_top += 1 # last for reference
@@ -199,7 +203,8 @@ class SRL(Sized):
                     point_main=                 sra.point,
                     point_scnd=                 srb.point,
                     noise_scale=                avg_dst)
-                print(f'   % sampled GX from: {sra.smooth_score:.4f} and {srb.smooth_score:.4f}')
+                pf = f'.{self.prec}f'
+                print(f'   % sampled GX from: {sra.smooth_score:{pf}} and {srb.smooth_score:{pf}}')
         est_score, _, _ =  self.smooth_point(sample)
         return sample, est_score
 
@@ -255,6 +260,8 @@ class SRL(Sized):
             sr.smooth_score = sr.score
             self.__smoothed_and_sorted = False
         else: self.smooth_and_sort()
+
+        if score > 0.01: self.prec = 4
 
         return sr
 
@@ -328,6 +335,8 @@ class SRL(Sized):
             top_nps: Iterable[int]= (3,5,9),
             all_nps: Optional[int]= 3):
 
+        pf = f'.{self.prec}f'
+
         re_str = ''
         if all_nps: re_str += f'Search run {self.name}, {len(self.__srL)} results:\n\n{self.paspa}\n\n'
 
@@ -344,20 +353,20 @@ class SRL(Sized):
             for srIX in range(n_top):
                 sr = self.__srL[srIX]
                 ss_np, avg_dst, all_scores = self.smooth_point(sr)
-                re_str += f'{sr.id:4d} {ss_np:.4f} [{sr.score:.4f}] [{max(all_scores):.4f}-{min(all_scores):.4f}] {avg_dst:.3f} {point_str(sr.point)}\n'
+                re_str += f'{sr.id:4d} {ss_np:{pf}} [{sr.score:{pf}}] [{max(all_scores):{pf}}-{min(all_scores):{pf}}] {avg_dst:.3f} {point_str(sr.point)}\n'
 
         self.set_np_smooth(orig_nps)
         top_sr_nps = self.get_top_SR()
         n_closest = self.__get_n_closest(top_sr_nps)
         re_str += f'{self.__np_smooth}closest points to TOP in NPS {self.__np_smooth}:\n'
-        for sr in n_closest: re_str += f'{sr.id:4d} [{sr.score:.4f}] {point_str(sr.point)}\n'
+        for sr in n_closest: re_str += f'{sr.id:4d} [{sr.score:{pf}}] {point_str(sr.point)}\n'
 
         if all_nps and len(self.__srL) > n_top:
             self.set_np_smooth(all_nps)
             re_str += f'\nALL results for NPS {all_nps} (avg_dst:{self.__avg_dst:.3f}):\n'
             for sr in self.__srL:
                 ss_np, avg_dst, all_scores = self.smooth_point(sr)
-                re_str += f'{sr.id:4d} {ss_np:.4f} [{sr.score:.4f}] [{max(all_scores):.4f}-{min(all_scores):.4f}] {avg_dst:.3f} {point_str(sr.point)}\n'
+                re_str += f'{sr.id:4d} {ss_np:{pf}} [{sr.score:{pf}}] [{max(all_scores):{pf}}-{min(all_scores):{pf}}] {avg_dst:.3f} {point_str(sr.point)}\n'
 
         self.set_np_smooth(orig_nps)
         return re_str

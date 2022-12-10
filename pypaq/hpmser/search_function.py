@@ -300,6 +300,8 @@ def hpmser(
                         score=  msg_score)
                     if verb>1: print(f' >> got result #{msg_sample_num}')
 
+                    pf = f'.{srl.prec}f' # update precision of print
+
                     avg_dst = srl.get_avg_dst()
                     mom_dst = srl.get_mom_dst()
                     srl.save(folder=f'{hpmser_FD}/{name}')
@@ -316,17 +318,13 @@ def hpmser(
                     # current sr report
                     if verb>0:
 
-                        sr_ss = sr.smooth_score
-                        prec = 4 if sr_ss > 0.01 else 8
-                        pf = f'.{prec}f'
-
-                        dif = sr_ss - msg_est_score
-                        difs = f'{"+" if dif>0 else "-"}{abs(dif):.4f}'
+                        dif = sr.smooth_score - msg_est_score
+                        difs = f'{"+" if dif>0 else "-"}{abs(dif):{pf}}'
 
                         dist_to_max = srl.paspa.distance(top_SR.point, sr.point)
                         time_passed = int(time.time() - msg_s_time)
 
-                        srp =  f'{sr.id} {sr_ss:{pf}} [{sr.score:{pf}} {difs}] {top_SR.id}:{dist_to_max:.3f}'
+                        srp =  f'{sr.id} {sr.smooth_score:{pf}} [{sr.score:{pf}} {difs}] {top_SR.id}:{dist_to_max:.3f}'
                         srp += f'  avg/m:{avg_dst:.3f}/{mom_dst:.3f}  {time_passed}s'
                         if new_sampling_config: srp += f'  new sampling config: {sampling_config}'
                         print(srp)
