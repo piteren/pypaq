@@ -136,7 +136,7 @@ class OMPRunner:
             assert 'device' not in pms, 'ERR: please rename "device" into "devices" in params of RunningWorker'
             dev_param_name = 'devices' if 'devices' in pms else None
 
-            devices = get_devices(devices=devices, verb=verb)
+            devices = get_devices(devices=devices, namespace=None)
 
             # prepare RunningWorkers arguments dictionary
             if not rw_init_kwargs: rw_init_kwargs = {}

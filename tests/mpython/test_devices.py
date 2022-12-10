@@ -3,7 +3,7 @@ import unittest
 from pypaq.mpython.devices import get_cuda_mem, get_available_cuda_id, report_cuda, get_devices, mask_cuda, mask_cuda_devices
 
 
-class TestMPTools(unittest.TestCase):
+class TestDevices(unittest.TestCase):
 
     def test_get_cuda_mem(self):
         mem = get_cuda_mem()
@@ -14,71 +14,91 @@ class TestMPTools(unittest.TestCase):
         print(av_cuda)
 
     def test_report_cuda(self):
-        report_cuda()
+        print(report_cuda())
 
-    def test_get_devices(self):
+    def test_get_devices_base(self):
 
-        devs = get_devices(0)
-        print(devs)
-        self.assertTrue(len(devs) == 1)
-        self.assertTrue(devs[0] == '/device:GPU:0')
+        self.assertRaises(NameError, get_devices, namespace='wrong')  # wrong namespace
 
-        dev = get_devices(-1)
-        print(dev)
-        self.assertTrue(len(devs) == 1)
-        self.assertTrue('/device:GPU' in dev[0])
+        self.assertRaises(Exception, get_devices, 'alll') # wrong device
 
-        devs = get_devices(0, tf2_naming=True)
-        print(devs)
-        self.assertTrue(len(devs) == 1)
-        self.assertTrue(devs[0] == 'GPU:0')
+        self.assertRaises(Exception, get_devices, 0.1)  # wrong device
 
-        devs = get_devices(None, tf2_naming=True)
-        print(devs)
-        self.assertTrue(len(devs) == 1)
-        self.assertTrue(devs[0] == 'CPU:0')
+    def test_get_devices_pypaq_representations(self):
 
-        devs = get_devices('all', tf2_naming=True)
-        print(devs)
-        self.assertTrue(len(devs) > 0)
-        self.assertTrue(list(set(devs))[0] == 'CPU:0')
+        d = get_devices(0, namespace=None)
+        print(d)
+        self.assertTrue(d==[0])
 
-        devs = get_devices('/device:GPU:0', tf2_naming=True)
-        print(devs)
-        self.assertTrue(len(devs) == 1)
-        self.assertTrue(devs[0] == 'GPU:0')
+        d = get_devices(1, namespace=None)
+        print(d)
+        self.assertTrue(d==[1])
 
-        devs = get_devices('GPU:1', tf2_naming=True)
-        print(devs)
-        self.assertTrue(len(devs) == 1)
-        self.assertTrue(devs[0] == 'GPU:1')
+        d = get_devices(13, namespace=None)
+        print(d)
+        self.assertTrue(d==[13])
 
-        devs = get_devices('GPU:1', tf2_naming=False)
-        print(devs)
-        self.assertTrue(len(devs) == 1)
-        self.assertTrue(devs[0] == '/device:GPU:1')
+        d = get_devices(-1, namespace=None)
+        print(d)
+        self.assertTrue(type(d) is list and len(d)==1 and ((type(d[0]) is int and d[0]>=0) or type(d) is type(None)))
 
-        devs = get_devices(['GPU:0', '/device:GPU:1'], tf2_naming=True)
-        print(devs)
-        self.assertTrue(devs[0] == 'GPU:0' and devs[1] == 'GPU:1')
+        d = get_devices([], namespace=None)
+        print(d)
+        self.assertTrue(list(set([type(e) for e in d]))[0] in [int, None])
 
-        devs = get_devices([], tf2_naming=True)
-        print(devs)
-        for d in devs: self.assertTrue('GPU' in d)
+        d = get_devices(None, namespace=None)
+        print(d)
+        self.assertTrue(d==[None])
 
-        devs = get_devices([0]*5, tf2_naming=True)
-        print(devs)
-        self.assertTrue(len(devs) == 5)
-        for d in devs: self.assertTrue(d == 'GPU:0')
+        d = get_devices('all', namespace=None)
+        print(d)
+        self.assertTrue(set(d)=={None})
 
-        devs = get_devices([None]*5, tf2_naming=True)
-        print(devs)
-        self.assertTrue(len(devs) == 5)
-        for d in devs: self.assertTrue(d == 'CPU:0')
+        d = get_devices('/device:CPU:0', namespace=None)
+        print(d)
+        self.assertTrue(d==[None])
 
-        devs = get_devices([None, 0, 0, '/device:GPU:0', None], tf2_naming=True)
-        print(devs)
-        self.assertTrue(devs == ['CPU:0', 'CPU:0', 'GPU:0', 'GPU:0', 'GPU:0'])
+        d = get_devices('GPU:1', namespace=None)
+        print(d)
+        self.assertTrue(d==[1])
+
+        d = get_devices('cuda:8', namespace=None)
+        print(d)
+        self.assertTrue(d==[8])
+
+        d = get_devices([0,'all'], namespace=None)
+        print(d)
+        self.assertTrue(None in d and 0 in d and len(d)>1)
+
+        d = get_devices([0,[],None], namespace=None)
+        print(d)
+        self.assertTrue(None in d and 0 in d and len(d)>2)
+
+        d = get_devices([0,2,[],None,-1], namespace=None)
+        print(d)
+        self.assertTrue(None in d and 0 in d and -1 not in d and len(d)>3)
+
+        d = get_devices([1,2,[],None,-1,'all','cuda:0'], namespace=None)
+        print(d)
+        self.assertTrue(None in d and 0 in d and -1 not in d and len(d)>3)
+
+    def test_get_devices_libraries(self):
+
+        d = get_devices(0, namespace='torch')
+        print(d)
+        self.assertTrue(d == ['cuda:0'])
+
+        d = get_devices(-1, namespace='torch')
+        print(d)
+        self.assertTrue(d == ['cuda:1'])
+
+        d = get_devices(None, namespace='torch')
+        print(d)
+        self.assertTrue(d == ['cpu:0'])
+
+        d = get_devices([0,1,'GPU:0',None], namespace='torch')
+        print(d)
+        self.assertTrue(d == ['cuda:0', 'cuda:1', 'cuda:0', 'cpu:0'])
 
     def test_mask_cuda(self):
         av_cuda = get_available_cuda_id()
@@ -86,6 +106,6 @@ class TestMPTools(unittest.TestCase):
         mask_cuda(av_cuda)
 
     def test_mask_cuda_devices(self):
-        devs = get_devices([None, 0, 0, '/device:GPU:0', None], tf2_naming=True)
-        print(devs)
-        mask_cuda_devices(devs, verb=1)
+        d = get_devices([None, 0, 0, '/device:GPU:0', None], namespace='torch')
+        print(d)
+        mask_cuda_devices(d)

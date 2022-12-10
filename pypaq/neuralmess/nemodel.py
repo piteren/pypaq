@@ -296,6 +296,7 @@ class NEModel(NNWrap):
 
         self['devices'] = get_devices(
             devices=    self['devices'],
+            namespace=  'TF1',
             logger=     get_hi_child(self._nwwlog, 'get_devices'))
 
         devices_other = []

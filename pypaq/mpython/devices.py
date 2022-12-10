@@ -8,14 +8,22 @@ from pypaq.mpython.mptools import sys_res_nfo
 
 
 """
-devices: DevicesParam - (parameter) manages GPUs, gives options for CPUs
-    int                 - one (system) CUDA ID
-    -1                  - last AVAILABLE CUDA
-    'all'               - all CPU cores
-    None                - single CPU core
-    str_TF_format       - device in TF format ('GPU:0')
-    [] (empty list)     - all AVAILABLE CUDA
-    [int,-1,None,str]   - list of devices: ints (CUDA IDs), may contain None, possible repetitions
+devices: DevicesParam - (parameter) represents some devices (GPU / CPU)
+    # ******************************************************************************************** pypaq representations
+    int                 - (int)       single (system) CUDA ID
+    -int                - (int)       AVAILABLE CUDA[-int] 
+    [] (empty list)     - (list)      all AVAILABLE CUDA
+    None                - (NoneType)  single CPU core
+    'all'               - (str)       all CPU cores
+    [int,-1,None,'all'] - (list)      list with mix of above, possible repetitions
+    # ******************************************************************************** TF1, TF2, PyTorch representations
+    '/device:CPU:0'     - (str)       TF1 for CPU
+    '/device:GPU:0'     - (str)       TF1 for GPU
+    'CPU:0'             - (str)       TF2 for CPU
+    'GPU:0'             - (str)       TF2 for GPU
+    'cpu:0'             - (str)       PyTorch for CPU
+    'cuda:0'            - (str)       PyTorch for GPU
+    [str]               - (list)      list with strings of above, possible repetitions   
 """
 DevicesParam: Union[int, None, str, list] = -1
 
@@ -27,7 +35,7 @@ def get_cuda_mem():
     else: return 12000 # safety return for no cuda devices case
 
 # returns list of available GPUs ids
-def get_available_cuda_id(max_mem=None): # None sets automatic, otherwise (0,1.1] (above 1 for all)
+def get_available_cuda_id(max_mem=None) -> list: # None sets automatic, otherwise (0,1.1] (above 1 for all)
     if not max_mem:
         tot_mem = get_cuda_mem()
         if tot_mem < 5000:  max_mem=0.35 # small GPU case, probably system single GPU
@@ -41,79 +49,92 @@ def report_cuda() -> str:
         rp += f'\n > id: {device.id}, name: {device.name}, MEM: {int(device.memoryUsed)}/{int(device.memoryTotal)} (U/T)'
     return rp
 
-
+# resolves representation given with DevicesParam into middleform (pypaq: List[Union[int,None]]) or TF / PyTorch supported List[str]
 def get_devices(
-        devices: DevicesParam=  -1,
-        namespace: str=         'TF1',
-        logger=                  None) -> List[str]:
+        devices: DevicesParam=      -1,
+        namespace: Optional[str]=   None,
+        logger=                     None,
+        loglevel=                   20) -> List[Union[int,None,str]]:
 
-    if not logger: logger = get_pylogger()
+    if not logger: logger = get_pylogger(level=loglevel)
 
-    if namespace not in ['TF1','TF2','torch']:
-        raise NameError('Wrong namespace, supported are: TF1, TF2 or torch')
-
-    device_pfx = '/device:'
-    if namespace in ['TF2','torch']: device_pfx = ''
-
-    cpu_pfx = 'cpu' if 'TF' not in namespace else 'CPU'
-    gpu_pfx = 'cuda' if 'TF' not in namespace else 'GPU'
-
-    # all CPU case
-    if devices == 'all': devices = [None] * sys_res_nfo()['cpu_count']
+    if namespace not in [None,'TF1','TF2','torch']:
+        msg = 'Wrong namespace, supported are: None, TF1, TF2 or torch'
+        logger.error(msg)
+        raise NameError(msg)
 
     if type(devices) is not list: devices = [devices]  # first convert to list
 
-    force_CPU = False
-    # OSX
-    if platform.system() == 'Darwin':
+    cpu_count = sys_res_nfo()['cpu_count']
+
+    # look for available CUDA
+    available_cuda_id = []
+    if platform.system() == 'Darwin': # OSX
         logger.warning('no GPUs available for OSX, using only CPU')
-        force_CPU = True
-    # no GPU @system
-    if not force_CPU and not get_available_cuda_id():
+    else:
+        available_cuda_id = get_available_cuda_id()
+
+    if not available_cuda_id:
         logger.debug('no GPUs available, using only CPU')
-        force_CPU = True
-    if force_CPU:
         num = len(devices)
-        if not num: num = 1
-        devices = [None] * num
+        if num == 0: num = cpu_count
+        devices = [None]*num
 
-    # [] or -1 case >> check available GPU and replace with positive ints
-    if not devices or -1 in devices:
-        av_dev = get_available_cuda_id()
-        if not av_dev:
-            err_msg = 'No available GPUs!'
-            logger.error(err_msg)
-            raise Exception(err_msg)
-        if not devices: devices = av_dev
-        else:
-            pos_devices = []
-            for dev in devices:
-                if dev == -1: pos_devices.append(av_dev[-1])
-                else:         pos_devices.append(dev)
-            devices = pos_devices
+    pypaq_devices = []
+    if devices == []: pypaq_devices = available_cuda_id
+    for d in devices:
 
-    # split devices into 3 lists
-    devices_str = []
-    devices_int = []
-    devices_CPU = []
-    for dev in devices:
-        if type(dev) is str: devices_str.append(dev)
-        if type(dev) is int: devices_int.append(dev)
-        if dev is None: devices_CPU.append(None)
+        known_device = False
 
-    # reduce str to int
-    for dev in devices_str:
-        devices_int.append(int(dev.split(':')[-1]))
+        if type(d) is int:
+            if d < 0: pypaq_devices.append(available_cuda_id[d])
+            else:     pypaq_devices.append(d)
+            known_device = True
 
-    # prepare final list
-    final_devices = []
-    final_devices += [f'{device_pfx}{cpu_pfx}:0'] * len(devices_CPU)
-    if devices_int:
-        logger.debug(report_cuda())
-        for dev in devices_int: final_devices.append(f'{device_pfx}{gpu_pfx}:{dev}')
+        if d == []:
+            pypaq_devices += available_cuda_id
+            known_device = True
 
-    logger.debug(f'get_devices is returning {len(final_devices)} devices: {final_devices}')
-    return final_devices
+        if type(d) is str:
+            if d == 'all':
+                pypaq_devices += [None]*cpu_count
+                known_device = True
+            d_low = d.lower()
+            if 'cpu' in d_low:
+                pypaq_devices.append(None)
+                known_device = True
+            if 'gpu' in d_low or 'cuda' in d_low:
+                pypaq_devices.append(int(d_low.split(':')[-1]))
+                known_device = True
+
+        if d is None:
+            pypaq_devices.append(d)
+            known_device = True
+
+        if not known_device:
+            msg = f'unknown (not valid?) device given: {d}'
+            logger.error(msg)
+            raise Exception(msg)
+
+    if namespace is None:
+        logger.debug(f'get_devices is returning {len(pypaq_devices)} pypaq_devices: {pypaq_devices}')
+        return pypaq_devices
+
+    else:
+
+        device_pfx = '/device:'
+        if namespace in ['TF2','torch']: device_pfx = ''
+
+        cpu_pfx = 'cpu' if 'TF' not in namespace else 'CPU'
+        gpu_pfx = 'cuda' if 'TF' not in namespace else 'GPU'
+
+        lib_devices = []
+        for dev in pypaq_devices:
+            if type(dev) is int: lib_devices.append(f'{device_pfx}{gpu_pfx}:{dev}')
+            if dev is None:      lib_devices.append(f'{device_pfx}{cpu_pfx}:0')
+
+        logger.debug(f'get_devices is returning {len(lib_devices)} lib_devices: {lib_devices}')
+        return lib_devices
 
 # masks GPUs from given list of ids or single one
 def mask_cuda(ids: Optional[List[int] or int]=  None):
@@ -126,14 +147,6 @@ def mask_cuda(ids: Optional[List[int] or int]=  None):
 
 # wraps mask_cuda to hold DevicesParam
 def mask_cuda_devices(devices: DevicesParam=-1, logger=None):
-
-    devices = get_devices(devices, logger=logger)
-
-    ids = []
-    devices_other = []
-    devices_gpu = []
-    for device in devices:
-        if 'GPU' in device: devices_gpu.append(device)
-        else: devices_other.append(device)
-    if devices_gpu: ids = [dev[12:] for dev in devices_gpu]
+    devices = get_devices(devices, namespace=None, logger=logger)
+    ids = [d for d in devices if type(d) is int]
     mask_cuda(ids)

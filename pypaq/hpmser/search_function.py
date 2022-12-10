@@ -50,7 +50,8 @@ from pypaq.lipytools.logger import set_logger
 from pypaq.lipytools.stats import msmx
 from pypaq.mpython.devices import DevicesParam, get_devices
 from pypaq.mpython.omp import OMPRunner, RunningWorker
-from pypaq.neuralmess_duo.tbwr import TBwr
+from pypaq.torchness.base_elements import TBwr
+#from pypaq.neuralmess_duo.tbwr import TBwr
 from pypaq.pms.config_manager import ConfigManager
 from pypaq.pms.paspa import PaSpa
 from pypaq.pms.base_types import PSDD, POINT, point_str
@@ -207,7 +208,7 @@ def hpmser(
 
     scores_all = []
 
-    devices = get_devices(devices=devices, verb=verb-1) # manage devices
+    devices = get_devices(devices=devices, namespace=None) # manage devices
 
     num_free_rw = len(devices)
 
@@ -311,13 +312,18 @@ def hpmser(
 
                 # current sr report
                 if verb>0:
-                    dif = sr.smooth_score - msg_est_score
+
+                    sr_ss = sr.smooth_score
+                    prec = 4 if sr_ss > 0.01 else 8
+                    pf = f'.{prec}f'
+
+                    dif = sr_ss - msg_est_score
                     difs = f'{"+" if dif>0 else "-"}{abs(dif):.4f}'
 
                     dist_to_max = srl.paspa.distance(top_SR.point, sr.point)
                     time_passed = int(time.time() - msg_s_time)
 
-                    srp =  f'{sr.id} {sr.smooth_score:.4f} [{sr.score:.4f} {difs}] {top_SR.id}:{dist_to_max:.3f}'
+                    srp =  f'{sr.id} {sr_ss:{pf}} [{sr.score:{pf}} {difs}] {top_SR.id}:{dist_to_max:.3f}'
                     srp += f'  avg/m:{avg_dst:.3f}/{mom_dst:.3f}  {time_passed}s'
                     if new_sampling_config: srp += f'  new sampling config: {sampling_config}'
                     print(srp)
@@ -325,8 +331,7 @@ def hpmser(
                     # new MAX report
                     if gots_new_max:
 
-                        msr = f'_newMAX: {top_SR.id} {top_SR.smooth_score:.4f} [{top_SR.score:.4f}] {point_str(top_SR.point)}\n'
-                        # OLD VERSION: msr = f'_newMAX: {top_SR.id} {top_SR.smooth_score:.4f} [{top_SR.score:.4f}] {srl.paspa.point_2str(top_SR.get_point)}\n'
+                        msr = f'_newMAX: {top_SR.id} {top_SR.smooth_score:{pf}} [{top_SR.score:{pf}}] {point_str(top_SR.point)}\n'
 
                         prev_sr = srl.get_SR(prev_max_sr_id)
                         dp = srl.paspa.distance(prev_sr.point, top_SR.point) if prev_sr else 0
@@ -334,7 +339,7 @@ def hpmser(
                         msr += f' dst_prev:{dp:.3f}\n'
                         for nps in NP_SMOOTH:
                             ss_np, avd, all_sc = srl.smooth_point(top_SR, nps)
-                            msr += f'  NPS:{nps} {ss_np:.4f} [{max(all_sc):.4f}-{min(all_sc):.4f}] {avd:.3f}\n'
+                            msr += f'  NPS:{nps} {ss_np:{pf}} [{max(all_sc):{pf}}-{min(all_sc):{pf}}] {avd:.3f}\n'
                         print(msr)
 
                     if top_show_freq and len(srl) % top_show_freq == 0:

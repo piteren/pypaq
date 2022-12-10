@@ -22,4 +22,4 @@ def nestarter(
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' if silent_error else '2'
 
     if log_folder: set_logger(log_folder=log_folder, custom_name=custom_name, verb=verb) # set logger
-    if devices is not False: return get_devices(devices=devices, verb=verb)
+    if devices is not False: return get_devices(devices=devices, namespace='TF1')

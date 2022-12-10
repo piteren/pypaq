@@ -229,6 +229,7 @@ class RLTrainer(ABC):
         self.envy.reset()
         loss_mavg = MovAvg()
         lossL = []
+        n_actions = 0               # total number of train actions
         n_terminals = 0             # number of terminal states reached while training
         last_terminals = 0          # previous number of terminal states
         n_won = 0                   # number of wins while training
@@ -249,6 +250,7 @@ class RLTrainer(ABC):
                     render=         False)
 
                 new_actions += len(actions)
+                n_actions += len(actions)
 
                 next_observations = observations[1:] + [self.envy.get_observation()]
 
@@ -308,6 +310,7 @@ class RLTrainer(ABC):
         self._rlog.info(f'### Training finished, time taken: {time.time()-stime:.2f}sec')
 
         return { # training_report
+            'n_actions':            n_actions,
             'lossL':                lossL,
             'n_terminals':          n_terminals,
             'n_won':                n_won,
