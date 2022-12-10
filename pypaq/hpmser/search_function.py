@@ -77,7 +77,7 @@ SAMPLING_CONFIG_UPD = {
 def _str_weights(
         all_w :List[float],
         cut_above=      5,
-        float_prec=     4) -> str:
+        float_prec=     8) -> str:
     ws = '['
     if cut_above < 5: cut_above = 5 # cannot be less than 5
     if len(all_w) > cut_above:
@@ -292,7 +292,7 @@ def hpmser(
                     if len(stochastic_results) == stochastic_est and verb:
                         print(f'\n*** stochastic estimation with {stochastic_est} points:')
                         print(f'  > results: {_str_weights(stochastic_results)}')
-                        print(f'  > std_dev: {msmx(stochastic_results)["std"]:.3f}\n')
+                        print(f'  > std_dev: {msmx(stochastic_results)["std"]:.8f}\n')
 
                 else:
                     sr = srl.add_result(
