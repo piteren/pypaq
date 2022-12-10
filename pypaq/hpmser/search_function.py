@@ -108,6 +108,7 @@ def hpmser(
         do_TB=                          True,           # plots with TB
         pref_axes: Optional[List[str]]= None,           # preferred axes for plot, put here a list of up to 3 params names ['param1',..]
         top_show_freq=                  20,             # how often top results summary will be printed
+        restart_exceptions_tasks=       False,          # does not restart task that raised exception
         raise_exceptions=               True,           # forces subprocesses to raise + print exceptions, independent from verbosity (raising subprocess exception does not break hpmser process)
         verb=                           1) -> SRL:
 
@@ -219,6 +220,7 @@ def hpmser(
         devices=                devices,
         name=                   'OMPR_NB_Hpmser',
         ordered_results=        False,
+        restart_ex_tasks=       restart_exceptions_tasks,
         print_exceptions=       verb>0 or raise_exceptions,
         raise_RWW_exception=    verb>1 or raise_exceptions,
         verb=                   verb-1)
@@ -276,96 +278,97 @@ def hpmser(
 
             msg = omp.get_result(block=True) # get one result
             num_free_rw += 1
+            if type(msg) is dict: # we may receive str here (like: 'TASK #4 RAISED EXCEPTION') from omp that not restarts exceptions
 
-            msg_sample_num =    msg['sample_num']
-            msg_score =         msg['score']
-            msg_spoint =        msg['spoint']
-            msg_est_score =     msg['est_score']
-            msg_s_time =        msg['s_time']
+                msg_sample_num =    msg['sample_num']
+                msg_score =         msg['score']
+                msg_spoint =        msg['spoint']
+                msg_est_score =     msg['est_score']
+                msg_s_time =        msg['s_time']
 
-            # manage stochastic estimation without adding to the results
-            if msg_sample_num in stochastic_points:
-                stochastic_results.append(msg_score)
-                if len(stochastic_results) == stochastic_est and verb:
-                    print(f'\n*** stochastic estimation with {stochastic_est} points:')
-                    print(f'  > results: {_str_weights(stochastic_results)}')
-                    print(f'  > std_dev: {msmx(stochastic_results)["std"]:.3f}\n')
+                # manage stochastic estimation without adding to the results
+                if msg_sample_num in stochastic_points:
+                    stochastic_results.append(msg_score)
+                    if len(stochastic_results) == stochastic_est and verb:
+                        print(f'\n*** stochastic estimation with {stochastic_est} points:')
+                        print(f'  > results: {_str_weights(stochastic_results)}')
+                        print(f'  > std_dev: {msmx(stochastic_results)["std"]:.3f}\n')
 
-            else:
-                sr = srl.add_result(
-                    point=  msg_spoint,
-                    score=  msg_score)
-                if verb>1: print(f' >> got result #{msg_sample_num}')
+                else:
+                    sr = srl.add_result(
+                        point=  msg_spoint,
+                        score=  msg_score)
+                    if verb>1: print(f' >> got result #{msg_sample_num}')
 
-                avg_dst = srl.get_avg_dst()
-                mom_dst = srl.get_mom_dst()
-                srl.save(folder=f'{hpmser_FD}/{name}')
+                    avg_dst = srl.get_avg_dst()
+                    mom_dst = srl.get_mom_dst()
+                    srl.save(folder=f'{hpmser_FD}/{name}')
 
-                top_SR = srl.get_top_SR()
+                    top_SR = srl.get_top_SR()
 
-                # gots new MAX
-                gots_new_max = False
-                if top_SR.id != curr_max_sr_id:
-                    prev_max_sr_id = curr_max_sr_id
-                    curr_max_sr_id = top_SR.id
-                    gots_new_max = True
+                    # gots new MAX
+                    gots_new_max = False
+                    if top_SR.id != curr_max_sr_id:
+                        prev_max_sr_id = curr_max_sr_id
+                        curr_max_sr_id = top_SR.id
+                        gots_new_max = True
 
-                # current sr report
-                if verb>0:
+                    # current sr report
+                    if verb>0:
 
-                    sr_ss = sr.smooth_score
-                    prec = 4 if sr_ss > 0.01 else 8
-                    pf = f'.{prec}f'
+                        sr_ss = sr.smooth_score
+                        prec = 4 if sr_ss > 0.01 else 8
+                        pf = f'.{prec}f'
 
-                    dif = sr_ss - msg_est_score
-                    difs = f'{"+" if dif>0 else "-"}{abs(dif):.4f}'
+                        dif = sr_ss - msg_est_score
+                        difs = f'{"+" if dif>0 else "-"}{abs(dif):.4f}'
 
-                    dist_to_max = srl.paspa.distance(top_SR.point, sr.point)
-                    time_passed = int(time.time() - msg_s_time)
+                        dist_to_max = srl.paspa.distance(top_SR.point, sr.point)
+                        time_passed = int(time.time() - msg_s_time)
 
-                    srp =  f'{sr.id} {sr_ss:{pf}} [{sr.score:{pf}} {difs}] {top_SR.id}:{dist_to_max:.3f}'
-                    srp += f'  avg/m:{avg_dst:.3f}/{mom_dst:.3f}  {time_passed}s'
-                    if new_sampling_config: srp += f'  new sampling config: {sampling_config}'
-                    print(srp)
+                        srp =  f'{sr.id} {sr_ss:{pf}} [{sr.score:{pf}} {difs}] {top_SR.id}:{dist_to_max:.3f}'
+                        srp += f'  avg/m:{avg_dst:.3f}/{mom_dst:.3f}  {time_passed}s'
+                        if new_sampling_config: srp += f'  new sampling config: {sampling_config}'
+                        print(srp)
 
-                    # new MAX report
-                    if gots_new_max:
+                        # new MAX report
+                        if gots_new_max:
 
-                        msr = f'_newMAX: {top_SR.id} {top_SR.smooth_score:{pf}} [{top_SR.score:{pf}}] {point_str(top_SR.point)}\n'
+                            msr = f'_newMAX: {top_SR.id} {top_SR.smooth_score:{pf}} [{top_SR.score:{pf}}] {point_str(top_SR.point)}\n'
 
-                        prev_sr = srl.get_SR(prev_max_sr_id)
-                        dp = srl.paspa.distance(prev_sr.point, top_SR.point) if prev_sr else 0
+                            prev_sr = srl.get_SR(prev_max_sr_id)
+                            dp = srl.paspa.distance(prev_sr.point, top_SR.point) if prev_sr else 0
 
-                        msr += f' dst_prev:{dp:.3f}\n'
-                        for nps in NP_SMOOTH:
-                            ss_np, avd, all_sc = srl.smooth_point(top_SR, nps)
-                            msr += f'  NPS:{nps} {ss_np:{pf}} [{max(all_sc):{pf}}-{min(all_sc):{pf}}] {avd:.3f}\n'
-                        print(msr)
+                            msr += f' dst_prev:{dp:.3f}\n'
+                            for nps in NP_SMOOTH:
+                                ss_np, avd, all_sc = srl.smooth_point(top_SR, nps)
+                                msr += f'  NPS:{nps} {ss_np:{pf}} [{max(all_sc):{pf}}-{min(all_sc):{pf}}] {avd:.3f}\n'
+                            print(msr)
 
-                    if top_show_freq and len(srl) % top_show_freq == 0:
-                        speed = int((time.time()-top_time) / top_show_freq)
-                        top_time = time.time()
-                        top_speed_save.append(speed)
-                        if len(top_speed_save) > 10: top_speed_save.pop(0)
-                        diff = int(speed - (sum(top_speed_save) / len(top_speed_save)))
-                        print(f'\n ### hpmser speed: {speed} sec/task, diff: {"+" if diff >=0 else "-"}{abs(diff)} sec')
+                        if top_show_freq and len(srl) % top_show_freq == 0:
+                            speed = int((time.time()-top_time) / top_show_freq)
+                            top_time = time.time()
+                            top_speed_save.append(speed)
+                            if len(top_speed_save) > 10: top_speed_save.pop(0)
+                            diff = int(speed - (sum(top_speed_save) / len(top_speed_save)))
+                            print(f'\n ### hpmser speed: {speed} sec/task, diff: {"+" if diff >=0 else "-"}{abs(diff)} sec')
 
-                        print(srl.nice_str(n_top=4, top_nps=NP_SMOOTH, all_nps=None))
+                            print(srl.nice_str(n_top=4, top_nps=NP_SMOOTH, all_nps=None))
 
-                if tbwr:
-                    scores_all.append(sr.score)
-                    score_diff = sr.score - msg_est_score
-                    score_avg = sum(scores_all)/len(scores_all)
-                    step = len(srl)
-                    tbwr.add(avg_dst,         'hpmser/avg_dst',                    step)
-                    tbwr.add(score_avg,       'hpmser/score_avg',                  step)
-                    tbwr.add(sr.score,        'hpmser/score_current',              step)
-                    tbwr.add(score_diff,      'hpmser/space_estimation_error',     step)
-                    tbwr.add(abs(score_diff), 'hpmser/space_estimation_error_abs', step)
+                    if tbwr:
+                        scores_all.append(sr.score)
+                        score_diff = sr.score - msg_est_score
+                        score_avg = sum(scores_all)/len(scores_all)
+                        step = len(srl)
+                        tbwr.add(avg_dst,         'hpmser/avg_dst',                    step)
+                        tbwr.add(score_avg,       'hpmser/score_avg',                  step)
+                        tbwr.add(sr.score,        'hpmser/score_current',              step)
+                        tbwr.add(score_diff,      'hpmser/space_estimation_error',     step)
+                        tbwr.add(abs(score_diff), 'hpmser/space_estimation_error_abs', step)
 
-                if len(srl) == n_loops:
-                    if verb>0: print(f'{n_loops} loops done!')
-                    break
+                    if len(srl) == n_loops:
+                        if verb>0: print(f'{n_loops} loops done!')
+                        break
 
     except KeyboardInterrupt:
         if verb>0: print(' > hpmser_GX KeyboardInterrupt-ed..')
@@ -377,8 +380,6 @@ def hpmser(
 
     finally:
         omp.exit()
-
-        if tbwr: tbwr.exit()
 
         srl.save(folder=f'{hpmser_FD}/{name}')
 
