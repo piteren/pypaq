@@ -227,7 +227,7 @@ def hpmser(
 
     top_time = time.time()
     top_speed_save = []
-    print(f'\nhpmser starts search loop..\n -- id smooth [local +-diff_est] topID:dist avg_distance/max_of_min_distances time')
+    print(f'\nhpmser starts search loop..\n -- id smooth [local diff_est] topID:dist avg_distance/max_of_min_distances time')
     try:
         while True:
 
