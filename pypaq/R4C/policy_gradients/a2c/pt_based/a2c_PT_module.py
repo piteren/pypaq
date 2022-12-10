@@ -16,12 +16,13 @@ class A2CModel(Module):
             num_layers: int=                    1,
             layer_width: int=                   50,
             lay_norm: bool=                     False,
-            clamp_advantage: Optional[float]=   0.5,    #
+            clamp_advantage: Optional[float]=   0.5,    # limits advantage abs value
             use_scaled_ce: bool=                True,   # experimental Scaled Cross Entropy loss
             use_huber: bool=                    False,  # for True uses Huber loss for Critic
-            opt_class=                          torch.optim.SGD, # torch.optim.Adam,
-            opt_momentum=                       0.5,
-            opt_nesterov=                       True,
+            opt_class=                          torch.optim.Adam,
+            #opt_class=                          torch.optim.SGD,
+            #opt_momentum=                       0.5,
+            #opt_nesterov=                       True,
             # RMSProp, Adadelta
     ):
 
@@ -127,7 +128,7 @@ class A2CModel(Module):
         loss_actor_scaled_mean = torch.mean(actor_ce_scaled)
 
         if self.use_huber: loss_critic = torch.nn.functional.huber_loss(value, dreturn, reduction='none')
-        else:              loss_critic = advantage^2  # MSE
+        else:              loss_critic = advantage * advantage  # MSE
 
         loss_critic_mean = torch.mean(loss_critic)
 

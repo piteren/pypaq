@@ -118,7 +118,7 @@ def a2c_graph(
             huber_loss = tf.keras.losses.Huber()
             loss_critic = huber_loss(value, return_PH)
         else:
-            loss_critic = advantage^2 # MSE
+            loss_critic = advantage * advantage # MSE
 
         if verb > 0: print(f' > loss_critic: {loss_critic}')
         loss_critic_mean = tf.reduce_mean(loss_critic)

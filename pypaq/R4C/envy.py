@@ -6,8 +6,7 @@
 
     RLEnvy is an interface that defines base RL methods used by Actor or Trainer (..or other objects)
 
-        RLEnvy implements get_reward methods: get_last_action_reward() and get_reward().
-        Values returned with those methods always may (should?) be overridden by Trainer.
+        RLEnvy returns reward after step (run). This value may (should?) be processed / overridden by Trainer.
         Trainer is supposed to train Actor using information of reward that he defines / corrects observing an Envy.
         He may apply discount, factor, moving average etc to those values.
         (Actor does not need reward to act with policy.)
@@ -68,7 +67,7 @@ class RLEnvy(Envy, ABC):
         bool    # has won
     ]: pass
 
-    # Envy rendering (for debug, preview etc.)
+    # Envy current state rendering (for debug, preview etc.)
     def render(self): pass
 
     # prepares numpy vector from observation, it may be implemented by RLEnvy, but is not mandatory, otherwise Actor should implement on itself
