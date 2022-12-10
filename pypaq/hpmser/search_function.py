@@ -180,7 +180,7 @@ def hpmser(
     tbwr = TBwr(logdir=f'{hpmser_FD}/{name}') if do_TB else None
 
     if verb>0:
-        print(f'\n*** hpmser {name} started for: {func.__name__}, sampling config: {sampling_config}')
+        print(f'\n*** hpmser {name} *** started for: {func.__name__}, sampling config: {sampling_config}')
         if srl: print(f' search will continue with {len(srl)} results...')
 
     if not srl: srl = SRL(
@@ -227,6 +227,7 @@ def hpmser(
 
     top_time = time.time()
     top_speed_save = []
+    print(f'\nhpmser starts search loop..\n -- id smooth [local +-diff_est] topID:dist avg_distance/max_of_min_distances time')
     try:
         while True:
 
@@ -325,7 +326,7 @@ def hpmser(
                         time_passed = int(time.time() - msg_s_time)
 
                         srp =  f'{sr.id} {sr.smooth_score:{pf}} [{sr.score:{pf}} {difs}] {top_SR.id}:{dist_to_max:.3f}'
-                        srp += f'  avg/m:{avg_dst:.3f}/{mom_dst:.3f}  {time_passed}s'
+                        srp += f'  avg/mom:{avg_dst:.3f}/{mom_dst:.3f}  {time_passed}s'
                         if new_sampling_config: srp += f'  new sampling config: {sampling_config}'
                         print(srp)
 

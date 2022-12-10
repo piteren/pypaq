@@ -16,7 +16,7 @@ def extract_from_batch(
 # normalizes x with zscore (0 mean 1 std), this is helpful for training, as rewards can vary considerably between episodes,
 def zscore_norm(x):
     if len(x) < 2: return x
-    return (x - np.mean(x)) / np.std(x) + 0.00000001
+    return (x - np.mean(x)) / (np.std(x) + 0.00000001)
 
 # prepares list of discounted accumulated return from [reward]
 def discounted_return(
