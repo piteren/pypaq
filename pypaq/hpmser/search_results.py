@@ -155,7 +155,7 @@ class SRL(Sized):
             all_p = list(all_p)
             sample = random.choices(all_p, weights=all_w, k=1)[0]
             pf = f'.{self.prec}f'
-            print(f'   % sampled #{all_p.index(sample)}/{len(all_p)} from: {maxs:{pf}}-{mins:{pf}} {_str_weights(all_w)}')
+            print(f'   % sampled #{all_p.index(sample)}/{len(all_p)} from: {maxs:{pf}}-{mins:{pf}} {_str_weights(all_w, float_prec=self.prec)}')
 
         est_score, _, _ =  self.smooth_point(sample)
 
@@ -189,7 +189,7 @@ class SRL(Sized):
                 all_p = list(all_p)
                 sample = random.choices(all_p, weights=all_w, k=1)[0]
                 pf = f'.{self.prec}f'
-                print(f'   % sampled #{all_p.index(sample)}/{len(all_p)} from: {maxs:{pf}}-{mins:{pf}} {_str_weights(all_w)}')
+                print(f'   % sampled #{all_p.index(sample)}/{len(all_p)} from: {maxs:{pf}}-{mins:{pf}} {_str_weights(all_w, float_prec=self.prec)}')
             # GX from top points
             else:
                 n_top += 1 # last for reference

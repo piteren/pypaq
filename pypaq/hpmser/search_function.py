@@ -45,13 +45,13 @@ import time
 from typing import Callable, Optional, List, Any
 
 from pypaq.hpmser.search_results import SRL
+from pypaq.hpmser.helpers import _str_weights
 from pypaq.lipytools.little_methods import stamp, prep_folder, get_params
 from pypaq.lipytools.logger import set_logger
 from pypaq.lipytools.stats import msmx
 from pypaq.mpython.devices import DevicesParam, get_devices
 from pypaq.mpython.omp import OMPRunner, RunningWorker
 from pypaq.torchness.base_elements import TBwr
-#from pypaq.neuralmess_duo.tbwr import TBwr
 from pypaq.pms.config_manager import ConfigManager
 from pypaq.pms.paspa import PaSpa
 from pypaq.pms.base_types import PSDD, POINT, point_str
@@ -71,22 +71,6 @@ SAMPLING_CONFIG_INITIAL = {
 SAMPLING_CONFIG_UPD = {
     'prob_opt':     0.4,
     'prob_top':     0.6}
-
-
-# returns nice string of floats list
-def _str_weights(
-        all_w :List[float],
-        cut_above=      5,
-        float_prec=     8) -> str:
-    ws = '['
-    if cut_above < 5: cut_above = 5 # cannot be less than 5
-    if len(all_w) > cut_above:
-        for w in all_w[:3]: ws += f'{w:.{float_prec}f} '
-        ws += '.. '
-        for w in all_w[-2:]: ws += f'{w:.{float_prec}f} '
-    else:
-        for w in all_w: ws += f'{w:.{float_prec}f} '
-    return f'{ws[:-1]}]'
 
 
 # hyper-parameters searching function (based on OMP engine)
@@ -292,7 +276,7 @@ def hpmser(
                     stochastic_results.append(msg_score)
                     if len(stochastic_results) == stochastic_est and verb:
                         print(f'\n*** stochastic estimation with {stochastic_est} points:')
-                        print(f'  > results: {_str_weights(stochastic_results)}')
+                        print(f'  > results: {_str_weights(stochastic_results, float_prec=8)}')
                         print(f'  > std_dev: {msmx(stochastic_results)["std"]:.8f}\n')
 
                 else:
