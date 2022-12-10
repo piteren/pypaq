@@ -60,6 +60,13 @@ class PGTrainer(FATrainer):
 
         if inspect:
 
+            obs_arr = np.array(observations)
+            oL = np.split(obs_arr, obs_arr.shape[-1], axis=-1)
+
+            two_dim_multi(
+                ys=     oL,
+                names=  [f'obs_{ix}' for ix in range(len(oL))])
+
             # prepare all 4 for inspect
             ret_mavg = []
             ret_disc = []
