@@ -65,9 +65,10 @@ class RLTrainer(ABC):
             memsize_batches: int,   # ExperienceMemory size (in number of batches)
             exploration: float,     # train exploration factor
             train_sampled: float,   # how often move is sampled (vs argmax) while training
-            seed: int=  123,
-            logger=     None,
-            loglevel=   20):
+            seed: int=      123,
+            logger=         None,
+            loglevel=       20,
+            hpmser_mode=    False):
 
         self._rlog = logger or get_pylogger(level=loglevel)
         self._rlog.info(f'*** RLTrainer *** initializes..')
@@ -88,13 +89,14 @@ class RLTrainer(ABC):
         self.memory: Optional[ExperienceMemory] = None
         self.seed = seed
         np.random.seed(self.seed)
+        self.hpmser_mode = hpmser_mode
 
-        self._TBwr = TBwr(logdir=self.actor.get_save_dir()) # TensorBoard writer
-        self._upd_step = 0                                  # global update step
+        self._tbwr = TBwr(logdir=self.actor.get_save_dir()) if not self.hpmser_mode else None
+        self._upd_step = 0 # global Trainer update step
 
-        self.zepro = ZeroesProcessor(
+        self._zepro = ZeroesProcessor(
             intervals=  (10,50,100),
-            tbwr=       self._TBwr)
+            tbwr=       self._tbwr) if not self.hpmser_mode else None
 
     # updates Actor policy, returns dict with Actor "metrics" - loss etc.
     def _update_actor(self, inspect=False) -> dict:
@@ -272,15 +274,16 @@ class RLTrainer(ABC):
             if 'loss' in upd_metrics: lossL.append(loss_mavg.upd(upd_metrics['loss']))
 
             # process / monitor policy probs
-            if 'probs' in upd_metrics:
+            if self._tbwr and 'probs' in upd_metrics:
                 for k,v in avg_probs(upd_metrics.pop('probs')).items():
-                    self._TBwr.add( value=v, tag=f'actor_upd/{k}', step=self._upd_step)
+                    self._tbwr.add(value=v, tag=f'actor_upd/{k}', step=self._upd_step)
 
-            if 'zeroes' in upd_metrics:
-                self.zepro.process(zs=upd_metrics.pop('zeroes'))
+            if self._zepro and 'zeroes' in upd_metrics:
+                self._zepro.process(zs=upd_metrics.pop('zeroes'))
 
-            for k,v in upd_metrics.items():
-                self._TBwr.add(value=v, tag=f'actor_upd/{k}', step=self._upd_step)
+            if self._tbwr:
+                for k,v in upd_metrics.items():
+                    self._tbwr.add(value=v, tag=f'actor_upd/{k}', step=self._upd_step)
 
             # test Actor
             if uix % test_freq == 0:
