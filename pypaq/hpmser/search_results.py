@@ -30,7 +30,7 @@ class SRL(Sized):
             self,
             paspa: Optional[PaSpa]=     None,   # parameters space of this SRL
             name: str=                  'SRL',
-            np_smooth: int=             3,      # Number of Points taken into account while calculating smooth score - default / starting value
+            np_smooth: int=             3,      # (NPS) Number of Points taken into account while calculating smooth score - default / starting value
             plot_axes: list=            None,   # list with axes names (max 3), eg: ['drop_a','drop_b','loss']
             verb=                       0):
 
@@ -357,8 +357,8 @@ class SRL(Sized):
 
         self.set_np_smooth(orig_nps)
         top_sr_nps = self.get_top_SR()
-        n_closest = self.__get_n_closest(top_sr_nps)
-        re_str += f'{self.__np_smooth}closest points to TOP in NPS {self.__np_smooth}:\n'
+        n_closest = self.__get_n_closest(top_sr_nps, n=self.__np_smooth)
+        re_str += f'{self.__np_smooth} closest points to TOP (NPS {self.__np_smooth}):\n'
         for sr in n_closest: re_str += f'{sr.id:4d} [{sr.score:{pf}}] {point_str(sr.point)}\n'
 
         if all_nps and len(self.__srL) > n_top:
