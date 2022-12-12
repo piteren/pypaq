@@ -10,16 +10,17 @@ class LayDRT(torch.nn.Module):
     def __init__(
             self,
             in_width: int,
-            do_scaled_dns=  False,          # two denses (True) or single dense (False)
-            dns_scale=      4,              # scale for two denses
-            activation=     torch.nn.ReLU,
-            lay_dropout=    0.0,            # dropout after dense/s
-            add_res=        True,           # residual yes/no
-            res_dropout=    0.0,            # dropout on residual connection
-            training_flag=                      None,           # training flag tensor (for dropout)
+            do_scaled_dns=                      False,          # two denses (True) or single dense (False)
+            dns_scale=                          4,              # scale for two denses
+            activation=                         torch.nn.ReLU,
+            lay_dropout=                        0.0,            # dropout after dense/s
+            add_res=                            True,           # residual yes/no
+            res_dropout=                        0.0,            # dropout on residual connection
             device=                             None,
             dtype=                              None,
             initializer: Optional[Callable]=    None):
+
+        #TODO: what about: devices, init of other layers?
 
         torch.nn.Module.__init__(self)
 
@@ -60,9 +61,11 @@ class LayDRT(torch.nn.Module):
                 dtype=          dtype,
                 initializer=    initializer))
 
-        raise NotImplemented
-        #initializer(self.dense.weight)
-        #torch.nn.init.zeros_(self.dense.bias)
+        self.drop_lay = torch.nn.Dropout(p=lay_dropout) if lay_dropout else None
+
+        self.add_res = add_res
+
+        self.drop_res = torch.nn.Dropout(p=res_dropout) if res_dropout else None
 
     def forward(self, x):
 
@@ -70,8 +73,16 @@ class LayDRT(torch.nn.Module):
 
         out = self.ln_in(x)
 
+        for dense in self.denses:
+            out = dense(out)
+            zsL.append(zeroes(out))
 
-        print(out)
+        if self.drop_lay:
+            out = self.drop_lay(out)
+
+        if self.add_res:
+            if self.drop_res: x = self.drop_res(x)
+            out += x # residual
 
         return {
             'out':  out,
