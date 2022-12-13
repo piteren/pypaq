@@ -111,7 +111,6 @@ class GradClipperAVT:
         self.avt_max_upd = avt_max_upd
         self.do_clip = do_clip
 
-
     def clip(self):
 
         gg_norm = clip_grad_norm_(

@@ -10,32 +10,33 @@ class LayDRT(torch.nn.Module):
     def __init__(
             self,
             in_width: int,
-            do_scaled_dns=                      False,          # two denses (True) or single dense (False)
-            dns_scale=                          4,              # scale for two denses
-            activation=                         torch.nn.ReLU,
-            lay_dropout=                        0.0,            # dropout after dense/s
-            add_res=                            True,           # residual yes/no
-            res_dropout=                        0.0,            # dropout on residual connection
-            device=                             None,
-            dtype=                              None,
-            initializer: Optional[Callable]=    None):
+            do_scaled_dns: bool=                            False,          # two denses (True) or single dense (False)
+            dns_scale: int=                                 4,              # scale for two denses
+            activation: Optional[type(torch.nn.Module)]=    torch.nn.ReLU,
+            lay_dropout: float=                             0.0,            # dropout after dense/s
+            residual: bool=                                 True,           # residual yes/no
+            res_dropout: float=                             0.0,            # dropout on residual connection
+            device=                                         None,
+            dtype=                                          None,
+            initializer: Optional[Callable]=                None):
 
-        #TODO: what about: devices, init of other layers?
+        #TODO: check module devices & dtype
 
-        torch.nn.Module.__init__(self)
+        super(LayDRT, self).__init__()
 
         if initializer is None: initializer = my_initializer
 
-        self.in_width = in_width
-
-        self.ln_in = torch.nn.LayerNorm(self.in_width)
+        self.ln_in = torch.nn.LayerNorm(
+            normalized_shape=   in_width,
+            device=             device,
+            dtype=              dtype)
 
         self.denses = []
         if do_scaled_dns:
             # dense (scale up) with activation
             self.denses.append(LayDense(
-                in_features=    self.in_width,
-                out_features=   self.in_width * dns_scale,
+                in_features=    in_width,
+                out_features=   in_width * dns_scale,
                 activation=     activation,
                 bias=           True,
                 device=         device,
@@ -43,8 +44,8 @@ class LayDRT(torch.nn.Module):
                 initializer=    initializer))
             # dense (scale down) without activation
             self.denses.append(LayDense(
-                in_features=    self.in_width * dns_scale,
-                out_features=   self.in_width,
+                in_features=    in_width * dns_scale,
+                out_features=   in_width,
                 activation=     None,
                 bias=           True,
                 device=         device,
@@ -53,17 +54,18 @@ class LayDRT(torch.nn.Module):
         else:
             # just dense
             self.denses.append(LayDense(
-                in_features=    self.in_width,
-                out_features=   self.in_width,
+                in_features=    in_width,
+                out_features=   in_width,
                 activation=     activation,
                 bias=           True,
                 device=         device,
                 dtype=          dtype,
                 initializer=    initializer))
+        for dix, l in enumerate(self.denses): self.add_module(f'dense{dix}', l)
 
         self.drop_lay = torch.nn.Dropout(p=lay_dropout) if lay_dropout else None
 
-        self.add_res = add_res
+        self.add_res = residual
 
         self.drop_res = torch.nn.Dropout(p=res_dropout) if res_dropout else None
 

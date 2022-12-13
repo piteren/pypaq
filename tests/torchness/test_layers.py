@@ -7,8 +7,9 @@ from pypaq.torchness.layers import LayDense, TF_Dropout
 class TestLayers(unittest.TestCase):
 
     def test_lay_dense(self):
-        tns = torch.rand(100)
-        dnsl = LayDense(100, 10)
+        tns = torch.rand(20)
+        dnsl = LayDense(20, 10)
+        print(dnsl)
         out = dnsl(tns)
         print(out)
         self.assertTrue(out.size()[0] == 10)

@@ -1,11 +1,12 @@
+import math
 from typing import Callable, Optional
 import torch
 
 from pypaq.torchness.base_elements import my_initializer
 
 
-# my dense layer, adds initializer and activation
-class LayDense(torch.nn.Module):
+# my dense layer, linear + initializer & activation
+class LayDense(torch.nn.Linear):
 
     def __init__(
             self,
@@ -16,9 +17,9 @@ class LayDense(torch.nn.Module):
             device=                                         None,
             dtype=                                          None,
             initializer: Optional[Callable]=                None):
-
-        super(LayDense, self).__init__()
-        self.dense = torch.nn.Linear(
+        self.initializer = initializer or my_initializer
+        torch.nn.Linear.__init__(
+            self,
             in_features=    in_features,
             out_features=   out_features,
             bias=           bias,
@@ -26,44 +27,58 @@ class LayDense(torch.nn.Module):
             dtype=          dtype)
         self.activation = activation() if activation else None
 
-        if initializer is None: initializer = my_initializer
-        initializer(self.dense.weight)
-        if bias: torch.nn.init.zeros_(self.dense.bias)
+    def reset_parameters(self) -> None:
 
-    def forward(self, x):
-        out = self.dense(x)
+        self.initializer(self.weight)
+
+        if self.bias is not None:
+
+            #torch.nn.init.zeros_(self.bias) # my old way
+
+            # original Linear reset for bias
+            fan_in, _ = torch.nn.init._calculate_fan_in_and_fan_out(self.weight)
+            bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+            torch.nn.init.uniform_(self.bias, -bound, bound)
+
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
+        out = super().forward(input)
         if self.activation: out = self.activation(out)
         return out
 
-# time & feats dropout (for sequences)
-class TF_Dropout(torch.nn.Module):
+# time & feats dropout (for sequences), input tensor [...,seq,feats]
+class TF_Dropout(torch.nn.Dropout):
 
     def __init__(
             self,
-            time_drop: float,
-            feat_drop: float):
+            time_drop: float=   0.0,
+            feat_drop: float=   0.0,
+            **kwargs):
+        self.time_drop = time_drop
+        self.feat_drop = feat_drop
+        super(TF_Dropout, self).__init__(**kwargs)
 
-        super(TF_Dropout, self).__init__()
-        self.tdl = torch.nn.Dropout(p=time_drop) if time_drop else None
-        self.fdl = torch.nn.Dropout(p=feat_drop) if feat_drop else None
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
 
-    def forward(
-            self,
-            x: torch.Tensor # tensor [batch,seq,feats]
-    ) -> torch.Tensor:
+        output = input
+        in_shape = input.size()
 
-        output = x
-        in_shape = x.size()
-
-        if self.tdl is not None:
+        if self.time_drop:
             t_drop = torch.ones(in_shape[-2])
-            t_drop = self.tdl(t_drop)
+            t_drop = torch.nn.functional.dropout(
+                input=      t_drop,
+                p=          self.time_drop,
+                training=   self.training,
+                inplace=    self.inplace)
             t_drop = torch.unsqueeze(t_drop, dim=-1)
             output = output * t_drop
 
-        if self.fdl is not None:
+        if self.feat_drop:
             f_drop = torch.ones(in_shape[-1])
-            f_drop = self.fdl(f_drop)
+            f_drop = torch.nn.functional.dropout(
+                input=      f_drop,
+                p=          self.time_drop,
+                training=   self.training,
+                inplace=    self.inplace)
             f_drop = torch.unsqueeze(f_drop, dim=-2)
             output = output * f_drop
 

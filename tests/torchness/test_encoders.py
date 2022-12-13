@@ -1,3 +1,4 @@
+import numpy
 import torch
 import unittest
 
@@ -10,10 +11,14 @@ class TestEncoders(unittest.TestCase):
 
         in_width = 10
         inp = torch.rand(in_width) - 0.5
-        print(inp)
+        print(inp, inp.dtype)
 
-        print(LayDRT)
-        lay_drt = LayDRT(in_width=in_width)
+        lay_drt = LayDRT(
+            in_width=       in_width,
+            do_scaled_dns=  True,
+            lay_dropout=    0.1,
+            res_dropout=    0.1)
+        print(lay_drt)
 
         out = lay_drt(inp)
         print(out)
