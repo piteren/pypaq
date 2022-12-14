@@ -40,8 +40,17 @@ class TestLayers(unittest.TestCase):
         print(sum_dropped)
 
     def test_zeroes(self):
-        tns = torch.rand((5,5,5))
-        print(zeroes(tns))
+
+        tns = torch.rand(5)
+        z = zeroes(tns)
+        print(z, z.shape)
+        self.assertTrue(z.shape[-1]==5)
+
+        tns = torch.rand((3,4,5))
+        z = zeroes(tns)
+        print(z, z.shape)
+        self.assertTrue(z.shape[-1]==5)
+
         drl = TF_Dropout(time_drop=0.3, feat_drop=0.3)
         dropped = drl(tns)
         print(dropped)

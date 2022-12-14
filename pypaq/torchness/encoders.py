@@ -1,4 +1,4 @@
-from typing import Callable, Optional
+from typing import Callable, Optional, Dict
 import torch
 
 from pypaq.torchness.base_elements import my_initializer
@@ -11,7 +11,7 @@ class LayDRT(torch.nn.Module):
             self,
             in_width: int,
             do_scaled_dns: bool=                            False,          # two denses (True) or single dense (False)
-            dns_scale: int=                                 4,              # scale for two denses
+            dns_scale: int=                                 4,              # up-scale for first dense of two
             activation: Optional[type(torch.nn.Module)]=    torch.nn.ReLU,
             lay_dropout: float=                             0.0,            # dropout after dense/s
             residual: bool=                                 True,           # residual yes/no
@@ -52,7 +52,7 @@ class LayDRT(torch.nn.Module):
                 dtype=          dtype,
                 initializer=    initializer))
         else:
-            # just dense
+            # just single dense, with activation
             self.denses.append(LayDense(
                 in_features=    in_width,
                 out_features=   in_width,
@@ -69,37 +69,105 @@ class LayDRT(torch.nn.Module):
 
         self.drop_res = torch.nn.Dropout(p=res_dropout) if res_dropout else None
 
-    def forward(self, x):
+    def forward(self, input: torch.Tensor) -> Dict[str,torch.Tensor]:
 
-        zsL = []
+        out = self.ln_in(input)
 
-        out = self.ln_in(x)
+        dense = self.denses[0]
+        out = dense(out)
+        zsL = [zeroes(out)]
 
-        for dense in self.denses:
+        if len(self.denses) > 1: # there is second one, without activation
+            dense = self.denses[1]
             out = dense(out)
-            zsL.append(zeroes(out))
 
         if self.drop_lay:
             out = self.drop_lay(out)
 
         if self.add_res:
-            if self.drop_res: x = self.drop_res(x)
-            out += x # residual
+            if self.drop_res: x = self.drop_res(input)
+            out += input # residual
 
         return {
             'out':  out,
             'zsL':  zsL}
 
-# my dense layer, adds initializer and activation
+# Deep Residual encoder based on stacked LayDRT
 class EncDRT(torch.nn.Module):
 
     def __init__(
             self,
-            initializer: Optional[Callable] = None):
+            in_width: int,
+            in_dropout: float=                              0.0,            # dropout on input
+            shared_lays: bool=                              False,          # shared variables in enc_layers
+            n_layers: int=                                  6,
+            lay_width: Optional[int]=                       None,           # for None matches input width
+            do_scaled_dns: bool=                            True,
+            dns_scale: int=                                 4,              # scale(*) of first dense
+            activation: Optional[type(torch.nn.Module)]=    torch.nn.ReLU,  # gelu is really worth a try
+            lay_dropout: float=                             0.0,            # dropout after two denses
+            residual: bool=                                 True,           # residual yes/no
+            res_dropout: float=                             0.0,            # dropout on residual connection
+            device=                                         None,
+            dtype=                                          None,
+            initializer: Optional[Callable]=                None):
 
-        torch.nn.Module.__init__(self)
-        raise NotImplemented
-        pass
+        super(EncDRT, self).__init__()
 
-    def forward(self, x):
-        pass
+        if initializer is None: initializer = my_initializer
+
+        self.in_drop_lay = torch.nn.Dropout(p=in_dropout) if in_dropout else None
+
+        self.in_width = in_width
+        self.lay_width = lay_width or self.in_width
+        self.projection_lay = LayDense(
+            in_features=    self.in_width,
+            out_features=   self.lay_width,
+            activation=     None,
+            bias=           False,
+            device=         device,
+            dtype=          dtype,
+            initializer=    initializer) if self.lay_width != self.in_width else None
+
+        self.ln_in = torch.nn.LayerNorm(
+            normalized_shape=   self.lay_width,
+            device=             device,
+            dtype=              dtype)
+
+        num_layers_to_build = 1 if shared_lays else n_layers
+        self.drt_lays = [LayDRT(
+            in_width=       self.lay_width,
+            do_scaled_dns=  do_scaled_dns,
+            dns_scale=      dns_scale,
+            activation=     activation,
+            lay_dropout=    lay_dropout,
+            residual=       residual,
+            res_dropout=    res_dropout,
+            device=         device,
+            dtype=          dtype,
+            initializer=    initializer) for _ in range(num_layers_to_build)]
+        for lix,lay in enumerate(self.drt_lays): self.add_module(f'lay_drt_{lix}',lay)
+        if shared_lays and n_layers > 1: self.drt_lays *= n_layers
+
+    def forward(self, input: torch.Tensor) -> Dict[str,torch.Tensor]:
+
+        zsL = []
+
+        out = input
+
+        if self.in_drop_lay: # input dropout
+            out = self.in_drop_lay(out)
+
+        if self.projection_lay: # input projection, no activation <- do not catch zeroes
+            out = self.projection_lay(out)
+
+        out = self.ln_in(out)
+
+        for drt_lay in self.drt_lays:
+            lay_out = drt_lay(out)
+            out = lay_out['out']
+            zsL += lay_out['zsL']
+
+        return {
+            'out':  out,
+            'zsL':  zsL}

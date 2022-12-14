@@ -99,6 +99,6 @@ def zeroes(input :torch.Tensor) -> torch.Tensor:
         condition=      torch.gt(input, 0),
         input=          torch.ones_like(input),         # true
         other=          torch.zeros_like(input))        # false
-    activated_reduced = torch.sum(activated, dim=axes)  # 1 or more for activated, 0 for not activated
+    activated_reduced = torch.sum(activated, dim=axes) if axes else activated  # 1 or more for activated, 0 for not activated, if not axes -> we have only-feats-tensor-case
     not_activated = torch.eq(activated_reduced, 0)      # true where summed gives zero (~invert)
     return not_activated.to(dtype=torch.int8)           # cast to int
