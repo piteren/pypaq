@@ -48,7 +48,7 @@ class ScaledLR(torch.optim.lr_scheduler._LRScheduler):
             self._log.debug(f'applied warmUp ({self.warm_up}) to lR')
 
         if self.ann_base is not None and self.ann_base != 1.0:
-            steps_offs = max(0, self._step - self.warm_up * self.n_wup_off)
+            steps_offs = max(0, self._step - int(self.warm_up * self.n_wup_off))
             lrs *= self.ann_base ** (steps_offs * self.ann_step)
             self._log.debug(f'applied annealing to lR ({self.ann_base:.5f},{self.ann_step:.5f})')
 

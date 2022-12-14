@@ -5,7 +5,7 @@ import torch
 from pypaq.torchness.base_elements import my_initializer
 
 
-# my dense layer, linear + initializer & activation
+# my dense layer, linear with initializer + activation
 class LayDense(torch.nn.Linear):
 
     def __init__(
@@ -84,11 +84,13 @@ class TF_Dropout(torch.nn.Dropout):
 
         return output
 
-
+"""
+# TODO: To Be Implemented
 class Attn(torch.nn.Module):
 
     def __init__(self):
         super(Attn, self).__init__()
+"""
 
 # returns [0,1] tensor: 1 where input not activated (value =< 0), looks at last dimension / features
 def zeroes(input :torch.Tensor) -> torch.Tensor:

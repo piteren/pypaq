@@ -1,22 +1,48 @@
 import torch
 import unittest
 
-from pypaq.torchness.layers import LayDense, TF_Dropout
+from pypaq.torchness.layers import LayDense, TF_Dropout, zeroes
 
 
 class TestLayers(unittest.TestCase):
 
     def test_lay_dense(self):
         tns = torch.rand(20)
-        dnsl = LayDense(20, 10)
+        print(tns)
+
+        dnsl = LayDense(20,10)
         print(dnsl)
         out = dnsl(tns)
         print(out)
         self.assertTrue(out.size()[0] == 10)
+        print(torch.sum(out))
+        self.assertTrue(float(torch.sum(out)) >= 0.0)
+
+        dnsl = LayDense(
+            in_features=    20,
+            out_features=   10,
+            activation=     None,
+            bias=           False,
+            initializer=    torch.nn.init.zeros_)
+        out = dnsl(tns)
+        print(out)
+        print(torch.sum(out))
+        self.assertTrue(float(torch.sum(out)) == 0.0)
 
     def test_tf_dropout(self):
         tns = torch.rand((5,5,5))
+        sum_tns = float(torch.sum(tns))
+        print(sum_tns)
         drl = TF_Dropout(time_drop=0.3, feat_drop=0.3)
         dropped = drl(tns)
         print(dropped)
-        self.assertFalse(torch.equal(tns, dropped))
+        sum_dropped = float(torch.sum(dropped))
+        print(sum_dropped)
+
+    def test_zeroes(self):
+        tns = torch.rand((5,5,5))
+        print(zeroes(tns))
+        drl = TF_Dropout(time_drop=0.3, feat_drop=0.3)
+        dropped = drl(tns)
+        print(dropped)
+        print(zeroes(dropped))

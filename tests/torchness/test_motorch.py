@@ -1,13 +1,12 @@
 import numpy as np
 import torch
 from torch import nn
-from typing import Dict
 import unittest
 
-from tests.envy import flush_tmp_dir
-
-from pypaq.torchness.motorch import MOTorch, Module, MOTorchException, NNWrapException
+from pypaq.torchness.motorch import MOTorch, Module, NNWrapException
 from pypaq.torchness.layers import LayDense
+
+from tests.envy import flush_tmp_dir
 
 MOTORCH_DIR = f'{flush_tmp_dir()}/motorch'
 MOTorch.SAVE_TOPDIR = MOTORCH_DIR
