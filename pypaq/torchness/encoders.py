@@ -170,3 +170,32 @@ class EncDRT(torch.nn.Module):
         return {
             'out':  out,
             'zsL':  zsL}
+
+# CNN 1D Encoder (for sequences, LN > CNN > act > drop > RES), number of parameters: n_layers*kernel*in_features*n_filters
+class EncCNN(torch.nn.Module):
+
+    def __init__(
+            self,
+            in_features: int,                               # input num of channels
+            #history :tf.Tensor=                 None,       # optional history(state) tensor with shape [bsz, n_layers ,kernel-1, n_filters], >> masked cnn
+            time_drop=                          0.0,
+            feat_drop=                          0.0,
+            # layer
+            shared_lays: bool=                  False,      # shared variables in enc_layers
+            n_layers :int=                      12,         # num of layers
+            kernel :int=                        3,          # layer kernel
+            n_filters :int=                     128,        # num of filters
+            #activation=                         tf.nn.relu, # global enc activation func, gelu is really worth a try
+            lay_drop : float or None=           0.0,
+            # lay_DRT
+            do_ldrt=                            False,      # lay DRT - build or not
+            ldrt_scaled_dns=                    True,       # lay DRT - build scaled two denses
+            ldrt_scale: int or None=            4,          # lay DRT scale of first dense
+            ldrt_drop: float or None=           0.0,        # lay DRT dropout
+            ldrt_res=                           True,       # lay DRT - do residual connection
+            ldrt_res_drop : float or None=      0.0,        # lay DRT residual dropout
+            initializer=                        None,
+            seed :int=                          12321,
+            n_hist :int=                        4,          # number of histogram layers
+            verb=                               0):
+        pass

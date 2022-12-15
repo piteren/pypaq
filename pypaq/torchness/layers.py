@@ -89,8 +89,8 @@ class LayConv1D(torch.nn.Conv1d):
 
     def __init__(
             self,
-            in_features: int,                                               # input num of channels
-            n_filters: int,                                                 # output num of channels
+            in_features: int,                   # input num of channels
+            n_filters: int,                     # output num of channels
             kernel_size=        3,
             stride=             1,              # single number or a one-element tuple
             padding=            'same',
