@@ -21,8 +21,6 @@ class LayDRT(torch.nn.Module):
             dtype=                  None,
             initializer: INI=       None):
 
-        #TODO: check module devices & dtype
-
         super(LayDRT, self).__init__()
 
         if initializer is None: initializer = my_initializer

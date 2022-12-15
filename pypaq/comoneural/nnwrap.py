@@ -34,8 +34,7 @@ from pypaq.comoneural.batcher import Batcher
 from pypaq.lipytools.little_methods import get_params, get_func_dna, prep_folder
 from pypaq.lipytools.pylogger import get_pylogger, get_hi_child
 from pypaq.pms.parasave import ParaSave
-from pypaq.torchness.base_elements import TBwr
-
+from pypaq.torchness.tbwr import TBwr
 
 
 class NNWrapException(Exception):

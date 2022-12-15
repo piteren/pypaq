@@ -23,8 +23,9 @@ from pypaq.lipytools.pylogger import get_hi_child
 from pypaq.pms.parasave import ParaSave
 from pypaq.comoneural.nnwrap import NNWrap, NNWrapException
 from pypaq.mpython.devices import get_devices
-from pypaq.torchness.base_elements import ScaledLR, GradClipperAVT, mrg_ckpts
-
+from pypaq.torchness.base_elements import mrg_ckpts
+from pypaq.torchness.scaled_LR import ScaledLR
+from pypaq.torchness.grad_clipping import GradClipperAVT
 
 
 # torch.nn.Module to be implemented with forward & loss methods
