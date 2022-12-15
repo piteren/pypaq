@@ -1,6 +1,7 @@
-from typing import Callable, Optional, Dict
+from typing import Optional
 import torch
 
+from pypaq.torchness.types import ACT, INI, TNS, DTNS
 from pypaq.torchness.base_elements import my_initializer
 from pypaq.torchness.layers import LayDense, zeroes
 
@@ -10,15 +11,15 @@ class LayDRT(torch.nn.Module):
     def __init__(
             self,
             in_width: int,
-            do_scaled_dns: bool=                            False,          # two denses (True) or single dense (False)
-            dns_scale: int=                                 4,              # up-scale for first dense of two
-            activation: Optional[type(torch.nn.Module)]=    torch.nn.ReLU,
-            lay_dropout: float=                             0.0,            # dropout after dense/s
-            residual: bool=                                 True,           # residual yes/no
-            res_dropout: float=                             0.0,            # dropout on residual connection
-            device=                                         None,
-            dtype=                                          None,
-            initializer: Optional[Callable]=                None):
+            do_scaled_dns: bool=    False,          # two denses (True) or single dense (False)
+            dns_scale: int=         4,              # up-scale for first dense of two
+            activation: ACT=        torch.nn.ReLU,
+            lay_dropout: float=     0.0,            # dropout after dense/s
+            residual: bool=         True,           # residual yes/no
+            res_dropout: float=     0.0,            # dropout on residual connection
+            device=                 None,
+            dtype=                  None,
+            initializer: INI=       None):
 
         #TODO: check module devices & dtype
 
@@ -69,7 +70,7 @@ class LayDRT(torch.nn.Module):
 
         self.drop_res = torch.nn.Dropout(p=res_dropout) if res_dropout else None
 
-    def forward(self, input: torch.Tensor) -> Dict[str,torch.Tensor]:
+    def forward(self, input:TNS) -> DTNS:
 
         out = self.ln_in(input)
 
@@ -98,19 +99,19 @@ class EncDRT(torch.nn.Module):
     def __init__(
             self,
             in_width: int,
-            in_dropout: float=                              0.0,            # dropout on input
-            shared_lays: bool=                              False,          # shared variables in enc_layers
-            n_layers: int=                                  6,
-            lay_width: Optional[int]=                       None,           # for None matches input width
-            do_scaled_dns: bool=                            True,
-            dns_scale: int=                                 4,              # scale(*) of first dense
-            activation: Optional[type(torch.nn.Module)]=    torch.nn.ReLU,  # gelu is really worth a try
-            lay_dropout: float=                             0.0,            # dropout after two denses
-            residual: bool=                                 True,           # residual yes/no
-            res_dropout: float=                             0.0,            # dropout on residual connection
-            device=                                         None,
-            dtype=                                          None,
-            initializer: Optional[Callable]=                None):
+            in_dropout: float=          0.0,            # dropout on input
+            shared_lays: bool=          False,          # shared variables in enc_layers
+            n_layers: int=              6,
+            lay_width: Optional[int]=   None,           # for None matches input width
+            do_scaled_dns: bool=        True,
+            dns_scale: int=             4,              # scale(*) of first dense
+            activation: ACT=            torch.nn.ReLU,  # gelu is really worth a try
+            lay_dropout: float=         0.0,            # dropout after two denses
+            residual: bool=             True,           # residual yes/no
+            res_dropout: float=         0.0,            # dropout on residual connection
+            device=                     None,
+            dtype=                      None,
+            initializer: INI=           None):
 
         super(EncDRT, self).__init__()
 
@@ -149,7 +150,7 @@ class EncDRT(torch.nn.Module):
         for lix,lay in enumerate(self.drt_lays): self.add_module(f'lay_drt_{lix}',lay)
         if shared_lays and n_layers > 1: self.drt_lays *= n_layers
 
-    def forward(self, input: torch.Tensor) -> Dict[str,torch.Tensor]:
+    def forward(self, input:TNS) -> DTNS:
 
         zsL = []
 

@@ -1,7 +1,7 @@
 import torch
 import unittest
 
-from pypaq.torchness.layers import LayDense, TF_Dropout, zeroes
+from pypaq.torchness.layers import LayDense, TF_Dropout, LayConv1D, zeroes
 
 
 class TestLayers(unittest.TestCase):
@@ -38,6 +38,14 @@ class TestLayers(unittest.TestCase):
         print(dropped)
         sum_dropped = float(torch.sum(dropped))
         print(sum_dropped)
+
+    def test_LayConv1D(self):
+        inp = torch.rand(3,6)  # [Channels,SignalSeq]
+        print(inp.shape, inp)
+        conv_lay = LayConv1D(6,8)
+        out = conv_lay(inp)
+        print(out.shape, out)
+        self.assertTrue(tuple(out.shape) == (3,8))
 
     def test_zeroes(self):
 
