@@ -3,7 +3,7 @@ import torch
 
 from pypaq.torchness.types import ACT, INI, TNS, DTNS
 from pypaq.torchness.base_elements import my_initializer
-from pypaq.torchness.layers import LayDense, zeroes
+from pypaq.torchness.layers import LayDense, TF_Dropout, LayConv1D, zeroes
 
 
 class LayDRT(torch.nn.Module):
@@ -144,7 +144,8 @@ class EncDRT(torch.nn.Module):
             res_dropout=    res_dropout,
             device=         device,
             dtype=          dtype,
-            initializer=    initializer) for _ in range(num_layers_to_build)]
+            initializer=    initializer
+        ) for _ in range(num_layers_to_build)]
         for lix,lay in enumerate(self.drt_lays): self.add_module(f'lay_drt_{lix}',lay)
         if shared_lays and n_layers > 1: self.drt_lays *= n_layers
 
@@ -176,26 +177,154 @@ class EncCNN(torch.nn.Module):
 
     def __init__(
             self,
-            in_features: int,                               # input num of channels
-            #history :tf.Tensor=                 None,       # optional history(state) tensor with shape [bsz, n_layers ,kernel-1, n_filters], >> masked cnn
-            time_drop=                          0.0,
-            feat_drop=                          0.0,
+            in_features: int,                           # input num of channels
+            time_drop: float=           0.0,
+            feat_drop: float=           0.0,
             # layer
-            shared_lays: bool=                  False,      # shared variables in enc_layers
-            n_layers :int=                      12,         # num of layers
-            kernel :int=                        3,          # layer kernel
-            n_filters :int=                     128,        # num of filters
-            #activation=                         tf.nn.relu, # global enc activation func, gelu is really worth a try
-            lay_drop : float or None=           0.0,
+            shared_lays: bool=          False,          # shared variables in enc_layers
+            n_layers :int=              12,             # num of layers
+            kernel_size :int=           3,              # layer kernel
+            n_filters :int=             128,            # num of filters
+            activation: ACT=            torch.nn.ReLU,  # global enc activation func
+            lay_dropout: float=         0.0,
             # lay_DRT
-            do_ldrt=                            False,      # lay DRT - build or not
-            ldrt_scaled_dns=                    True,       # lay DRT - build scaled two denses
-            ldrt_scale: int or None=            4,          # lay DRT scale of first dense
-            ldrt_drop: float or None=           0.0,        # lay DRT dropout
-            ldrt_res=                           True,       # lay DRT - do residual connection
-            ldrt_res_drop : float or None=      0.0,        # lay DRT residual dropout
-            initializer=                        None,
-            seed :int=                          12321,
-            n_hist :int=                        4,          # number of histogram layers
-            verb=                               0):
-        pass
+            do_ldrt=                    False,          # lay DRT - build or not
+            ldrt_do_scaled_dns: bool=   True,
+            ldrt_dns_scale: int=        4,
+            ldrt_drop: float or None=   0.0,
+            ldrt_residual: bool=        True,
+            ldrt_res_dropout: float=    0.0,
+            # other
+            device=                     None,
+            dtype=                      None,
+            initializer: INI=           None):
+
+        super(EncCNN, self).__init__()
+
+        if initializer is None: initializer = my_initializer
+
+        self.in_features = in_features
+        self.n_filters = n_filters
+
+        self.in_TFdrop_lay = TF_Dropout(
+            time_drop=  time_drop,
+            feat_drop=  feat_drop) if time_drop or feat_drop else None
+
+        self.projection_lay = LayDense(
+            in_features=    self.in_features,
+            out_features=   self.n_filters,
+            activation=     None,
+            bias=           False,
+            device=         device,
+            dtype=          dtype,
+            initializer=    initializer) if self.in_features != self.n_filters else None
+
+        num_layers_to_build = 1 if shared_lays else n_layers
+
+        self.lay_lnL = [torch.nn.LayerNorm(
+            normalized_shape=   self.n_filters,
+            device=             device,
+            dtype=              dtype
+        ) for _ in range(num_layers_to_build)]
+        for lix,lay in enumerate(self.lay_lnL): self.add_module(f'lay_ln_{lix}', lay)
+
+        self.lay_conv1DL = [LayConv1D(
+            in_features=    self.n_filters,
+            n_filters=      n_filters,
+            kernel_size=    kernel_size,
+            device=         device,
+            dtype=          dtype,
+            activation=     None,
+            initializer=    initializer
+        ) for _ in range(num_layers_to_build)]
+        for lix,lay in enumerate(self.lay_conv1DL): self.add_module(f'lay_conv_{lix}', lay)
+
+        self.lay_dropL = [torch.nn.Dropout(
+            p=  lay_dropout
+        ) if lay_dropout else None for _ in range(num_layers_to_build)]
+        if lay_dropout:
+            for lix,lay in enumerate(self.lay_dropL): self.add_module(f'lay_drop_{lix}', lay)
+
+        self.lay_DRTL = [LayDRT(
+            in_width=       self.n_filters,
+            do_scaled_dns=  ldrt_do_scaled_dns,
+            dns_scale=      ldrt_dns_scale,
+            activation=     activation,
+            lay_dropout=    ldrt_drop,
+            residual=       ldrt_residual,
+            res_dropout=    ldrt_res_dropout,
+            device=         device,
+            dtype=          dtype,
+            initializer=    initializer
+        ) if do_ldrt else None for _ in range(num_layers_to_build)]
+        if do_ldrt:
+            for lix,lay in enumerate(self.lay_DRTL): self.add_module(f'lay_DRT_{lix}', lay)
+
+        if shared_lays and n_layers > 1:
+            self.lay_lnL *= n_layers
+            self.lay_conv1DL *= n_layers
+            self.lay_dropL *= n_layers
+            self.lay_DRTL *= n_layers
+
+        self.activation = activation() if activation else None
+
+        self.out_ln = torch.nn.LayerNorm(
+            normalized_shape=   self.n_filters,
+            device=             device,
+            dtype=              dtype)
+
+    def forward(self, input:TNS, history:Optional[TNS]) -> DTNS:
+
+        input_lays = []  # here we will store inputs of the following layers to extract the state (history)
+        zsL = []
+
+        if self.in_TFdrop_lay:
+            input = self.in_TFdrop_lay(input)
+
+        if self.projection_lay:
+            input = self.projection_lay(input)
+
+        output = input      # for 0 layers case
+        sub_input = input   # first input
+        for lay_ln, lay_conv1D, lay_drop, lay_DRT in zip(self.lay_lnL, self.lay_conv1DL, self.lay_dropL, self.lay_DRTL):
+
+            # TODO: concat with history
+            lay_input = sub_input
+            input_lays.append(lay_input)
+
+            lay_input = lay_ln(lay_input)
+
+            output = lay_conv1D(lay_input)
+
+            if self.activation:
+                output = self.activation(output)
+                zsL += zeroes(output)
+
+            if lay_drop:
+                output = lay_drop(output)
+
+            output += sub_input # RES # TODO: maybe add here res_dropout to sub_input like in LayDRT
+
+            if lay_DRT:
+                lay_out = lay_DRT(output)
+                output = lay_out['output']
+                zsL += lay_out['zeroes']
+
+            sub_input = output
+
+        output = self.out_ln(output)
+
+        # TODO: prepare fin_state
+        fin_state = None
+        """
+        if history is not None:
+            state = tf.stack(input_lays, axis=-3)
+            if verb > 1: print(f' > state (stacked): {state}')
+            fin_state = tf.split(state, num_or_size_splits=[-1, kernel - 1], axis=-2)[1]
+            if verb > 1: print(f' > fin_state (split): {fin_state}')
+        """
+
+        return {
+            'out':      output,
+            'state':    fin_state, # history for next
+            'zsL':      zsL}

@@ -52,10 +52,10 @@ class TF_Dropout(torch.nn.Dropout):
             self,
             time_drop: float=   0.0,
             feat_drop: float=   0.0,
-            **kwargs):
+            inplace: bool=      False):
         self.time_drop = time_drop
         self.feat_drop = feat_drop
-        super(TF_Dropout, self).__init__(**kwargs)
+        super(TF_Dropout, self).__init__(inplace=inplace)
 
     def forward(self, input:TNS) -> TNS:
 
