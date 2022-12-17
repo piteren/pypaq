@@ -43,6 +43,7 @@ class TestLayers(unittest.TestCase):
         inp = torch.rand(3,6)  # [Channels,SignalSeq]
         print(inp.shape, inp)
         conv_lay = LayConv1D(6,8)
+        print(conv_lay)
         out = conv_lay(inp)
         print(out.shape, out)
         self.assertTrue(tuple(out.shape) == (3,8))

@@ -182,9 +182,9 @@ class EncCNN(torch.nn.Module):
             feat_drop: float=           0.0,
             # layer
             shared_lays: bool=          False,          # shared variables in enc_layers
-            n_layers :int=              12,             # num of layers
+            n_layers :int=              6,              # num of layers
             kernel_size :int=           3,              # layer kernel
-            n_filters :int=             128,            # num of filters
+            n_filters :int=             32,             # num of filters
             activation: ACT=            torch.nn.ReLU,  # global enc activation func
             lay_dropout: float=         0.0,
             # lay_DRT
@@ -273,7 +273,7 @@ class EncCNN(torch.nn.Module):
             device=             device,
             dtype=              dtype)
 
-    def forward(self, input:TNS, history:Optional[TNS]) -> DTNS:
+    def forward(self, input:TNS, history:Optional[TNS]=None) -> DTNS:
 
         input_lays = []  # here we will store inputs of the following layers to extract the state (history)
         zsL = []
@@ -286,15 +286,23 @@ class EncCNN(torch.nn.Module):
 
         output = input      # for 0 layers case
         sub_input = input   # first input
-        for lay_ln, lay_conv1D, lay_drop, lay_DRT in zip(self.lay_lnL, self.lay_conv1DL, self.lay_dropL, self.lay_DRTL):
+        #for lay_ln, lay_conv1D, lay_drop, lay_DRT in zip(self.lay_lnL, self.lay_conv1DL, self.lay_dropL, self.lay_DRTL):
+        for lix in range(len(self.lay_conv1DL)):
+
+            lay_ln = self.lay_lnL[lix]
+            lay_conv1D = self.lay_conv1DL[lix]
+            lay_drop = self.lay_dropL[lix]
+            lay_DRT = self.lay_DRTL[lix]
 
             # TODO: concat with history
             lay_input = sub_input
             input_lays.append(lay_input)
 
             lay_input = lay_ln(lay_input)
+            print('applied ln')
 
             output = lay_conv1D(lay_input)
+            print('applied conv')
 
             if self.activation:
                 output = self.activation(output)

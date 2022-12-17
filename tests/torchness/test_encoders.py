@@ -1,7 +1,7 @@
 import torch
 import unittest
 
-from pypaq.torchness.encoders import LayDRT, EncDRT
+from pypaq.torchness.encoders import LayDRT, EncDRT, EncCNN
 
 
 class TestEncoders(unittest.TestCase):
@@ -99,3 +99,13 @@ class TestEncoders(unittest.TestCase):
 
         enc_drt.to(torch.float)
         self.assertRaises(RuntimeError, enc_drt, inp) # expected scalar type Double but found Float
+
+    def test_EncCNN(self):
+
+        in_features = 12
+        inp = torch.rand(10,20,in_features)
+        enc = EncCNN(in_features, lay_dropout=0.1)
+        print(enc)
+        print(enc(inp))
+
+        #inp = torch.rand(20,in_features)
