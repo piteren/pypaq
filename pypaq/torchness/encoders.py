@@ -315,8 +315,8 @@ class EncCNN(torch.nn.Module):
 
             if lay_DRT:
                 lay_out = lay_DRT(output)
-                output = lay_out['output']
-                zsL += lay_out['zeroes']
+                output = lay_out['out']
+                zsL += lay_out['zsL']
 
             sub_input = output
 
