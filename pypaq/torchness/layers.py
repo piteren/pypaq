@@ -45,6 +45,10 @@ class LayDense(torch.nn.Linear):
         if self.activation: out = self.activation(out)
         return out
 
+    def extra_repr(self) -> str:
+        act_info = '' if self.activation else ', activation=None'
+        return f'in_features={self.in_features}, out_features={self.out_features}, bias={self.bias is not None}{act_info}'
+
 # time & feats dropout (for sequences), input tensor [...,seq,feats]
 class TF_Dropout(torch.nn.Dropout):
 
@@ -83,6 +87,9 @@ class TF_Dropout(torch.nn.Dropout):
             output = output * f_drop
 
         return output
+
+    def extra_repr(self) -> str:
+        return f'time_drop={self.time_drop}, feat_drop={self.feat_drop}, inplace={self.inplace}'
 
 # my Conv1d, with initializer + activation
 class LayConv1D(torch.nn.Conv1d):

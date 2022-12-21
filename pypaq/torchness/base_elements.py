@@ -3,6 +3,9 @@ import torch
 from typing import Optional
 
 
+class TorchnessException(Exception):
+    pass
+
 def my_initializer(*args, std=0.02, **kwargs):
     # https://stackoverflow.com/questions/49433936/how-do-i-initialize-weights-in-pytorch
     return torch.nn.init.trunc_normal_(*args, **kwargs, std=std)
@@ -48,7 +51,7 @@ def scaled_cross_entropy(
         probs: Optional[torch.Tensor]=  None) -> torch.Tensor:
 
     if logits is None and probs is None:
-        raise Exception('logits OR probs must be given!')
+        raise TorchnessException('logits OR probs must be given!')
 
     if probs is None:
         probs = torch.nn.functional.softmax(input=logits, dim=-1)

@@ -2,11 +2,12 @@ from typing import Optional
 import torch
 
 from pypaq.torchness.types import ACT, INI, TNS, DTNS
-from pypaq.torchness.base_elements import my_initializer
+from pypaq.torchness.base_elements import my_initializer, TorchnessException
 from pypaq.torchness.layers import LayDense, TF_Dropout, LayConv1D, zeroes
 
 
-class LayDRT(torch.nn.Module):
+# Block (Layer) of EncDRT (LN > Dense > drop > RES)
+class LayBlockDRT(torch.nn.Module):
 
     def __init__(
             self,
@@ -21,7 +22,7 @@ class LayDRT(torch.nn.Module):
             dtype=                  None,
             initializer: INI=       None):
 
-        super(LayDRT, self).__init__()
+        super(LayBlockDRT, self).__init__()
 
         if initializer is None: initializer = my_initializer
 
@@ -91,7 +92,8 @@ class LayDRT(torch.nn.Module):
             'out':  out,
             'zsL':  zsL}
 
-# Deep Residual encoder based on stacked LayDRT
+
+# Deep Residual encoder based on stacked LayBlockDRT
 class EncDRT(torch.nn.Module):
 
     def __init__(
@@ -134,7 +136,7 @@ class EncDRT(torch.nn.Module):
             dtype=              dtype)
 
         num_layers_to_build = 1 if shared_lays else n_layers
-        self.drt_lays = [LayDRT(
+        self.drt_lays = [LayBlockDRT(
             in_width=       self.lay_width,
             do_scaled_dns=  do_scaled_dns,
             dns_scale=      dns_scale,
@@ -172,7 +174,109 @@ class EncDRT(torch.nn.Module):
             'out':  out,
             'zsL':  zsL}
 
-# CNN 1D Encoder (for sequences, LN > CNN > act > drop > RES), number of parameters: n_layers*kernel*in_features*n_filters
+
+# Block (Layer) of EncCNN (LN > CNN > act > drop > RES > LayBlockDRT), number of parameters: kernel*in_features*n_filters
+class LayBlockCNN(torch.nn.Module):
+
+    def __init__(
+            self,
+            n_filters: int,                             # num of filters
+            kernel_size :int=           3,              # layer kernel
+            activation: ACT=            torch.nn.ReLU,  # global enc activation func
+            lay_dropout: float=         0.0,
+            res_dropout: float=         0.0,
+            # lay_DRT
+            do_ldrt=                    False,          # lay DRT - build or not
+            ldrt_do_scaled_dns: bool=   True,
+            ldrt_dns_scale: int=        4,
+            ldrt_drop: float or None=   0.0,
+            ldrt_residual: bool=        True,
+            ldrt_res_dropout: float=    0.0,
+            # other
+            device=                     None,
+            dtype=                      None,
+            initializer: INI=           None):
+
+        super(LayBlockCNN, self).__init__()
+
+        if kernel_size % 2 != 1: raise TorchnessException('LayBlockCNN kernel_size cannot be even number')
+        self.kernel_size = kernel_size
+
+        self.lay_ln = torch.nn.LayerNorm(
+            normalized_shape=   n_filters,
+            device=             device,
+            dtype=              dtype)
+
+        self.lay_conv1D = LayConv1D(
+            in_features=    n_filters,
+            n_filters=      n_filters,
+            kernel_size=    self.kernel_size,
+            padding=        'valid',
+            device=         device,
+            dtype=          dtype,
+            activation=     None,
+            initializer=    initializer)
+
+        self.activation = activation() if activation else None
+
+        self.lay_drop = torch.nn.Dropout(p=lay_dropout) if lay_dropout else None
+
+        self.res_drop = torch.nn.Dropout(p=res_dropout) if res_dropout else None
+
+        self.lay_DRT = LayBlockDRT(
+            in_width=       n_filters,
+            do_scaled_dns=  ldrt_do_scaled_dns,
+            dns_scale=      ldrt_dns_scale,
+            activation=     activation,
+            lay_dropout=    ldrt_drop,
+            residual=       ldrt_residual,
+            res_dropout=    ldrt_res_dropout,
+            device=         device,
+            dtype=          dtype,
+            initializer=    initializer) if do_ldrt else None
+
+    def forward(self, input:TNS, history:Optional[TNS]=None) -> DTNS:
+
+        zsL = []
+
+        out = self.lay_ln(input)
+
+        if history is None:
+            in_sh = list(input.shape)
+            pad_width = int((self.kernel_size-1)/2)
+            in_sh[-2] = pad_width
+            pad = torch.zeros(in_sh)
+            conc = [pad, out, pad] # pad both sides (encoder)
+        else:
+            conc = [history, out] # concatenate with history (casual encoder)
+        out = torch.concat(conc, dim=-2)
+
+        out = self.lay_conv1D(out)
+
+        if self.activation:
+            out = self.activation(out)
+            zsL.append(zeroes(out))
+
+        if self.lay_drop:
+            out = self.lay_drop(out)
+
+        if self.res_drop:
+            input = self.res_drop(input)
+
+        out += input  # RES
+
+        if self.lay_DRT:
+            lay_out = self.lay_DRT(out)
+            out = lay_out['out']
+            zsL += lay_out['zsL']
+
+        return {
+            'out':      out,
+            'state':    torch.split(input, split_size_or_sections=self.kernel_size-1, dim=-2)[-1],
+            'zsL':      zsL}
+
+
+# CNN 1D Encoder (for sequences), number of parameters: projection + n_layers*LayBlockCNN
 class EncCNN(torch.nn.Module):
 
     def __init__(
@@ -184,9 +288,10 @@ class EncCNN(torch.nn.Module):
             shared_lays: bool=          False,          # shared variables in enc_layers
             n_layers :int=              6,              # num of layers
             kernel_size :int=           3,              # layer kernel
-            n_filters :int=             32,             # num of filters
+            n_filters :Optional[int]=   None,           # num of filters
             activation: ACT=            torch.nn.ReLU,  # global enc activation func
             lay_dropout: float=         0.0,
+            res_dropout: float=         0.0,
             # lay_DRT
             do_ldrt=                    False,          # lay DRT - build or not
             ldrt_do_scaled_dns: bool=   True,
@@ -201,10 +306,10 @@ class EncCNN(torch.nn.Module):
 
         super(EncCNN, self).__init__()
 
-        if initializer is None: initializer = my_initializer
-
         self.in_features = in_features
-        self.n_filters = n_filters
+        self.n_layers = n_layers
+        self.kernel_size = kernel_size
+        self.n_filters = n_filters or self.in_features
 
         self.in_TFdrop_lay = TF_Dropout(
             time_drop=  time_drop,
@@ -219,63 +324,44 @@ class EncCNN(torch.nn.Module):
             dtype=          dtype,
             initializer=    initializer) if self.in_features != self.n_filters else None
 
-        num_layers_to_build = 1 if shared_lays else n_layers
+        num_blocks_to_build = 1 if shared_lays else self.n_layers
 
-        self.lay_lnL = [torch.nn.LayerNorm(
-            normalized_shape=   self.n_filters,
+        self.blocks = [LayBlockCNN(
+            n_filters=          self.n_filters,
+            kernel_size=        self.kernel_size,
+            activation=         activation,
+            lay_dropout=        lay_dropout,
+            res_dropout=        res_dropout,
+            do_ldrt=            do_ldrt,
+            ldrt_do_scaled_dns= ldrt_do_scaled_dns,
+            ldrt_dns_scale=     ldrt_dns_scale,
+            ldrt_drop=          ldrt_drop,
+            ldrt_residual=      ldrt_residual,
+            ldrt_res_dropout=   ldrt_res_dropout,
             device=             device,
-            dtype=              dtype
-        ) for _ in range(num_layers_to_build)]
-        for lix,lay in enumerate(self.lay_lnL): self.add_module(f'lay_ln_{lix}', lay)
+            dtype=              dtype,
+            initializer=        initializer) for _ in range(num_blocks_to_build)]
 
-        self.lay_conv1DL = [LayConv1D(
-            in_features=    self.n_filters,
-            n_filters=      n_filters,
-            kernel_size=    kernel_size,
-            device=         device,
-            dtype=          dtype,
-            activation=     None,
-            initializer=    initializer
-        ) for _ in range(num_layers_to_build)]
-        for lix,lay in enumerate(self.lay_conv1DL): self.add_module(f'lay_conv_{lix}', lay)
+        for bix,block in enumerate(self.blocks): self.add_module(f'block_{bix}',block)
 
-        self.lay_dropL = [torch.nn.Dropout(
-            p=  lay_dropout
-        ) if lay_dropout else None for _ in range(num_layers_to_build)]
-        if lay_dropout:
-            for lix,lay in enumerate(self.lay_dropL): self.add_module(f'lay_drop_{lix}', lay)
-
-        self.lay_DRTL = [LayDRT(
-            in_width=       self.n_filters,
-            do_scaled_dns=  ldrt_do_scaled_dns,
-            dns_scale=      ldrt_dns_scale,
-            activation=     activation,
-            lay_dropout=    ldrt_drop,
-            residual=       ldrt_residual,
-            res_dropout=    ldrt_res_dropout,
-            device=         device,
-            dtype=          dtype,
-            initializer=    initializer
-        ) if do_ldrt else None for _ in range(num_layers_to_build)]
-        if do_ldrt:
-            for lix,lay in enumerate(self.lay_DRTL): self.add_module(f'lay_DRT_{lix}', lay)
-
-        if shared_lays and n_layers > 1:
-            self.lay_lnL *= n_layers
-            self.lay_conv1DL *= n_layers
-            self.lay_dropL *= n_layers
-            self.lay_DRTL *= n_layers
-
-        self.activation = activation() if activation else None
+        if shared_lays and self.n_layers > 1: self.blocks *= self.n_layers
 
         self.out_ln = torch.nn.LayerNorm(
             normalized_shape=   self.n_filters,
             device=             device,
             dtype=              dtype)
 
+    # prepares initial history for casual mode, history has shape [.., n_layers, kernel_size-1, n_filters]
+    def get_zero_history(self, input:TNS) -> TNS:
+        in_sh = list(input.shape)
+        in_sh.insert(-2, self.n_layers)
+        in_sh[-2] = self.kernel_size - 1
+        in_sh[-1] = self.n_filters
+        return torch.zeros(in_sh)
+
     def forward(self, input:TNS, history:Optional[TNS]=None) -> DTNS:
 
-        input_lays = []  # here we will store inputs of the following layers to extract the state (history)
+        states = []  # here we will store block states to concatenate them finally
         zsL = []
 
         if self.in_TFdrop_lay:
@@ -284,55 +370,18 @@ class EncCNN(torch.nn.Module):
         if self.projection_lay:
             input = self.projection_lay(input)
 
-        output = input      # for 0 layers case
-        sub_input = input   # first input
-        #for lay_ln, lay_conv1D, lay_drop, lay_DRT in zip(self.lay_lnL, self.lay_conv1DL, self.lay_dropL, self.lay_DRTL):
-        for lix in range(len(self.lay_conv1DL)):
-
-            lay_ln = self.lay_lnL[lix]
-            lay_conv1D = self.lay_conv1DL[lix]
-            lay_drop = self.lay_dropL[lix]
-            lay_DRT = self.lay_DRTL[lix]
-
-            # TODO: concat with history
-            lay_input = sub_input
-            input_lays.append(lay_input)
-
-            lay_input = lay_ln(lay_input)
-            print('applied ln')
-
-            output = lay_conv1D(lay_input)
-            print('applied conv')
-
-            if self.activation:
-                output = self.activation(output)
-                zsL += zeroes(output)
-
-            if lay_drop:
-                output = lay_drop(output)
-
-            output += sub_input # RES # TODO: maybe add here res_dropout to sub_input like in LayDRT
-
-            if lay_DRT:
-                lay_out = lay_DRT(output)
-                output = lay_out['out']
-                zsL += lay_out['zsL']
-
-            sub_input = output
+        output = input  # for 0 layers case
+        histories = torch.split(history,1,dim=-3) if history is not None else [None]*self.n_layers
+        for block,hist in zip(self.blocks, histories):
+            if hist is not None: hist = torch.squeeze(hist, dim=-3)
+            block_out = block(output, history=hist)
+            output = block_out['out']
+            states.append(torch.unsqueeze(block_out['state'], dim=-3))
+            zsL += block_out['zsL']
 
         output = self.out_ln(output)
 
-        # TODO: prepare fin_state
-        fin_state = None
-        """
-        if history is not None:
-            state = tf.stack(input_lays, axis=-3)
-            if verb > 1: print(f' > state (stacked): {state}')
-            fin_state = tf.split(state, num_or_size_splits=[-1, kernel - 1], axis=-2)[1]
-            if verb > 1: print(f' > fin_state (split): {fin_state}')
-        """
-
         return {
             'out':      output,
-            'state':    fin_state, # history for next
+            'state':    torch.concat(states,dim=-3),
             'zsL':      zsL}

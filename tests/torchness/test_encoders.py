@@ -1,25 +1,31 @@
 import torch
 import unittest
 
-from pypaq.torchness.encoders import LayDRT, EncDRT, EncCNN
+from pypaq.torchness.base_elements import TorchnessException
+from pypaq.torchness.encoders import LayBlockDRT, EncDRT, LayBlockCNN, EncCNN
 
 
 class TestEncoders(unittest.TestCase):
 
-    def test_LayDRT(self):
+    def test_LayBlockDRT_base(self):
 
         in_width = 10
         inp = torch.rand(in_width) - 0.5
         print(inp, inp.dtype)
 
-        lay_drt = LayDRT(in_width)
+        lay_drt = LayBlockDRT(in_width)
         print(lay_drt)
         out = lay_drt(inp)
         print(out)
         self.assertTrue(out['out'].shape[-1] == in_width)
         self.assertTrue(out['zsL'][0].shape[-1] == in_width)
 
-        lay_drt = LayDRT(
+    def test_LayBlockDRT_kwargs(self):
+
+        in_width = 10
+        inp = torch.rand(in_width) - 0.5
+
+        lay_drt = LayBlockDRT(
             in_width=       in_width,
             do_scaled_dns=  True,
             dns_scale=      4,
@@ -31,6 +37,13 @@ class TestEncoders(unittest.TestCase):
         self.assertTrue(out['out'].shape[-1] == in_width)
         self.assertTrue(out['zsL'][0].shape[-1] == in_width * 4)
 
+    def test_LayBlockDRT_device(self):
+
+        in_width = 10
+        inp = torch.rand(in_width) - 0.5
+
+        lay_drt = LayBlockDRT(in_width)
+
         dev = torch.device('cuda')
         lay_drt = lay_drt.to(dev)
         inp = inp.to(dev)
@@ -38,26 +51,25 @@ class TestEncoders(unittest.TestCase):
         print(out['out'].device)
         print(out)
 
-        lay_drt = LayDRT(
+        lay_drt = LayBlockDRT(in_width)
+        self.assertRaises(RuntimeError, lay_drt, inp)  # devices mismatch
+
+    def test_LayBlockDRT_double(self):
+
+        in_width = 10
+        inp = torch.rand(in_width) - 0.5
+
+        lay_drt = LayBlockDRT(
             in_width=       in_width,
             do_scaled_dns=  True,
             lay_dropout=    0.1,
             res_dropout=    0.1,
-            device=         dev,
             dtype=          torch.double)
         print(lay_drt)
         inp = inp.to(torch.double)
         out = lay_drt(inp)
         print(out['out'].dtype)
         print(out)
-
-        lay_drt = LayDRT(
-            in_width=       in_width,
-            do_scaled_dns=  True,
-            lay_dropout=    0.1,
-            res_dropout=    0.1,
-            dtype=          torch.double)
-        self.assertRaises(RuntimeError, lay_drt, inp) # devices mismatch
 
     def test_EncDRT(self):
 
@@ -100,12 +112,126 @@ class TestEncoders(unittest.TestCase):
         enc_drt.to(torch.float)
         self.assertRaises(RuntimeError, enc_drt, inp) # expected scalar type Double but found Float
 
-    def test_EncCNN(self):
+    def test_LayBlockCNN_base(self):
 
-        in_features = 12
-        inp = torch.rand(10,20,in_features)
-        enc = EncCNN(in_features, lay_dropout=0.1)
+        n_filters = 4
+        inp = torch.rand(6, n_filters)
+        print(inp)
+
+        lay_cnn = LayBlockCNN(n_filters)
+        print(lay_cnn)
+        out = lay_cnn(inp)
+        print(out)
+
+        out = lay_cnn(inp, history=out['state'])
+        print(out)
+
+    def test_LayBlockCNN_kwargs(self):
+
+        n_filters = 4
+        inp = torch.rand(6, n_filters)
+        print(inp)
+
+        lay_cnn = LayBlockCNN(
+            n_filters=      n_filters,
+            lay_dropout=    0.1,
+            res_dropout=    0.1,
+            do_ldrt=        True)
+        print(lay_cnn)
+        out = lay_cnn(inp)
+        print(out)
+
+    def test_EncCNN_base(self):
+
+        self.assertRaises(TorchnessException, EncCNN, in_features=6, kernel_size=4) # even number for kernel
+
+        in_features = 128
+        inp = torch.rand(256,512,in_features)
+        print(inp.shape)
+
+        enc = EncCNN(in_features)
         print(enc)
-        print(enc(inp))
+        enc_out = enc(inp)
 
-        #inp = torch.rand(20,in_features)
+        print(enc_out['out'].shape)
+        self.assertTrue(list(enc_out['out'].shape) == list(inp.shape))
+
+        print(enc_out['state'].shape)
+        zero_history = enc.get_zero_history(inp)
+        print(zero_history.shape)
+        self.assertTrue(list(enc_out['state'].shape) == list(zero_history.shape))
+
+    def test_EncCNN_kwargs(self):
+
+        n_filters = 48
+        in_features = 32
+        inp = torch.rand(18,96,in_features)
+        print(inp.shape)
+        inp = inp.to(torch.double)
+
+        enc = EncCNN(
+            in_features=        in_features,
+            time_drop=          0.1,
+            feat_drop=          0.2,
+            n_layers=           5,
+            kernel_size=        7,
+            n_filters=          n_filters,
+            lay_dropout=        0.15,
+            res_dropout=        0.25,
+            do_ldrt=            True,
+            ldrt_drop=          0.05,
+            ldrt_res_dropout=   0.07,
+            dtype=              torch.double)
+        print(enc)
+        enc_out = enc(inp)
+
+        print(enc_out['out'].shape)
+        in_sh = list(inp.shape)
+        in_sh[-1] = n_filters
+        self.assertTrue(list(enc_out['out'].shape) == in_sh)
+
+        print(enc_out['state'].shape)
+        zero_history = enc.get_zero_history(inp)
+        print(zero_history.shape)
+        self.assertTrue(list(enc_out['state'].shape) == list(zero_history.shape))
+
+    def test_EncCNN_shared(self):
+
+        self.assertRaises(TorchnessException, EncCNN, in_features=6, kernel_size=4) # even number for kernel
+
+        in_features = 128
+        inp = torch.rand(256,512,in_features)
+        print(inp.shape)
+
+        enc = EncCNN(in_features, shared_lays=True)
+        print(enc)
+        enc_out = enc(inp)
+
+        print(enc_out['out'].shape)
+        self.assertTrue(list(enc_out['out'].shape) == list(inp.shape))
+
+        print(enc_out['state'].shape)
+        zero_history = enc.get_zero_history(inp)
+        print(zero_history.shape)
+        self.assertTrue(list(enc_out['state'].shape) == list(zero_history.shape))
+
+    def test_EncCNN_history(self):
+
+        in_features = 3
+        inp = torch.rand(6,in_features)
+        print(inp)
+
+        enc = EncCNN(
+            in_features=    in_features,
+            n_layers=       2,
+            n_filters=      4)
+        print(enc)
+        enc_out = enc(inp)
+        print(enc_out)
+
+        print(enc_out['state'].shape)
+        print(enc.get_zero_history(inp).shape)
+        self.assertTrue(list(enc_out['state'].shape) == list(enc.get_zero_history(inp).shape))
+
+        enc_out = enc(inp, history=enc_out['state'])
+        print(enc_out)
