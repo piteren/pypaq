@@ -140,7 +140,9 @@ class LayConv1D(torch.nn.Conv1d):
         return out
 
 """
-# TODO: To Be Implemented
+# Transformer Encoder Layer is here: torch.nn.modules.transformer.TransformerEncoderLayer
+# MHA Module is here: torch.nn.modules.activation.MultiheadAttention
+# QKV attention function is here: torch.nn.functional._scaled_dot_product_attention
 class Attn(torch.nn.Module):
 
     def __init__(self):
