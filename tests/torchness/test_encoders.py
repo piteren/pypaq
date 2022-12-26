@@ -2,7 +2,7 @@ import torch
 import unittest
 
 from pypaq.torchness.base_elements import TorchnessException
-from pypaq.torchness.encoders import LayBlockDRT, EncDRT, LayBlockCNN, EncCNN
+from pypaq.torchness.encoders import LayBlockDRT, EncDRT, LayBlockCNN, EncCNN, LayBlockTNS, EncTNS
 
 
 class TestEncoders(unittest.TestCase):
@@ -235,3 +235,14 @@ class TestEncoders(unittest.TestCase):
 
         enc_out = enc(inp, history=enc_out['state'])
         print(enc_out)
+
+    def test_EncTNS(self):
+
+        in_features = 64
+        inp = torch.rand(16,32,in_features)
+        print(inp.shape)
+
+        enc = EncTNS(num_layers=4, d_model=in_features)
+        print(enc)
+        out = enc(inp)
+        print(out['out'].shape, len(out['zsL']))

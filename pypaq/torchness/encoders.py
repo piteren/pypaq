@@ -3,24 +3,25 @@ import torch
 
 from pypaq.torchness.types import ACT, INI, TNS, DTNS
 from pypaq.torchness.base_elements import bert_initializer, my_initializer, TorchnessException
-from pypaq.torchness.layers import LayDense, TF_Dropout, LayConv1D, zeroes
+from pypaq.torchness.layers import LayDense, TF_Dropout, LayConv1D, LayRES, zeroes
 
 
-# Block (Layer) of EncDRT (LN > Dense > drop > RES)
+# Block (Layer) of EncDRT (LN > Dense or two_with_drop_in_between > drop > RES with drop)
 class LayBlockDRT(torch.nn.Module):
 
     def __init__(
             self,
             in_width: int,
-            do_scaled_dns: bool=    False,          # two denses (True) or single dense (False)
-            dns_scale: int=         4,              # up-scale for first dense of two
-            activation: ACT=        torch.nn.ReLU,
-            lay_dropout: float=     0.0,            # dropout after dense/s
-            residual: bool=         True,           # residual yes/no
-            res_dropout: float=     0.0,            # dropout on residual connection
-            device=                 None,
-            dtype=                  None,
-            initializer: INI=       None):
+            do_scaled_dns: bool=        False,          # two denses (True) or single dense (False)
+            dns_scale: int=             4,              # up-scale for first dense of two
+            activation: ACT=            torch.nn.ReLU,
+            interlay_dropout: float=    0.0,            # dropout in between two denses
+            lay_dropout: float=         0.0,            # dropout after dense/s
+            residual: bool=             True,           # residual yes/no
+            res_dropout: float=         0.0,            # dropout on residual connection
+            device=                     None,
+            dtype=                      None,
+            initializer: INI=           None):
 
         super(LayBlockDRT, self).__init__()
 
@@ -63,30 +64,31 @@ class LayBlockDRT(torch.nn.Module):
                 initializer=    initializer))
         for dix, l in enumerate(self.denses): self.add_module(f'dense{dix}', l)
 
+        self.drop_interlay = torch.nn.Dropout(p=interlay_dropout) if interlay_dropout and do_scaled_dns else None
+
         self.drop_lay = torch.nn.Dropout(p=lay_dropout) if lay_dropout else None
 
-        self.add_res = residual
-
-        self.drop_res = torch.nn.Dropout(p=res_dropout) if res_dropout else None
+        self.res = LayRES(in_features=in_width, dropout=res_dropout) if residual else None
 
     def forward(self, input:TNS) -> DTNS:
 
         out = self.ln_in(input)
 
-        dense = self.denses[0]
-        out = dense(out)
+        out = self.denses[0](out)
         zsL = [zeroes(out)]
 
         if len(self.denses) > 1: # there is second one, without activation
-            dense = self.denses[1]
-            out = dense(out)
+
+            if self.drop_interlay:
+                out = self.drop_interlay(out)
+
+            out = self.denses[1](out)
 
         if self.drop_lay:
             out = self.drop_lay(out)
 
-        if self.add_res:
-            if self.drop_res: x = self.drop_res(input)
-            out += input # residual
+        if self.res:
+            out = self.res(input=out, bypass=input)
 
         return {
             'out':  out,
@@ -100,8 +102,8 @@ class EncDRT(torch.nn.Module):
             self,
             in_width: int,
             in_dropout: float=          0.0,            # dropout on input
-            shared_lays: bool=          False,          # shared variables in enc_layers
             n_layers: int=              6,
+            shared_lays: bool=          False,          # shared variables in enc_layers
             lay_width: Optional[int]=   None,           # for None matches input width
             do_scaled_dns: bool=        True,
             dns_scale: int=             4,              # scale(*) of first dense
@@ -181,7 +183,7 @@ class LayBlockCNN(torch.nn.Module):
     def __init__(
             self,
             n_filters: int,                             # num of filters
-            kernel_size :int=           3,              # layer kernel
+            kernel_size: int=           3,              # layer kernel
             activation: ACT=            torch.nn.ReLU,  # global enc activation func
             lay_dropout: float=         0.0,
             res_dropout: float=         0.0,
@@ -221,7 +223,7 @@ class LayBlockCNN(torch.nn.Module):
 
         self.lay_drop = torch.nn.Dropout(p=lay_dropout) if lay_dropout else None
 
-        self.res_drop = torch.nn.Dropout(p=res_dropout) if res_dropout else None
+        self.res = LayRES(in_features=n_filters, dropout=res_dropout)
 
         self.lay_DRT = LayBlockDRT(
             in_width=       n_filters,
@@ -260,10 +262,7 @@ class LayBlockCNN(torch.nn.Module):
         if self.lay_drop:
             out = self.lay_drop(out)
 
-        if self.res_drop:
-            input = self.res_drop(input)
-
-        out += input  # RES
+        out = self.res(input=out, bypass=input)
 
         if self.lay_DRT:
             lay_out = self.lay_DRT(out)
@@ -390,7 +389,7 @@ class EncCNN(torch.nn.Module):
 # QKV_linear_projection + QKV_scaled_dot_product_attention + linear_out_projection
 class MyMHA(torch.nn.MultiheadAttention):
 
-    # replaces xavier with BERT
+    # replaces xavier with bert_initializer
     def _reset_parameters(self):
 
         if self._qkv_same_embed_dim:
@@ -410,28 +409,20 @@ class MyMHA(torch.nn.MultiheadAttention):
             bert_initializer(self.bias_v)
 
 
-# Block (Layer) of EncTNS (based on torch.nn.modules.transformer.TransformerEncoderLayer; )
+# Block (Layer) of EncTNS (based on torch.nn.modules.transformer.TransformerEncoderLayer)
 class LayBlockTNS(torch.nn.Module):
-
-    __constants__ = ['batch_first', 'norm_first']
 
     def __init__(
             self,
-            d_model: int=               512,
-            nhead: int=                 8,
-            dns_scale: int=             4,              # up-scale for first dense of two
-            dropout: float=             0.1,
-            dropout_att: float=         0.0,            # in original (torch.nn..) implementation dropout_att == dropout
-            activation: ACT=            torch.nn.ReLU,
-            #layer_norm_eps: float = 1e-5,              # TODO: remove
-            #batch_first: bool = False,                 # TODO: remove
-            #norm_first: bool = False,                  # TODO: remove
-            device=                     None,
-            dtype=                      None,
-            initializer: INI=           None            # TODO: check orig initializer
-    ):
-
-        #factory_kwargs = {'device': device, 'dtype': dtype} # TODO: remove
+            d_model: int=       512,
+            nhead: int=         8,
+            dns_scale: int=     4,              # up-scale for first dense of two
+            dropout: float=     0.1,
+            dropout_att: float= 0.0,            # in original (torch.nn..) implementation dropout_att == dropout
+            activation: ACT=    torch.nn.ReLU,
+            dropout_res: float= 0.0,            # dropout on residual bypass
+            device=             None,
+            dtype=              None):
 
         super(LayBlockTNS, self).__init__()
 
@@ -455,52 +446,27 @@ class LayBlockTNS(torch.nn.Module):
 
         self.dropout1 = torch.nn.Dropout(p=dropout) if dropout else None
 
+        self.res1 = LayRES(in_features=d_model, dropout=dropout_res)
+
+        # (LN > Dense or two_with_drop_in_between > drop > RES with drop)
         self.lay_drt = LayBlockDRT(
-            in_width=       d_model,
-            do_scaled_dns=  True,
-            dns_scale=      dns_scale,
-            activation=     activation,
-            lay_dropout=    dropout,
-            residual=       True,
-            res_dropout=    0.0, # TODO: use
-            device=         device,
-            dtype=          dtype,
-            initializer=    bert_initializer)
-
-        # Implementation of Feedforward model
-        self.linear1 = Linear(d_model, dim_feedforward, **factory_kwargs)
-        self.dropout = Dropout(dropout)
-        self.linear2 = Linear(dim_feedforward, d_model, **factory_kwargs)
-
-        self.norm2 = LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)
-
-        self.dropout2 = Dropout(dropout)
-
-        # Legacy string support for activation function.
-        if isinstance(activation, str):
-            activation = _get_activation_fn(activation)
-
-        # We can't test self.activation in forward() in TorchScript,
-        # so stash some information about it instead.
-        if activation is F.relu:
-            self.activation_relu_or_gelu = 1
-        elif activation is F.gelu:
-            self.activation_relu_or_gelu = 2
-        else:
-            self.activation_relu_or_gelu = 0
-        self.activation = activation # TODO: call () __init__
-
-    def __setstate__(self, state):
-        super(LayBlockTNS, self).__setstate__(state)
-        # TODO: why such activation policy
-        if not hasattr(self, 'activation'):
-            self.activation = F.relu
+            in_width=           d_model,
+            do_scaled_dns=      True,
+            dns_scale=          dns_scale,
+            activation=         activation,
+            interlay_dropout=   dropout, # INFO: TF implementation has not this dropout
+            lay_dropout=        dropout,
+            residual=           True,
+            res_dropout=        dropout_res,
+            device=             device,
+            dtype=              dtype,
+            initializer=        bert_initializer)
 
     def forward(
             self,
-            src: torch.Tensor,
-            src_mask: Optional[torch.Tensor]=               None,
-            src_key_padding_mask: Optional[torch.Tensor]=   None) -> torch.Tensor:
+            src: TNS,
+            src_mask: Optional[TNS]=                None,
+            src_key_padding_mask: Optional[TNS]=    None) -> DTNS:
 
         x = self.norm1(src) # norm first https://arxiv.org/pdf/2002.04745v1.pdf
 
@@ -515,88 +481,63 @@ class LayBlockTNS(torch.nn.Module):
         if self.dropout1:
             x = self.dropout1(x)
 
-        sa_block_out = x + src # first res #TODO: add residual dropout
+        x = self.res1(input=x, bypass=src)
 
-        x = sa_block_out + self._ff_block(self.norm2(sa_block_out))
+        return self.lay_drt(x)
 
-        return x
 
-    # feed forward block
-    def _ff_block(self, x: Tensor) -> Tensor:
-        x = self.linear2(self.dropout(self.activation(self.linear1(x))))
-        return self.dropout2(x)
 
 
 # Transformer Encoder (based on torch.nn.modules.transformer.TransformerEncoder)
 class EncTNS(torch.nn.Module):
 
-    __constants__ = ['norm']
-
     def __init__(
             self,
-            num_layers,
+            num_layers: int=            6,
+            shared_lays: bool=          False,          # shared variables in enc_layers
             # add task attention (TA) mode
-            max_seq_len: Optional[int]=     None,   # when int given adds positional embeddings (PE) to seq
-            # norm=None, #TODO <- disable, hardcode
-            enable_nested_tensor=False):
+            max_seq_len: Optional[int]= None,           # when int given adds positional embeddings (PE) to seq
+            # block params
+            d_model: int=               512,
+            nhead: int=                 8,
+            dns_scale: int=             4,
+            dropout: float=             0.1,
+            dropout_att: float=         0.0,
+            activation: ACT=            torch.nn.ReLU,
+            dropout_res: float=         0.0,
+            device=                     None,
+            dtype=                      None):
+
         super(EncTNS, self).__init__()
-        self.layers = _get_clones(encoder_layer, num_layers)
-        self.num_layers = num_layers
-        self.norm = norm
-        self.enable_nested_tensor = enable_nested_tensor
 
-    def forward(self, src: torch.Tensor, mask: Optional[Tensor] = None, src_key_padding_mask: Optional[Tensor] = None) -> Tensor:
-        r"""Pass the input through the encoder layers in turn.
+        num_layers_to_build = 1 if shared_lays else num_layers
+        self.layers = [LayBlockTNS(
+            d_model=        d_model,
+            nhead=          nhead,
+            dns_scale=      dns_scale,
+            dropout=        dropout,
+            dropout_att=    dropout_att,
+            activation=     activation,
+            dropout_res=    dropout_res,
+            device=         device,
+            dtype=          dtype,
+        ) for _ in range(num_layers_to_build)]
+        for lix,lay in enumerate(self.layers): self.add_module(f'lay_{lix}',lay)
+        if shared_lays and num_layers > 1: self.drt_lays *= num_layers
 
-        Args:
-            src: the sequence to the encoder (required).
-            mask: the mask for the src sequence (optional).
-            src_key_padding_mask: the mask for the src keys per batch (optional).
+        self.norm = torch.nn.LayerNorm(
+            normalized_shape=   d_model,
+            device=             device,
+            dtype=              dtype)
 
-        Shape:
-            see the docs in Transformer class.
-        """
+    def forward(self, src:TNS, mask:Optional[TNS]=None) -> DTNS:
         output = src
-        convert_to_nested = False
-        first_layer = self.layers[0]
-        if isinstance(first_layer, torch.nn.TransformerEncoderLayer):
-            if (not first_layer.norm_first and not first_layer.training and
-                    first_layer.self_attn.batch_first and
-                    first_layer.self_attn._qkv_same_embed_dim and first_layer.activation_relu_or_gelu and
-                    first_layer.norm1.eps == first_layer.norm2.eps and
-                    src.dim() == 3 and self.enable_nested_tensor) :
-                if src_key_padding_mask is not None and not output.is_nested and mask is None:
-                    tensor_args = (
-                        src,
-                        first_layer.self_attn.in_proj_weight,
-                        first_layer.self_attn.in_proj_bias,
-                        first_layer.self_attn.out_proj.weight,
-                        first_layer.self_attn.out_proj.bias,
-                        first_layer.norm1.weight,
-                        first_layer.norm1.bias,
-                        first_layer.norm2.weight,
-                        first_layer.norm2.bias,
-                        first_layer.linear1.weight,
-                        first_layer.linear1.bias,
-                        first_layer.linear2.weight,
-                        first_layer.linear2.bias,
-                    )
-                    if not torch.overrides.has_torch_function(tensor_args):
-                        if not torch.is_grad_enabled() or all([not x.requires_grad for x in tensor_args]):
-                            if output.is_cuda or 'cpu' in str(output.device):
-                                convert_to_nested = True
-                                output = torch._nested_tensor_from_mask(output, src_key_padding_mask.logical_not())
-
+        zsL = []
         for mod in self.layers:
-            if convert_to_nested:
-                output = mod(output, src_mask=mask)
-            else:
-                output = mod(output, src_mask=mask, src_key_padding_mask=src_key_padding_mask)
-
-        if convert_to_nested:
-            output = output.to_padded_tensor(0.)
-
-        if self.norm is not None:
-            output = self.norm(output)
-
-        return output
+            block_out = mod(src=output, src_mask=mask)
+            output = block_out['out']
+            zsL += block_out['zsL']
+        output = self.norm(output)
+        return {
+            'out':  output,
+            'zsL':  zsL}

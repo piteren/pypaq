@@ -1,6 +1,7 @@
-import math
 import torch
+from typing import Optional
 
+from pypaq.torchness.base_elements import TorchnessException
 from pypaq.torchness.types import ACT, INI, TNS
 from pypaq.torchness.base_elements import my_initializer
 
@@ -96,7 +97,7 @@ class LayConv1D(torch.nn.Conv1d):
             self,
             in_features: int,                   # input num of channels
             n_filters: int,                     # output num of channels
-            kernel_size=        3,
+            kernel_size: int=   3,
             stride=             1,              # single number or a one-element tuple
             padding=            'same',
             dilation=           1,
@@ -139,6 +140,27 @@ class LayConv1D(torch.nn.Conv1d):
         out = torch.transpose(out, dim0=-1, dim1=-2) # transpose back
         if self.activation: out = self.activation(out)
         return out
+
+# Residual Layer with dropout for bypass input
+class LayRES(torch.nn.Module):
+
+    def __init__(
+            self,
+            in_features: Optional[int]= None,
+            dropout: float=             0.0):
+
+        if dropout and in_features is None:
+            raise TorchnessException('LayRES with dropout needs to know its in_features (int) - cannot be None')
+
+        super(LayRES, self).__init__()
+
+        self.dropout = torch.nn.Dropout(p=dropout) if dropout else None
+
+    def forward(self, input:TNS, bypass:TNS) -> TNS:
+        if self.dropout:
+            bypass = self.dropout(bypass)
+        return input + bypass
+
 
 # returns [0,1] tensor: 1 where input not activated (value =< 0), looks at last dimension / features
 def zeroes(input :TNS) -> TNS:
