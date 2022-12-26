@@ -209,7 +209,7 @@ def enc_CNN(
         ldrt_scale: int or None=            4,          # lay DRT scale of first dense
         ldrt_drop: float or None=           0.0,        # lay DRT dropout
         ldrt_res=                           True,       # lay DRT - do residual connection
-        ldrt_res_drop : float or None=      0.0,        # lay DRT residual dropout
+        ldrt_res_drop :float or None=       0.0,        # lay DRT residual dropout
 
         training_flag :tf.Tensor or bool=   None,       # dropout training flag tensor
         initializer=                        None,

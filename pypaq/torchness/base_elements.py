@@ -6,9 +6,18 @@ from typing import Optional
 class TorchnessException(Exception):
     pass
 
+# weights initializer from BERT, the only difference is that in torch values are CLAMPED not SAMPLED till in <a,b>
+def bert_initializer(*args, std=0.02, **kwargs):
+    return torch.nn.init.trunc_normal_(*args, **kwargs, std=std, a=-2*std, b=2*std)
+
 def my_initializer(*args, std=0.02, **kwargs):
-    # https://stackoverflow.com/questions/49433936/how-do-i-initialize-weights-in-pytorch
-    return torch.nn.init.trunc_normal_(*args, **kwargs, std=std)
+    # different layers use different initialization functions:
+    # torch Linear % Conv1D uses kaiming_uniform_(weights) & xavier_uniform_(bias)
+    # my TF uses trunc_normal_(weights, std=0.02, a==b==2*std) & 0(bias) <- from BERT
+    # - kaiming_uniform_ is uniform_ with bound from 2015 paper, (for relu)
+    # - xavier_uniform_ is uniform_ whit bound from 2010 paper (for linear / sigmoid)
+    # - trunc_normal_ is normal with mean 0 and given std, all values SAMPLED till in <a,b>
+    return bert_initializer(*args, **kwargs, std=std)
 
 # weighted merge of two checkpoints, does NOT check for compatibility of two checkpoints, but will crash if those are not compatible
 def mrg_ckpts(
@@ -31,11 +40,7 @@ def mrg_ckpts(
         std_dev = float(torch.std(cmsd_A[k]))
         noise_tensor = torch.zeros_like(cmsd_A[k])
         if std_dev != 0.0: # bias variable case
-            torch.nn.init.trunc_normal_(
-                tensor= noise_tensor,
-                std=    std_dev,
-                a=      -2*std_dev,
-                b=      2 *std_dev)
+            my_initializer(noise_tensor, std=std_dev)
         cmsd_M[k] = ratio * cmsd_A[k] + (1 - ratio) * cmsd_B[k] + noise * noise_tensor
 
     checkpoint_M = {}

@@ -30,15 +30,13 @@ class LayDense(torch.nn.Linear):
     def reset_parameters(self) -> None:
 
         self.initializer(self.weight)
-
         if self.bias is not None:
+            torch.nn.init.zeros_(self.bias)
 
-            #torch.nn.init.zeros_(self.bias) # my old way
-
-            # original Linear reset for bias
-            fan_in, _ = torch.nn.init._calculate_fan_in_and_fan_out(self.weight)
-            bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
-            torch.nn.init.uniform_(self.bias, -bound, bound)
+            # original Linear (with uniform) reset for bias
+            # fan_in, _ = torch.nn.init._calculate_fan_in_and_fan_out(self.weight)
+            # bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+            # torch.nn.init.uniform_(self.bias, -bound, bound)
 
     def forward(self, input:TNS) -> TNS:
         out = super().forward(input)
@@ -91,7 +89,7 @@ class TF_Dropout(torch.nn.Dropout):
     def extra_repr(self) -> str:
         return f'time_drop={self.time_drop}, feat_drop={self.feat_drop}, inplace={self.inplace}'
 
-# my Conv1d, with initializer + activation
+# my Conv1D, with initializer + activation
 class LayConv1D(torch.nn.Conv1d):
 
     def __init__(
@@ -128,9 +126,12 @@ class LayConv1D(torch.nn.Conv1d):
         if not initializer: initializer = my_initializer
         initializer(self.weight)
         if self.bias is not None:
-            fan_in, _ = torch.nn.init._calculate_fan_in_and_fan_out(self.weight)
-            bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
-            torch.nn.init.uniform_(self.bias, -bound, bound)
+            torch.nn.init.zeros_(self.bias)
+
+            # original Conv1D (with uniform) reset for bias
+            # fan_in, _ = torch.nn.init._calculate_fan_in_and_fan_out(self.weight)
+            # bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+            # torch.nn.init.uniform_(self.bias, -bound, bound)
 
     def forward(self, input:TNS) -> TNS:
         inp_trans = torch.transpose(input=input, dim0=-1, dim1=-2) # transposes input to (N,C,L) <- (N,L,C), since torch.nn.Conv1d assumes that channels is @ -2 dim
@@ -138,16 +139,6 @@ class LayConv1D(torch.nn.Conv1d):
         out = torch.transpose(out, dim0=-1, dim1=-2) # transpose back
         if self.activation: out = self.activation(out)
         return out
-
-"""
-# Transformer Encoder Layer is here: torch.nn.modules.transformer.TransformerEncoderLayer
-# MHA Module is here: torch.nn.modules.activation.MultiheadAttention
-# QKV attention function is here: torch.nn.functional._scaled_dot_product_attention
-class Attn(torch.nn.Module):
-
-    def __init__(self):
-        super(Attn, self).__init__()
-"""
 
 # returns [0,1] tensor: 1 where input not activated (value =< 0), looks at last dimension / features
 def zeroes(input :TNS) -> TNS:

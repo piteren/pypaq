@@ -2,7 +2,7 @@ from typing import Optional
 import torch
 
 from pypaq.torchness.types import ACT, INI, TNS, DTNS
-from pypaq.torchness.base_elements import my_initializer, TorchnessException
+from pypaq.torchness.base_elements import bert_initializer, my_initializer, TorchnessException
 from pypaq.torchness.layers import LayDense, TF_Dropout, LayConv1D, zeroes
 
 
@@ -385,3 +385,218 @@ class EncCNN(torch.nn.Module):
             'out':      output,
             'state':    torch.concat(states,dim=-3),
             'zsL':      zsL}
+
+
+# QKV_linear_projection + QKV_scaled_dot_product_attention + linear_out_projection
+class MyMHA(torch.nn.MultiheadAttention):
+
+    # replaces xavier with BERT
+    def _reset_parameters(self):
+
+        if self._qkv_same_embed_dim:
+            bert_initializer(self.in_proj_weight)
+        else:
+            bert_initializer(self.q_proj_weight)
+            bert_initializer(self.k_proj_weight)
+            bert_initializer(self.v_proj_weight)
+        bert_initializer(self.out_proj.weight)
+
+        if self.in_proj_bias is not None:
+            torch.nn.init.zeros_(self.in_proj_bias)
+            torch.nn.init.zeros_(self.out_proj.bias)
+        if self.bias_k is not None:
+            bert_initializer(self.bias_k)
+        if self.bias_v is not None:
+            bert_initializer(self.bias_v)
+
+
+# Block (Layer) of EncTNS (based on torch.nn.modules.transformer.TransformerEncoderLayer; )
+class LayBlockTNS(torch.nn.Module):
+
+    __constants__ = ['batch_first', 'norm_first']
+
+    def __init__(
+            self,
+            d_model: int=               512,
+            nhead: int=                 8,
+            dns_scale: int=             4,              # up-scale for first dense of two
+            dropout: float=             0.1,
+            dropout_att: float=         0.0,            # in original (torch.nn..) implementation dropout_att == dropout
+            activation: ACT=            torch.nn.ReLU,
+            #layer_norm_eps: float = 1e-5,              # TODO: remove
+            #batch_first: bool = False,                 # TODO: remove
+            #norm_first: bool = False,                  # TODO: remove
+            device=                     None,
+            dtype=                      None,
+            initializer: INI=           None            # TODO: check orig initializer
+    ):
+
+        #factory_kwargs = {'device': device, 'dtype': dtype} # TODO: remove
+
+        super(LayBlockTNS, self).__init__()
+
+        self.norm1 = torch.nn.LayerNorm(
+            normalized_shape=   d_model,
+            device=             device,
+            dtype=              dtype)
+
+        self.self_attn = MyMHA(
+            embed_dim=      d_model,
+            num_heads=      nhead,
+            dropout=        dropout_att,
+            bias=           True,
+            add_bias_kv=    False,
+            add_zero_attn=  False,
+            kdim=           None,
+            vdim=           None,
+            batch_first=    True,
+            device=         device,
+            dtype=          dtype)
+
+        self.dropout1 = torch.nn.Dropout(p=dropout) if dropout else None
+
+        self.lay_drt = LayBlockDRT(
+            in_width=       d_model,
+            do_scaled_dns=  True,
+            dns_scale=      dns_scale,
+            activation=     activation,
+            lay_dropout=    dropout,
+            residual=       True,
+            res_dropout=    0.0, # TODO: use
+            device=         device,
+            dtype=          dtype,
+            initializer=    bert_initializer)
+
+        # Implementation of Feedforward model
+        self.linear1 = Linear(d_model, dim_feedforward, **factory_kwargs)
+        self.dropout = Dropout(dropout)
+        self.linear2 = Linear(dim_feedforward, d_model, **factory_kwargs)
+
+        self.norm2 = LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)
+
+        self.dropout2 = Dropout(dropout)
+
+        # Legacy string support for activation function.
+        if isinstance(activation, str):
+            activation = _get_activation_fn(activation)
+
+        # We can't test self.activation in forward() in TorchScript,
+        # so stash some information about it instead.
+        if activation is F.relu:
+            self.activation_relu_or_gelu = 1
+        elif activation is F.gelu:
+            self.activation_relu_or_gelu = 2
+        else:
+            self.activation_relu_or_gelu = 0
+        self.activation = activation # TODO: call () __init__
+
+    def __setstate__(self, state):
+        super(LayBlockTNS, self).__setstate__(state)
+        # TODO: why such activation policy
+        if not hasattr(self, 'activation'):
+            self.activation = F.relu
+
+    def forward(
+            self,
+            src: torch.Tensor,
+            src_mask: Optional[torch.Tensor]=               None,
+            src_key_padding_mask: Optional[torch.Tensor]=   None) -> torch.Tensor:
+
+        x = self.norm1(src) # norm first https://arxiv.org/pdf/2002.04745v1.pdf
+
+        x = self.self_attn(
+            query=              x,
+            key=                x,
+            value=              x,
+            key_padding_mask=   src_key_padding_mask,
+            need_weights=       False,
+            attn_mask=          src_mask)[0]
+
+        if self.dropout1:
+            x = self.dropout1(x)
+
+        sa_block_out = x + src # first res #TODO: add residual dropout
+
+        x = sa_block_out + self._ff_block(self.norm2(sa_block_out))
+
+        return x
+
+    # feed forward block
+    def _ff_block(self, x: Tensor) -> Tensor:
+        x = self.linear2(self.dropout(self.activation(self.linear1(x))))
+        return self.dropout2(x)
+
+
+# Transformer Encoder (based on torch.nn.modules.transformer.TransformerEncoder)
+class EncTNS(torch.nn.Module):
+
+    __constants__ = ['norm']
+
+    def __init__(
+            self,
+            num_layers,
+            # add task attention (TA) mode
+            max_seq_len: Optional[int]=     None,   # when int given adds positional embeddings (PE) to seq
+            # norm=None, #TODO <- disable, hardcode
+            enable_nested_tensor=False):
+        super(EncTNS, self).__init__()
+        self.layers = _get_clones(encoder_layer, num_layers)
+        self.num_layers = num_layers
+        self.norm = norm
+        self.enable_nested_tensor = enable_nested_tensor
+
+    def forward(self, src: torch.Tensor, mask: Optional[Tensor] = None, src_key_padding_mask: Optional[Tensor] = None) -> Tensor:
+        r"""Pass the input through the encoder layers in turn.
+
+        Args:
+            src: the sequence to the encoder (required).
+            mask: the mask for the src sequence (optional).
+            src_key_padding_mask: the mask for the src keys per batch (optional).
+
+        Shape:
+            see the docs in Transformer class.
+        """
+        output = src
+        convert_to_nested = False
+        first_layer = self.layers[0]
+        if isinstance(first_layer, torch.nn.TransformerEncoderLayer):
+            if (not first_layer.norm_first and not first_layer.training and
+                    first_layer.self_attn.batch_first and
+                    first_layer.self_attn._qkv_same_embed_dim and first_layer.activation_relu_or_gelu and
+                    first_layer.norm1.eps == first_layer.norm2.eps and
+                    src.dim() == 3 and self.enable_nested_tensor) :
+                if src_key_padding_mask is not None and not output.is_nested and mask is None:
+                    tensor_args = (
+                        src,
+                        first_layer.self_attn.in_proj_weight,
+                        first_layer.self_attn.in_proj_bias,
+                        first_layer.self_attn.out_proj.weight,
+                        first_layer.self_attn.out_proj.bias,
+                        first_layer.norm1.weight,
+                        first_layer.norm1.bias,
+                        first_layer.norm2.weight,
+                        first_layer.norm2.bias,
+                        first_layer.linear1.weight,
+                        first_layer.linear1.bias,
+                        first_layer.linear2.weight,
+                        first_layer.linear2.bias,
+                    )
+                    if not torch.overrides.has_torch_function(tensor_args):
+                        if not torch.is_grad_enabled() or all([not x.requires_grad for x in tensor_args]):
+                            if output.is_cuda or 'cpu' in str(output.device):
+                                convert_to_nested = True
+                                output = torch._nested_tensor_from_mask(output, src_key_padding_mask.logical_not())
+
+        for mod in self.layers:
+            if convert_to_nested:
+                output = mod(output, src_mask=mask)
+            else:
+                output = mod(output, src_mask=mask, src_key_padding_mask=src_key_padding_mask)
+
+        if convert_to_nested:
+            output = output.to_padded_tensor(0.)
+
+        if self.norm is not None:
+            output = self.norm(output)
+
+        return output
