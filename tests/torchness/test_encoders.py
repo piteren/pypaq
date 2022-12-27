@@ -236,7 +236,7 @@ class TestEncoders(unittest.TestCase):
         enc_out = enc(inp, history=enc_out['state'])
         print(enc_out)
 
-    def test_EncTNS(self):
+    def test_EncTNS_base(self):
 
         in_features = 64
         inp = torch.rand(16,32,in_features)
@@ -246,3 +246,16 @@ class TestEncoders(unittest.TestCase):
         print(enc)
         out = enc(inp)
         print(out['out'].shape, len(out['zsL']))
+
+    def test_EncTNS_PE(self):
+
+        in_features = 64
+        seq_len = 32
+        inp = torch.rand(16,seq_len,in_features)
+        print(inp.shape)
+
+        enc = EncTNS(num_layers=4, d_model=in_features, max_seq_len=48)
+        print(enc)
+        print(enc.pos_emb)
+        out = enc(inp)
+        print(out['out'].shape)

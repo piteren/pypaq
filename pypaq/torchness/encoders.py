@@ -486,8 +486,6 @@ class LayBlockTNS(torch.nn.Module):
         return self.lay_drt(x)
 
 
-
-
 # Transformer Encoder (based on torch.nn.modules.transformer.TransformerEncoder)
 class EncTNS(torch.nn.Module):
 
@@ -496,7 +494,7 @@ class EncTNS(torch.nn.Module):
             num_layers: int=            6,
             shared_lays: bool=          False,          # shared variables in enc_layers
             # add task attention (TA) mode
-            max_seq_len: Optional[int]= None,           # when int given adds positional embeddings (PE) to seq
+            max_seq_len: Optional[int]= None,           # when given (int) adds positional embeddings (PE) to seq
             # block params
             d_model: int=               512,
             nhead: int=                 8,
@@ -509,6 +507,12 @@ class EncTNS(torch.nn.Module):
             dtype=                      None):
 
         super(EncTNS, self).__init__()
+
+        # positional embeddings (trainable)
+        self.pos_emb = None
+        if max_seq_len:
+            self.pos_emb = torch.nn.Parameter(torch.empty((max_seq_len, d_model), device=device, dtype=dtype))
+            bert_initializer(self.pos_emb)
 
         num_layers_to_build = 1 if shared_lays else num_layers
         self.layers = [LayBlockTNS(
@@ -531,13 +535,21 @@ class EncTNS(torch.nn.Module):
             dtype=              dtype)
 
     def forward(self, src:TNS, mask:Optional[TNS]=None) -> DTNS:
+
         output = src
+
+        # add positional embeddings if needed
+        if self.pos_emb is not None:
+            output += self.pos_emb[:output.size(-2)]
+
         zsL = []
         for mod in self.layers:
             block_out = mod(src=output, src_mask=mask)
             output = block_out['out']
             zsL += block_out['zsL']
+
         output = self.norm(output)
+
         return {
             'out':  output,
             'zsL':  zsL}
