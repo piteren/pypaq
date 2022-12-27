@@ -236,6 +236,25 @@ class TestEncoders(unittest.TestCase):
         enc_out = enc(inp, history=enc_out['state'])
         print(enc_out)
 
+    def test_LayBlockTNS_base(self):
+
+        in_features = 64
+        inp = torch.rand(16,32,in_features)
+        print(inp.shape)
+
+        lay_tns = LayBlockTNS(d_model=in_features)
+        print(lay_tns)
+        out = lay_tns(inp)
+        print(out['out'].shape)
+        print(out['zsL'][0].shape)
+
+        # TAT
+        query = torch.mean(inp, dim=-2, keepdim=True)
+        print(query.shape)
+        out = lay_tns(inp, task_query=query)
+        print(out['out'].shape)
+        print(out['zsL'][0].shape)
+
     def test_EncTNS_base(self):
 
         in_features = 64
@@ -243,6 +262,7 @@ class TestEncoders(unittest.TestCase):
         print(inp.shape)
 
         enc = EncTNS(num_layers=4, d_model=in_features)
+        self.assertTrue(enc.pos_emb is None)
         print(enc)
         out = enc(inp)
         print(out['out'].shape, len(out['zsL']))
@@ -254,8 +274,40 @@ class TestEncoders(unittest.TestCase):
         inp = torch.rand(16,seq_len,in_features)
         print(inp.shape)
 
-        enc = EncTNS(num_layers=4, d_model=in_features, max_seq_len=48)
+        enc = EncTNS(num_layers=2, d_model=in_features, max_seq_len=48)
         print(enc)
         print(enc.pos_emb)
+        self.assertTrue(enc.pos_emb is not None)
+        out = enc(inp)
+        print(out['out'].shape)
+
+    def test_EncRNS_TAT(self):
+
+        in_features = 64
+        seq_len = 32
+        inp = torch.rand(16, seq_len, in_features)
+        print(inp.shape)
+
+        enc = EncTNS(
+            num_layers=     4,
+            num_layers_TAT= 2,
+            d_model=        in_features)
+        print(enc)
+        out = enc(inp)
+        print(out['out'].shape)
+
+    def test_EncRNS_TAT_shared(self):
+
+        in_features = 64
+        seq_len = 32
+        inp = torch.rand(16, seq_len, in_features)
+        print(inp.shape)
+
+        enc = EncTNS(
+            num_layers=     4,
+            num_layers_TAT= 2,
+            shared_lays=    (3,1,2),
+            d_model=        in_features)
+        print(enc)
         out = enc(inp)
         print(out['out'].shape)

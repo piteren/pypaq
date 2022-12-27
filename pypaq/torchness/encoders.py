@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union, Tuple
 import torch
 
 from pypaq.torchness.types import ACT, INI, TNS, DTNS
@@ -465,13 +465,17 @@ class LayBlockTNS(torch.nn.Module):
     def forward(
             self,
             src: TNS,
+            task_query: Optional[TNS]=              None,           # forces task-attention mode (TAT)
             src_mask: Optional[TNS]=                None,
             src_key_padding_mask: Optional[TNS]=    None) -> DTNS:
 
-        x = self.norm1(src) # norm first https://arxiv.org/pdf/2002.04745v1.pdf
+        x = src
+
+        if task_query is None: x = self.norm1(x) # norm first https://arxiv.org/pdf/2002.04745v1.pdf
+        else: task_query = self.norm1(task_query) # LN on task_query
 
         x = self.self_attn(
-            query=              x,
+            query=              x if task_query is None else task_query,
             key=                x,
             value=              x,
             key_padding_mask=   src_key_padding_mask,
@@ -481,7 +485,8 @@ class LayBlockTNS(torch.nn.Module):
         if self.dropout1:
             x = self.dropout1(x)
 
-        x = self.res1(input=x, bypass=src)
+        bypass = src if task_query is None else task_query
+        x = self.res1(input=x, bypass=bypass)
 
         return self.lay_drt(x)
 
@@ -491,20 +496,20 @@ class EncTNS(torch.nn.Module):
 
     def __init__(
             self,
-            num_layers: int=            6,
-            shared_lays: bool=          False,          # shared variables in enc_layers
-            # add task attention (TA) mode
-            max_seq_len: Optional[int]= None,           # when given (int) adds positional embeddings (PE) to seq
+            num_layers: int=                        6,
+            num_layers_TAT: int=                    0,
+            shared_lays: Optional[Tuple[int,...]]=  None,   # tuple defines layers groups with shared variables, e.g.: (2,2,2)
+            max_seq_len: Optional[int]=             None,   # when given (int) adds positional embeddings (PE) to seq
             # block params
-            d_model: int=               512,
-            nhead: int=                 8,
-            dns_scale: int=             4,
-            dropout: float=             0.1,
-            dropout_att: float=         0.0,
-            activation: ACT=            torch.nn.ReLU,
-            dropout_res: float=         0.0,
-            device=                     None,
-            dtype=                      None):
+            d_model: int=                           512,
+            nhead: int=                             8,
+            dns_scale: int=                         4,
+            dropout: float=                         0.1,
+            dropout_att: float=                     0.0,
+            activation: ACT=                        torch.nn.ReLU,
+            dropout_res: float=                     0.0,
+            device=                                 None,
+            dtype=                                  None):
 
         super(EncTNS, self).__init__()
 
@@ -514,8 +519,16 @@ class EncTNS(torch.nn.Module):
             self.pos_emb = torch.nn.Parameter(torch.empty((max_seq_len, d_model), device=device, dtype=dtype))
             bert_initializer(self.pos_emb)
 
-        num_layers_to_build = 1 if shared_lays else num_layers
-        self.layers = [LayBlockTNS(
+        # manage layers number
+        num_layers_to_build = num_layers + num_layers_TAT
+        if shared_lays is not None:
+
+            if not sum(shared_lays) == num_layers_to_build:
+                raise TorchnessException('Sum of shared layers must be equal to total num of layers (num_layers + num_layers_TAT)')
+
+            num_layers_to_build = len(shared_lays)
+
+        layers = [LayBlockTNS(
             d_model=        d_model,
             nhead=          nhead,
             dns_scale=      dns_scale,
@@ -526,8 +539,16 @@ class EncTNS(torch.nn.Module):
             device=         device,
             dtype=          dtype,
         ) for _ in range(num_layers_to_build)]
-        for lix,lay in enumerate(self.layers): self.add_module(f'lay_{lix}',lay)
-        if shared_lays and num_layers > 1: self.drt_lays *= num_layers
+        for lix,lay in enumerate(layers): self.add_module(f'lay_{lix}',lay)
+
+        if shared_lays is not None:
+            exp_layers = []
+            for lay,mul in zip(layers,shared_lays):
+                exp_layers += [lay]*mul
+            layers = exp_layers
+
+        self.layers = layers[:num_layers]
+        self.layers_TAT = layers[num_layers:]
 
         self.norm = torch.nn.LayerNorm(
             normalized_shape=   d_model,
@@ -547,6 +568,16 @@ class EncTNS(torch.nn.Module):
             block_out = mod(src=output, src_mask=mask)
             output = block_out['out']
             zsL += block_out['zsL']
+
+        # pass through task-attention layers
+        if self.layers_TAT:
+            seq = output
+            task_query = torch.mean(seq, dim=-2, keepdim=True) # first initial reduce
+            for mod in self.layers_TAT:
+                block_out = mod(src=seq, task_query=task_query, src_mask=mask)
+                task_query = block_out['out']
+                zsL += block_out['zsL']
+            output = task_query
 
         output = self.norm(output)
 
