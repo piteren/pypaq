@@ -1,4 +1,4 @@
-from typing import Optional, Union, Tuple
+from typing import Optional, Tuple
 import torch
 
 from pypaq.torchness.types import ACT, INI, TNS, DTNS

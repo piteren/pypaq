@@ -23,6 +23,7 @@ from pypaq.lipytools.pylogger import get_hi_child
 from pypaq.pms.parasave import ParaSave
 from pypaq.comoneural.nnwrap import NNWrap, NNWrapException
 from pypaq.mpython.devices import get_devices
+from pypaq.torchness.types import TNS, DTNS
 from pypaq.torchness.base_elements import mrg_ckpts
 from pypaq.torchness.scaled_LR import ScaledLR
 from pypaq.torchness.grad_clipping import GradClipperAVT
@@ -31,16 +32,19 @@ from pypaq.torchness.grad_clipping import GradClipperAVT
 # torch.nn.Module to be implemented with forward & loss methods
 class Module(ABC, torch.nn.Module):
 
+    def __init__(self):
+        torch.nn.Module.__init__(self)
+
     # returned dict should have at least 'logits' key with logits tensor
     @abstractmethod
-    def forward(self, *args, **kwargs) -> Dict[str,torch.Tensor]:
+    def forward(self, *args, **kwargs) -> DTNS:
         raise NotImplementedError
 
     # baseline accuracy implementation for logits & lables
     def accuracy(
             self,
-            logits: torch.Tensor,
-            labels: torch.Tensor) -> float:
+            logits: TNS,
+            labels: TNS) -> float:
         logits = logits.detach().cpu().numpy()
         pred = np.argmax(logits, axis=-1)
         labels = labels.cpu().numpy()
@@ -48,7 +52,7 @@ class Module(ABC, torch.nn.Module):
 
     # returned dict updates forward() Dict with loss & acc keys (accuracy or any other (increasing) performance float)
     @abstractmethod
-    def loss_acc(self, *args, **kwargs) -> Dict[str,torch.Tensor]:
+    def loss_acc(self, *args, **kwargs) -> DTNS:
         raise NotImplementedError
 
 
@@ -287,7 +291,7 @@ class MOTorch(NNWrap, Module):
             to_torch=   True,                       # converts given data to torch.Tensors
             to_devices= True,                       # moves tensors to devices
             set_training: Optional[bool]=   None,   # for not None forces given training mode for torch.nn.Module
-            **kwargs) -> Dict[str,torch.Tensor]:
+            **kwargs) -> DTNS:
         if set_training is not None: self.__set_training(set_training)
         args, kwargs = self.__torch_dev(*args, to_torch=to_torch, to_devices=to_devices, **kwargs)
         out = self.nngraph.forward(self, *args, **kwargs)
@@ -297,8 +301,8 @@ class MOTorch(NNWrap, Module):
     # without this override accuracy will be taken directly from Module (above)
     def accuracy(
             self,
-            logits: torch.Tensor,
-            labels: torch.Tensor) -> float:
+            logits: TNS,
+            labels: TNS) -> float:
         return self.nngraph.accuracy(self, logits=logits, labels=labels)
 
     # runs loss calculation on nn.Module (with current nn.Module.training.mode - by default not training)
@@ -308,7 +312,7 @@ class MOTorch(NNWrap, Module):
             to_torch=                       True,   # converts given data to torch.Tensors
             to_devices=                     True,   # moves tensors to devices
             set_training: Optional[bool]=   None,   # for not None forces given training mode for torch.nn.Module
-            **kwargs) -> Dict[str,torch.Tensor]:
+            **kwargs) -> DTNS:
         if set_training is not None: self.__set_training(set_training)
         args, kwargs = self.__torch_dev(*args, to_torch=to_torch, to_devices=to_devices, **kwargs)
         out = self.nngraph.loss_acc(self, *args, **kwargs)
@@ -322,7 +326,7 @@ class MOTorch(NNWrap, Module):
             to_torch=           True,   # converts given data to torch.Tensors
             to_devices=         True,   # moves tensors to devices
             set_training: bool= True,
-            **kwargs) -> Dict[str,torch.Tensor]:
+            **kwargs) -> DTNS:
 
         out = self.loss_acc(
             *args,
