@@ -2,23 +2,26 @@
 
  2021 (c) piteren
 
-    OMPRunner - Object based Multi Processing with non-blocking interface
+    OMPRunner - Object based Multi Processing Runner
 
-    OMPRunner processes given tasks using RunningWorker class objects.
-        RunningWorker must be inherited and its process() implemented, it takes task via **kwargs and returns task result.
+        Tasks may be given for OMPRunner with process() method - one dict after another or in packages (List[dict]).
+        Results may be received with two get methods (single or all) and by default will be ordered with tasks order.
         Result returned by RunningWorker may be Any.
+        OMPRunner needs to be manually closed with exit().
 
-    Tasks may be given for OMPRunner as dicts: one dict after another or in packages (List[dict]).
-    Results may be received with two get methods (single or all) and by default will be ordered with tasks order.
-    OMPRunner needs to be manually closed with exit().
+        OMPRunner processes given tasks with InternalProcessor (IP) that guarantees non-blocking interface of OMPRunner.
+        Tasks are processed directly by RunningWorker class objects that are managed by IP.
 
-    There are two main policies of RunningWorker lifecycle:
-        1st - RunningWorker is closed after processing some task (1 typically but may be N)
-        2nd - RunningWorker is closed only when crashes or with the OMP exit
-        Each policy has job specific pros and cons. By default second is activated with 'rw_lifetime=None'.
-        Pros of 'rw_lifetime=None' are that all RunningWorkers are initialized once while OMP inits. It saves a time.
-        Cons are that some data may be shared between tasks - it may be a problem with some libraries. Also memory
-        kept by the RunningWorker ma grow with the time (while processing many tasks).
+        RunningWorker must be inherited and its process() implemented.
+        process() takes task via **kwargs and returns task result.
+        There are two main policies of RunningWorker lifecycle:
+            1st - RunningWorker is closed after processing some task (1 typically but may be N)
+            2nd - RunningWorker is closed only when crashes or with the OMP exit
+            Each policy has job specific pros and cons. By default, second is activated with 'rw_lifetime=None'.
+            Pros of 'rw_lifetime=None' are:
+            + all RunningWorkers are initialized once while OMP inits. It saves a time.
+            Cons are:
+            - memory kept by the RunningWorker may grow with the time (while processing many tasks).
 
 """
 
@@ -44,7 +47,7 @@ class RunningWorker(ABC):
 class OMPRunner:
 
     # Object Multi Processing Internal Process
-    class OMP_IP(ExSubprocess):
+    class InternalProcessor(ExSubprocess):
 
         POISON_MSG = QMessage(type='poison', data=None)
 
@@ -149,11 +152,10 @@ class OMPRunner:
                     'rw_init_kwargs':   kwD,
                     'rww':              None}
 
-
-        # builds and starts RWWrap
+        # builds and starts single RWWrap
         def _build_and_start_RW(self, id:int):
             assert self.rwwD[id]['rww'] is None
-            self.rwwD[id]['rww'] = OMPRunner.OMP_IP.RWWrap(
+            self.rwwD[id]['rww'] = OMPRunner.InternalProcessor.RWWrap(
                 ique=                   Que(),
                 oque=                   self.que_RW,
                 id=                     id,
@@ -171,7 +173,7 @@ class OMPRunner:
                     n_started += 1
             if self.verb>0 and n_started: print(f' > {self.omp_name} (for {self.rw_class.__name__}) built and started {n_started} RunningWorkers')
 
-        # kills RWWrap
+        # kills single RWWrap
         def _kill_RW(self, id:int):
             self.rwwD[id]['rww'].kill()
             while True: # we have to flush the RW ique
@@ -181,7 +183,6 @@ class OMPRunner:
             self.rwwD[id]['rww'].join()
             self.rwwD[id]['rww'] = None
             if self.verb>1: print(f' >> killed and joined RWWrap id: {id}..')
-
 
         def _kill_allRW(self):
             for id in self.rwwD:
@@ -398,7 +399,7 @@ class OMPRunner:
             rw_class: type(RunningWorker),          # RunningWorker class that will run() given tasks
             rw_init_kwargs: Optional[Dict]= None,   # RunningWorker __init__ kwargs
             rw_lifetime: Optional[int]=     None,   # RunningWorker lifetime, for None or 0 is unlimited, for N <1,n> each RW will be restarted after processing N tasks
-            devices: DevicesParam=          None,   # alternatively may be set (None gives priority to multiproc), if given then RW must accept 'devices' param
+            devices: DevicesParam=          'all',
             name=                           'OMPRunner',
             ordered_results=                True,   # returns results in the order of tasks
             report_delay: int or str=       'auto', # num sec between speed_report
@@ -418,7 +419,7 @@ class OMPRunner:
         self._n_tasks_received = 0      # number of tasks received from user till now
         self._n_results_returned = 0    # number of results returned to user till now
 
-        self._internal_processor = OMPRunner.OMP_IP(
+        self._internal_processor = OMPRunner.InternalProcessor(
             name=                   'OMP_NB_InternalProcess',
             ique=                   self._tasks_que,
             oque=                   self._results_que,
