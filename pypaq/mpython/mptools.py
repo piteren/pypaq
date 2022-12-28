@@ -5,6 +5,8 @@ import psutil
 import time
 from typing import Any, Optional
 
+from pypaq.lipytools.pylogger import get_pylogger
+
 
 # message sent between processes via Ques (my que)
 class QMessage:
@@ -49,20 +51,29 @@ class ExSubprocess(Process, ABC):
             oque: Que,                          # output que
             id: Optional[int or str]=   None,   # unique id to identify the subprocess, if not given takes from Process name
             raise_unk_exception=        True,   # raises exception other than KeyboardInterrupt
-            verb: int=                  0):
+            logger=                     None,
+            loglevel=                   20):
 
         ABC.__init__(self)
         Process.__init__(self, target=self.__exm_run)
         if id is None: id = self.name
 
         self.id = id
-        self.verb = verb
+
+        if not logger:
+            logger = get_pylogger(
+                name=       self.id,
+                add_stamp=  False,
+                folder=     None,
+                level=      loglevel)
+        self.logger = logger
+
         self.raise_unk_exception = raise_unk_exception
 
         self.ique = ique
         self.oque = oque
 
-        if self.verb>0: print(f'\n*** ExSubprocess ({self.id}) initialized')
+        self.logger.info(f'*** ExSubprocess *** id: {self.id} initialized')
 
     # core method run in subprocess
     @abstractmethod
@@ -74,7 +85,7 @@ class ExSubprocess(Process, ABC):
             type=   f'ex_{name}, ExSubprocess id: {self.id}, pid: {self.pid}',
             data=   self.id) # returns ID here to allow process identification
         self.oque.put(msg)
-        if self.verb>0: print(f' > ExSubprocess ({self.id}) halted by exception: {name}')
+        self.logger.warning(f' > ExSubprocess ({self.id}) halted by exception: {name}')
         self.after_exception_handle_run()
 
     # this method may be implemented to run code by a self (Process) after exception occurred
@@ -83,9 +94,9 @@ class ExSubprocess(Process, ABC):
     # exception managed subprocess run (process target method), subprocess_method() will be executed till finish or exception
     def __exm_run(self):
         try:
-            if self.verb>0: print(f' > ExSubprocess ({self.id}, pid:{self.pid}) - starting subprocess_method()')
+            self.logger.info(f'> ExSubprocess ({self.id}, pid:{self.pid}) - starting subprocess_method()')
             self.subprocess_method()
-            if self.verb>0: print(f' > ExSubprocess ({self.id}, pid:{self.pid}) - finished subprocess_method()')
+            self.logger.info(f'> ExSubprocess ({self.id}, pid:{self.pid}) - finished subprocess_method()')
         except KeyboardInterrupt:
             self.__exception_handle('KeyboardInterrupt')
         except Exception as e:
