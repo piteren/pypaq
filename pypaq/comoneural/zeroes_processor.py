@@ -18,7 +18,7 @@ class ZeroesProcessor:
         self.step = 0
 
     # takes next zeroes array and processes
-    def process(self, zs:List[np.array]):
+    def process(self, zs:List[np.ndarray]):
 
         zs = np.concatenate(zs)
         self.single.append(np.mean(zs))

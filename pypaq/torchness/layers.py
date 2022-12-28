@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from typing import Optional
 
@@ -163,7 +164,7 @@ class LayRES(torch.nn.Module):
 
 
 # returns [0,1] tensor: 1 where input not activated (value =< 0), looks at last dimension / features
-def zeroes(input :TNS) -> TNS:
+def zeroes(input :TNS) -> np.ndarray:
     axes = [ix for ix in range(len(input.shape))][:-1]  # all but last(feats) axes indexes list like: [0,1,2] for 4d shape
     activated = torch.where(                            # 1 for value greater than zero, other 0
         condition=      torch.gt(input, 0),
@@ -171,4 +172,5 @@ def zeroes(input :TNS) -> TNS:
         other=          torch.zeros_like(input))        # false
     activated_reduced = torch.sum(activated, dim=axes) if axes else activated  # 1 or more for activated, 0 for not activated, if not axes -> we have only-feats-tensor-case
     not_activated = torch.eq(activated_reduced, 0)      # true where summed gives zero (~invert)
-    return not_activated.to(dtype=torch.int8)           # cast to int
+    not_activated = not_activated.to(dtype=torch.int8)  # cast to int
+    return not_activated.detach().cpu().numpy()         # to ndarray
