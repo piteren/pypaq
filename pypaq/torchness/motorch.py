@@ -65,8 +65,6 @@ class MOTorchException(NNWrapException):
 class MOTorch(NNWrap, Module):
 
     SPEC_KEYS = {
-        'train_vars',   # list of variables to train (may be returned, otherwise all trainable are taken)
-        'opt_vars',     # list of variables returned by opt_func
         'loss',         # loss
         'acc',          # accuracy
         'f1'}           # F1
