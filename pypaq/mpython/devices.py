@@ -14,6 +14,7 @@ devices: DevicesParam - (parameter) represents some devices (GPU / CPU)
     -int                - (int)       AVAILABLE CUDA[-int] 
     [] (empty list)     - (list)      all AVAILABLE CUDA
     None                - (NoneType)  single CPU core
+    float               - (float)     (0.0;1.0> - factor of system CPU cores
     'all'               - (str)       all CPU cores
     [int,-1,None,'all'] - (list)      list with mix of above, possible repetitions
     # ******************************************************************************** TF1, TF2, PyTorch representations
@@ -25,7 +26,7 @@ devices: DevicesParam - (parameter) represents some devices (GPU / CPU)
     'cuda:0'            - (str)       PyTorch for GPU
     [str]               - (list)      list with strings of above, possible repetitions   
 """
-DevicesParam: Union[int, None, str, list] = -1
+DevicesParam: Union[int, None, float, str, list] = -1
 
 
 # returns cuda memory size (system first device)
@@ -89,6 +90,14 @@ def get_devices(
         if type(d) is int:
             if d < 0: pypaq_devices.append(available_cuda_id[d])
             else:     pypaq_devices.append(d)
+            known_device = True
+
+        if type(d) is float:
+            if d < 0.0: d = 0.0
+            if d > 1.0: d = 1.0
+            cpu_count_f = round(cpu_count * d)
+            if cpu_count_f < 1: cpu_count_f = 1
+            pypaq_devices += [None]*cpu_count_f
             known_device = True
 
         if d == []:

@@ -34,6 +34,7 @@ import time
 from typing import Any, List, Dict, Optional, Tuple, Union
 
 from pypaq.lipytools.pylogger import get_pylogger, get_hi_child
+from pypaq.lipytools.moving_average import MovAvg
 from pypaq.mpython.devices import DevicesParam, get_devices
 from pypaq.mpython.mptools import QMessage, ExSubprocess, Que
 
@@ -236,7 +237,7 @@ class OMPRunner:
             iv_time = time.time()                           # interval report time
             iv_n_tasks = 0                                  # number of tasks finished since last interval
             total_n_tasks = 0                               # total number of tasks processed
-            speed_cache = []                                # interval speed cache for moving average
+            speed_cache = MovAvg(factor=0.2)                # speed moving average
             tasks = deque()                                 # que of tasks ready to be processed (received from the self.tasks_que)
             resources = list(self.rwwD.keys())              # list [id] of all available (not busy) resources
             rww_tasks: Dict[int, Tuple[int, Any]] = {}      # {rww.id: (task_ix,task)}
@@ -361,9 +362,7 @@ class OMPRunner:
 
                 if self.report_delay is not None and time.time()-iv_time > self.report_delay:
                     iv_speed = iv_n_tasks/((time.time()-iv_time)/60)
-                    speed_cache.append(iv_speed)
-                    if len(speed_cache) > 5: speed_cache.pop(0)
-                    speed = sum(speed_cache) / len(speed_cache)
+                    speed = speed_cache.upd(iv_speed)
                     if speed != 0:
                         if speed > 10:      speed_str = f'{int(speed)} tasks/min'
                         else:
