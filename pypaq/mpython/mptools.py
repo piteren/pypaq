@@ -37,6 +37,14 @@ class Que:
         except Empty:
             return None
 
+    def get_timeout(self, timeout:float, **kwargs) -> Optional[QMessage]:
+        try:
+            obj = self.q.get(timeout=timeout, **kwargs)
+            assert isinstance(obj, QMessage)
+            return obj
+        except Empty:
+            return None
+
     def empty(self): return self.q.empty()
 
     def qsize(self): return self.q.qsize()
@@ -55,7 +63,7 @@ class ExSubprocess(Process, ABC):
             loglevel=                   20):
 
         ABC.__init__(self)
-        Process.__init__(self, target=self.__exm_run)
+        Process.__init__(self, target=self.__run)
         if id is None: id = self.name
 
         self.id = id
@@ -75,7 +83,19 @@ class ExSubprocess(Process, ABC):
 
         self.logger.info(f'*** ExSubprocess *** id: {self.id} initialized')
 
-    # core method run in subprocess
+    # process target method, wraps subprocess_method() with try / except
+    def __run(self):
+        try:
+            self.logger.info(f'> ExSubprocess ({self.id}, pid:{self.pid}) - starting subprocess_method()')
+            self.subprocess_method()
+            self.logger.info(f'> ExSubprocess ({self.id}, pid:{self.pid}) - finished subprocess_method()')
+        except KeyboardInterrupt:
+            self.__exception_handle('KeyboardInterrupt')
+        except Exception as e:
+            self.__exception_handle(f'other: {str(e)}')
+            if self.raise_unk_exception: raise e
+
+    # method run in subprocess, to be implemented
     @abstractmethod
     def subprocess_method(self): pass
 
@@ -88,20 +108,8 @@ class ExSubprocess(Process, ABC):
         self.logger.warning(f' > ExSubprocess ({self.id}) halted by exception: {name}')
         self.after_exception_handle_run()
 
-    # this method may be implemented to run code by a self (Process) after exception occurred
+    # this method may be implemented and will be run after exception occurred
     def after_exception_handle_run(self): pass
-
-    # exception managed subprocess run (process target method), subprocess_method() will be executed till finish or exception
-    def __exm_run(self):
-        try:
-            self.logger.info(f'> ExSubprocess ({self.id}, pid:{self.pid}) - starting subprocess_method()')
-            self.subprocess_method()
-            self.logger.info(f'> ExSubprocess ({self.id}, pid:{self.pid}) - finished subprocess_method()')
-        except KeyboardInterrupt:
-            self.__exception_handle('KeyboardInterrupt')
-        except Exception as e:
-            self.__exception_handle(f'other: {str(e)}')
-            if self.raise_unk_exception: raise e
 
     def kill(self):
         if self.alive: super().kill()

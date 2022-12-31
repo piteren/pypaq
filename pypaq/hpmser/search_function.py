@@ -205,7 +205,7 @@ def hpmser(
         name=                   'OMPR_NB_Hpmser',
         ordered_results=        False,
         restart_ex_tasks=       restart_exceptions_tasks,
-        print_exceptions=       verb>0 or raise_exceptions,
+        log_exceptions=         verb > 0 or raise_exceptions,
         raise_RWW_exception=    verb>1 or raise_exceptions,
         verb=                   verb-1)
 

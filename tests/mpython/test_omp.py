@@ -27,8 +27,7 @@ class TestOMP_NB(unittest.TestCase):
 
         ompr = OMPRunner(
             rw_class=       BRW,
-            devices=        [None] * cores,
-            verb=           1)
+            devices=        [None] * cores)
         tasks = [{
             'id':   id,
             'sec':  random.randrange(1, max_sec)}
@@ -56,8 +55,7 @@ class TestOMP_NB(unittest.TestCase):
 
         ompr = OMPRunner(
             rw_class=       BRW,
-            devices=        [None] * cores,
-            verb=           1)
+            devices=        [None] * cores)
         tasks = [{
             'id':   id,
             'sec':  random.randrange(1, max_sec)}
@@ -96,8 +94,7 @@ class TestOMP_NB(unittest.TestCase):
         ompr = OMPRunner(
             rw_class=           BRW,
             devices=            [None] * cores,
-            ordered_results=    False,
-            verb=               1)
+            ordered_results=    False)
         tasks = [{
             'id':   id,
             'sec':  random.randrange(1, max_sec)}
@@ -130,8 +127,7 @@ class TestOMP_NB(unittest.TestCase):
         ompr = OMPRunner(
             rw_class=       BRW,
             rw_lifetime=    process_lifetime,
-            devices=        [None] * cores,
-            verb=           1)
+            devices=        [None] * cores)
 
         tasks = [{
             'id':               id,
@@ -173,8 +169,8 @@ class TestOMP_NB(unittest.TestCase):
             rw_class=           BRW,
             rw_lifetime=        process_lifetime,
             devices=            [None] * cores,
-            restart_ex_tasks=   False,
-            verb=               1)
+            task_timeout=       4.0,
+            restart_ex_tasks=   False)
 
         tasks = [{
             'id':               id,
