@@ -29,6 +29,7 @@ class Que:
         assert isinstance(obj, QMessage)
         return obj
 
+    # non blocking get
     def get_if(self) -> Optional[QMessage]:
         try:
             obj = self.q.get_nowait()
@@ -105,7 +106,7 @@ class ExSubprocess(Process, ABC):
             type=   f'ex_{name}, ExSubprocess id: {self.id}, pid: {self.pid}',
             data=   self.id) # returns ID here to allow process identification
         self.oque.put(msg)
-        self.logger.warning(f' > ExSubprocess ({self.id}) halted by exception: {name}')
+        self.logger.warning(f'> ExSubprocess ({self.id}) halted by exception: {name}')
         self.after_exception_handle_run()
 
     # this method may be implemented and will be run after exception occurred
