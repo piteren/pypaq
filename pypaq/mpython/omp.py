@@ -463,6 +463,9 @@ class OMPRunner:
             self._kill_allRWW()
             self.logger.debug(f'> {self.ip_name} killed all RW after exception occurred')
 
+        def get_num_RWW(self):
+            return len(self.rwwD)
+
         # method to call out of the process (to exit it)
         def exit(self) -> None:
 
@@ -564,6 +567,9 @@ class OMPRunner:
         return {
             'n_tasks_received':     self._n_tasks_received,
             'n_results_returned':   self._n_results_returned}
+
+    def get_num_workers(self):
+        return self._internal_processor.get_num_RWW()
 
     def exit(self):
         if self._n_results_returned != self._n_tasks_received:

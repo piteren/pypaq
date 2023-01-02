@@ -190,6 +190,10 @@ def print_nested_dict(dc: dict, ind_scale=2, line_limit=200):
 
     __prn_root(dc,ind=0,ind_scale=ind_scale)
 
+# prints line over line
+def printover(sth):
+    print(f'\r{sth}', end='')
+
 # gets folder path from folder or file path
 def get_dir(path: Union[str, Path]):
     path = str(path)
@@ -205,10 +209,6 @@ def prep_folder(
     if flush_non_empty and os.path.isdir(folder_path): shutil.rmtree(folder_path)
     os.makedirs(folder_path, exist_ok=True)
 
-# random <0;1> probability function
-def prob(p: float) -> bool:
-    return random.random() < p
-
 # terminal progress bar
 def progress_ (
         iteration: float or int,    # current iteration
@@ -216,11 +216,10 @@ def progress_ (
         prefix: str=    '',         # prefix string
         suffix: str=    '',         # suffix string
         length: int=    20,
-        fill: str=      '█',
-        print_end: str= ''):
+        fill: str=      '█'):
     prog = iteration / total
     if prog > 1: prog = 1
     filled_length = int(length * prog)
     bar = fill * filled_length + '-' * (length - filled_length)
-    print(f'\r{prefix} |{bar}| {prog*100:.1f}% {suffix}', end = print_end)
+    printover(f'{prefix} |{bar}| {prog*100:.1f}% {suffix}')
     if prog == 1: print()
