@@ -96,14 +96,32 @@ class MOTorch(NNWrap, Module):
 
     SAVE_FN_PFX = 'motorch_dna' # filename (DNA) prefix
 
-    def __init__(self, nngraph:Optional[type(Module)]=None, **kwargs):
+    def __init__(
+            self,
+            nngraph: Optional[type(Module)]=    None,
+            name: Optional[str]=                None,
+            name_timestamp=                     False,
+            save_topdir: Optional[str]=         None,
+            save_fn_pfx: Optional[str]=         None,
+            logger=                             None,
+            loglevel=                           20,
+            **kwargs):
 
         self._torch_dev = None # will be set by _manage_devices()
         self._opt = None
         self._scheduler = None
         self._grad_clipper = None
 
-        NNWrap.__init__(self, nngraph=nngraph, **kwargs)
+        NNWrap.__init__(
+            self,
+            name=           name,
+            name_timestamp= name_timestamp,
+            save_topdir=    save_topdir,
+            save_fn_pfx=    save_fn_pfx,
+            logger=         logger,
+            loglevel=       loglevel,
+            nngraph=        nngraph,
+            **kwargs)
 
     # ******************************************************************************************* NNWrap init submethods
 
