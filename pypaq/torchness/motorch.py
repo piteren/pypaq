@@ -39,6 +39,7 @@ class Module(ABC, torch.nn.Module):
     # returned dict should have at least 'logits' key with logits tensor
     @abstractmethod
     def forward(self, *args, **kwargs) -> DTNS:
+        # return {'logits': self.logits(input)}
         raise NotImplementedError
 
     # baseline accuracy implementation for logits & lables
@@ -54,6 +55,9 @@ class Module(ABC, torch.nn.Module):
     # returned dict updates forward() Dict with loss & acc keys (accuracy or any other (increasing) performance float)
     @abstractmethod
     def loss_acc(self, *args, **kwargs) -> DTNS:
+        # out = self.forward(input)
+        # logits = out['logits']
+        # out['loss'] = torch.nn.functional.cross_entropy(logits, labels, reduction='mean')
         raise NotImplementedError
 
 
@@ -305,8 +309,8 @@ class MOTorch(NNWrap, Module):
     def forward(
             self,
             *args,
-            to_torch=   True,                       # converts given data to torch.Tensors
-            to_devices= True,                       # moves tensors to devices
+            to_torch=                       True,   # converts given data to torch.Tensors
+            to_devices=                     True,   # moves tensors to devices
             set_training: Optional[bool]=   None,   # for not None forces given training mode for torch.nn.Module
             **kwargs) -> DTNS:
         if set_training is not None: self.__set_training(set_training)
