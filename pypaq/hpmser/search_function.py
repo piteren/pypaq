@@ -46,7 +46,8 @@ from typing import Callable, Optional, List, Any
 
 from pypaq.hpmser.search_results import SRL
 from pypaq.hpmser.helpers import _str_weights
-from pypaq.lipytools.little_methods import stamp, prep_folder, get_params
+from pypaq.lipytools.little_methods import stamp, get_params
+from pypaq.lipytools.files import prep_folder
 from pypaq.lipytools.logger import set_logger
 from pypaq.lipytools.stats import msmx
 from pypaq.mpython.devices import DevicesParam, get_devices

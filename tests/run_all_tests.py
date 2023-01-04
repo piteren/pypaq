@@ -3,7 +3,7 @@ import unittest
 
 from tests.envy import get_tmp_dir
 
-from pypaq.lipytools.little_methods import prep_folder
+from pypaq.lipytools.files import prep_folder
 
 EXCLUDE_DIRS = [
     '__pycache__',

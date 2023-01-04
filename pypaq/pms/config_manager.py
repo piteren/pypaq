@@ -6,7 +6,7 @@
 from copy import deepcopy
 from typing import Optional
 
-from pypaq.lipytools.little_methods import w_json, r_json
+from pypaq.lipytools.files import r_json, w_json
 from pypaq.pms.base_types import POINT
 
 

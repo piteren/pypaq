@@ -6,7 +6,7 @@ import plotly.express as px
 import scipy
 from typing import List
 
-from pypaq.lipytools.little_methods import prep_folder
+from pypaq.lipytools.files import prep_folder
 from pypaq.lipytools.stats import stats_pd, msmx
 
 # INFO: TBPlotter has been moved to TBwr in neuralmess.base_elements.py

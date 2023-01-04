@@ -14,7 +14,8 @@ import shutil
 from typing import Optional, List
 import warnings
 
-from pypaq.lipytools.little_methods import prep_folder, w_pickle, r_pickle, stamp
+from pypaq.lipytools.little_methods import stamp
+from pypaq.lipytools.files import r_pickle, w_pickle, prep_folder
 from pypaq.lipytools.pylogger import get_pylogger, get_hi_child
 from pypaq.pms.base_types import POINT
 from pypaq.pms.subscriptable import SubGX

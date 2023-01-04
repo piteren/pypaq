@@ -9,7 +9,8 @@ import os
 import sys
 from typing import Optional
 
-from pypaq.lipytools.little_methods import prep_folder, stamp
+from pypaq.lipytools.little_methods import stamp
+from pypaq.lipytools.files import prep_folder
 
 
 # logger duplicates print() output to given file

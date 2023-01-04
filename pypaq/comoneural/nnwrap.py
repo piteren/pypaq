@@ -31,7 +31,8 @@ from abc import ABC, abstractmethod
 from typing import Optional, Callable, Union, Tuple, Dict
 
 from pypaq.comoneural.batcher import Batcher
-from pypaq.lipytools.little_methods import get_params, get_func_dna, prep_folder
+from pypaq.lipytools.little_methods import get_params, get_func_dna
+from pypaq.lipytools.files import prep_folder
 from pypaq.lipytools.pylogger import get_pylogger, get_hi_child
 from pypaq.pms.parasave import ParaSave
 from pypaq.torchness.tbwr import TBwr

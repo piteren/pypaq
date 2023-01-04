@@ -1,6 +1,6 @@
 import os
 
-from pypaq.lipytools.little_methods import prep_folder
+from pypaq.lipytools.files import prep_folder
 
 
 def __get_tmp_dir() -> str:

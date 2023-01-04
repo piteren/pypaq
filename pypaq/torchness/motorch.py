@@ -17,7 +17,8 @@ import shutil
 import torch
 from typing import Optional, Tuple, Dict
 
-from pypaq.lipytools.little_methods import stamp, prep_folder
+from pypaq.lipytools.little_methods import stamp
+from pypaq.lipytools.files import prep_folder
 from pypaq.lipytools.moving_average import MovAvg
 from pypaq.lipytools.pylogger import get_hi_child
 from pypaq.pms.parasave import ParaSave

@@ -11,7 +11,7 @@
 
 from typing import Dict, List, Optional, Tuple
 
-from pypaq.lipytools.little_methods import prep_folder
+from pypaq.lipytools.files import prep_folder
 from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.neuralmess.get_tf import tf
 

@@ -1,7 +1,8 @@
 import logging
 from typing import Optional
 
-from pypaq.lipytools.little_methods import stamp, prep_folder
+from pypaq.lipytools.little_methods import stamp
+from pypaq.lipytools.files import prep_folder
 
 
 # returns formatted Logger
