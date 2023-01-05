@@ -373,7 +373,7 @@ class NNWrap(ParaSave, ABC):
             batching_type=  'random_cov',
             logger=         get_hi_child(self._nwwlog, 'Batcher'))
 
-     # trains model, should save saves max test scored model, returns test score
+     # trains model, returns optional test score
     @abstractmethod
     def train(
             self,
@@ -381,12 +381,13 @@ class NNWrap(ParaSave, ABC):
             n_batches: Optional[int]=   None,
             test_freq=                  100,    # number of batches between tests, model SHOULD BE tested while training
             mov_avg_factor=             0.1,
-            save=                       True,   # allows to save model while training (after max test)
-            **kwargs) -> float: pass
+            save_max=                   True,   # allows to save model while training (after max test)
+            use_F1=                     True,   # uses F1 as a train/test score (not acc)
+            **kwargs) -> Optional[float]: pass
 
-    # tests model, returns accuracy and loss (average)
+    # tests model, returns: optional accuracy, optional F1, loss (average)
     @abstractmethod
-    def test(self, data=None, **kwargs) -> Tuple[float,float]: pass
+    def test(self, **kwargs) -> Tuple[Optional[float], Optional[float], float]: pass
 
     # updates model baseLR
     @abstractmethod

@@ -14,6 +14,7 @@
 from abc import abstractmethod, ABC
 import numpy as np
 import shutil
+from sklearn.metrics import f1_score
 import torch
 from typing import Optional, Tuple, Dict
 
@@ -48,9 +49,18 @@ class Module(ABC, torch.nn.Module):
             logits: TNS,
             labels: TNS) -> float:
         logits = logits.detach().cpu().numpy()
-        pred = np.argmax(logits, axis=-1)
+        preds = np.argmax(logits, axis=-1)
         labels = labels.cpu().numpy()
-        return float(np.average(np.equal(pred, labels)))
+        return float(np.average(np.equal(preds, labels)))
+
+    # baseline F1 implementation for logits & lables
+    def f1(self,
+           logits: TNS,
+           labels: TNS) -> float:
+        logits = logits.detach().cpu().numpy()
+        preds = np.argmax(logits, axis=-1)
+        labels = labels.cpu().numpy()
+        return f1_score(labels, preds)
 
     # returned dict updates forward() Dict with loss & acc keys (accuracy or any other (increasing) performance float)
     @abstractmethod
@@ -58,6 +68,8 @@ class Module(ABC, torch.nn.Module):
         # out = self.forward(input)
         # logits = out['logits']
         # out['loss'] = torch.nn.functional.cross_entropy(logits, labels, reduction='mean')
+        # out['acc'] = self.accuracy(logits, labels)
+        # out['f1'] = self.f1(logits, labels)
         raise NotImplementedError
 
 
@@ -395,24 +407,31 @@ class MOTorch(NNWrap, Module):
             n_batches: Optional[int]=   None,
             test_freq=                  100,
             mov_avg_factor=             0.1,
-            save=                       True,
-            **kwargs) -> float:
+            save_max=                   True,
+            use_F1=                     True,
+            **kwargs) -> Optional[float]:
 
         if not self._batcher: raise MOTorchException('MOTorch has not been given data for training, use load_data()')
 
-        self._nwwlog.info(f'{self.name} - training starts [acc/loss]')
-        self._nwwlog.info(f'data sizes (TR,VL,TS): {self._batcher.get_data_size()}')
+        self._nwwlog.info(f'{self.name} - training starts [acc / F1 / loss]')
+        self._nwwlog.info(f'data sizes (TR,VL,TS) samples: {self._batcher.get_data_size()}')
+
+        if n_batches is None: n_batches = self['n_batches']  # take default
+        self._nwwlog.info(f'batch size:             {self["batch_size"]}')
+        self._nwwlog.info(f'train for num_batches:  {n_batches}')
 
         self.__set_training(True)
 
-        if n_batches is None: n_batches = self['n_batches']  # take default
-        batch_IX = 0                        # this loop (local) batch counter
-        tr_lssL = []
+        batch_IX = 0                            # this loop (local) batch counter
         tr_accL = []
-        ts_acc_max = 0                      # test accuracy max
-        ts_acc_mav = MovAvg(mov_avg_factor) # test accuracy moving average
+        tr_f1L = []
+        tr_lssL = []
 
-        ts_results = []
+        score_name = 'F1' if use_F1 else 'acc'
+        ts_score_max = 0                        # test score (acc or F1) max
+        ts_score_all_results = []               # test score all results
+        ts_score_mav = MovAvg(mov_avg_factor)   # test score (acc or F1) moving average
+
         ts_bIX = [bIX for bIX in range(n_batches+1) if not bIX % test_freq] # batch indexes when test will be performed
         assert ts_bIX, 'ERR: model SHOULD BE tested while training!'
         ten_factor = int(0.1*len(ts_bIX)) # number of tests for last 10% of training
@@ -426,64 +445,85 @@ class MOTorch(NNWrap, Module):
                 to_devices= False,
                 **self._batcher.get_batch())
 
+            acc = out['acc'] if 'acc' in out else None
+            f1 = out['f1'] if 'f1' in out else None
+
             batch_IX += 1
             self['train_batch_IX'] += 1
 
             if self['do_TB']:
-                self.log_TB(value=out['loss'],        tag='tr/loss',    step=self['train_batch_IX'])
-                self.log_TB(value=out['acc'],         tag='tr/acc',     step=self['train_batch_IX'])
-                self.log_TB(value=out['gg_norm'],     tag='tr/gn',      step=self['train_batch_IX'])
-                self.log_TB(value=out['gg_avt_norm'], tag='tr/gn_avt',  step=self['train_batch_IX'])
-                self.log_TB(value=out['currentLR'],   tag='tr/cLR',     step=self['train_batch_IX'])
+                self.log_TB(value=out['loss'],          tag='tr/loss',      step=self['train_batch_IX'])
+                self.log_TB(value=out['gg_norm'],       tag='tr/gn',        step=self['train_batch_IX'])
+                self.log_TB(value=out['gg_avt_norm'],   tag='tr/gn_avt',    step=self['train_batch_IX'])
+                self.log_TB(value=out['currentLR'],     tag='tr/cLR',       step=self['train_batch_IX'])
+                if acc is not None:
+                    self.log_TB(value=acc,              tag='tr/acc',       step=self['train_batch_IX'])
+                if f1 is not None:
+                    self.log_TB(value=f1,               tag='tr/F1',       step=self['train_batch_IX'])
+
+            if acc is not None: tr_accL.append(acc)
+            if f1 is not None: tr_f1L.append(f1)
             tr_lssL.append(out['loss'])
-            tr_accL.append(out['acc'])
 
             if batch_IX in ts_bIX:
 
                 self.__set_training(False)
-                ts_acc, ts_loss = self.test()
+                ts_acc, ts_f1, ts_loss = self.test()
                 self.__set_training(True)
 
-                acc_mav = ts_acc_mav.upd(ts_acc)
-                ts_results.append(ts_acc)
+                ts_score = ts_f1 if use_F1 else ts_acc
+                if ts_score is not None:
+                    ts_score_all_results.append(ts_score)
                 if self['do_TB']:
-                    self.log_TB(value=ts_loss, tag='ts/loss',    step=self['train_batch_IX'])
-                    self.log_TB(value=ts_acc,  tag='ts/acc',     step=self['train_batch_IX'])
-                    self.log_TB(value=acc_mav, tag='ts/acc_mav', step=self['train_batch_IX'])
-                self._nwwlog.info(f'# {self["train_batch_IX"]:5d} TR: {100*sum(tr_accL)/test_freq:.1f} / {sum(tr_lssL)/test_freq:.3f} -- TS: {100*ts_acc:.1f} / {ts_loss:.3f}')
-                tr_lssL = []
-                tr_accL = []
+                    self.log_TB(value=ts_loss,                          tag='ts/loss',              step=self['train_batch_IX'])
+                    if ts_acc is not None:
+                        self.log_TB(value=ts_acc,                       tag='ts/acc',               step=self['train_batch_IX'])
+                    if ts_f1 is not None:
+                        self.log_TB(value=ts_f1,                        tag='ts/F1',                step=self['train_batch_IX'])
+                    if ts_score is not None:
+                        self.log_TB(value=ts_score_mav.upd(ts_score),   tag=f'ts/{score_name}_mav', step=self['train_batch_IX'])
 
-                if ts_acc > ts_acc_max:
-                    ts_acc_max = ts_acc
-                    if not self['read_only'] and save: self.save_ckpt() # model is saved for max_ts_acc
+                tr_acc_nfo = f'{100*sum(tr_accL)/test_freq:.1f}' if acc is not None else '--'
+                tr_f1_nfo =  f'{100*sum(tr_f1L)/test_freq:.1f}' if f1 is not None else '--'
+                ts_acc_nfo = f'{100*ts_acc:.1f}' if ts_acc is not None else '--'
+                ts_f1_nfo = f'{100*ts_f1:.1f}' if ts_f1 is not None else '--'
+                self._nwwlog.info(f'# {self["train_batch_IX"]:5d} TR: {tr_acc_nfo} / {tr_f1_nfo} / {sum(tr_lssL)/test_freq:.3f} -- TS: {ts_acc_nfo} / {ts_f1_nfo} / {ts_loss:.3f}')
+                tr_accL = []
+                tr_f1L = []
+                tr_lssL = []
+
+                if ts_score is not None and ts_score > ts_score_max:
+                    ts_score_max = ts_score
+                    if not self['read_only'] and save_max: self.save_ckpt() # model is saved for max ts_score
 
         # weighted (linear ascending weight) test score for last 10% test results
-        ts_wval = 0.0
-        weight = 1
-        sum_weight = 0
-        for tr in ts_results[-ten_factor:]:
-            ts_wval += tr*weight
-            sum_weight += weight
-            weight += 1
-        ts_wval /= sum_weight
+        ts_score_wval = None
+        if ts_score_all_results:
+            ts_score_wval = 0.0
+            weight = 1
+            sum_weight = 0
+            for tr in ts_score_all_results[-ten_factor:]:
+                ts_score_wval += tr*weight
+                sum_weight += weight
+                weight += 1
+            ts_score_wval /= sum_weight
 
-        if self['do_TB']: self.log_TB(value=ts_wval, tag='ts/ts_wval', step=self['train_batch_IX'])
+            if self['do_TB']: self.log_TB(value=ts_score_wval, tag=f'ts/ts_{score_name}_wval', step=self['train_batch_IX'])
+
         self._nwwlog.info(f'### model {self.name} finished training')
-        self._nwwlog.info(f' > test_acc_max: {ts_acc_max:.4f}')
-        self._nwwlog.info(f' > test_wval:    {ts_wval:.4f}')
+        if ts_score_wval is not None:
+            self._nwwlog.info(f' > test_{score_name}_max:  {ts_score_max:.4f}')
+            self._nwwlog.info(f' > test_{score_name}_wval: {ts_score_wval:.4f}')
 
         self.__set_training(False)
 
-        return ts_wval
+        return ts_score_wval
 
     def test(
             self,
-            data=                           None,
             set_training: Optional[bool]=   None,   # for not None sets training mode for torch.nn.Module, allows to calculate loss with training/evaluating module mode
-            ) -> Tuple[float,float]:
+    ) -> Tuple[Optional[float], Optional[float], float]:
 
-        if data is not None: self.load_data(data)
         if not self._batcher: raise MOTorchException('MOTorch has not been given data for testing, use load_data() or give it while testing!')
 
         if set_training is not None: self.__set_training(set_training)
@@ -491,14 +531,20 @@ class MOTorch(NNWrap, Module):
         batches = self._batcher.get_TS_batches()
         lossL = []
         accL = []
+        f1L = []
         for batch in batches:
             out = self.loss_acc(**batch)
             lossL.append(out['loss'])
-            accL.append(out['acc'])
+            if 'acc' in out:
+                accL.append(out['acc'])
+            if 'f1' in out:
+                f1L.append(out['f1'])
 
         if set_training is not None: self.__set_training(False)  # eventually roll back to default
 
-        return sum(accL)/len(accL), sum(lossL)/len(lossL)
+        acc_avg = sum(accL)/len(accL) if accL else None
+        f1_avg = sum(f1L)/len(f1L) if f1L else None
+        return acc_avg, f1_avg, sum(lossL)/len(lossL)
 
     # updates scheduler baseLR of 0 group
     def update_baseLR(self, lr: float):

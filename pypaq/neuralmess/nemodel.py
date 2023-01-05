@@ -602,20 +602,29 @@ class NEModel(NNWrap):
             n_batches: Optional[int]=   None,
             test_freq=                  100,
             mov_avg_factor=             0.1,
-            save=                       True,
+            save_max=                   True,
+            use_F1=                     True, # TODO: use
             **kwargs) -> float:
 
         if not self._batcher: raise NEModelException('NEModel has not been given data for training, use load_data() or give it while training!')
 
-        self._nwwlog.info(f'{self.name} - training starts [acc/loss]')
-        if n_batches is None: n_batches = self['n_batches']  # take default
-        batch_IX = 0
-        tr_lssL = []
-        tr_accL = []
-        ts_acc_max = 0
-        ts_acc_mav = MovAvg(mov_avg_factor)
+        self._nwwlog.info(f'{self.name} - training starts [acc / F1 / loss]')
+        self._nwwlog.info(f'data sizes (TR,VL,TS) samples: {self._batcher.get_data_size()}')
 
-        ts_results = []
+        if n_batches is None: n_batches = self['n_batches']  # take default
+        self._nwwlog.info(f'batch size:             {self["batch_size"]}')
+        self._nwwlog.info(f'train for num_batches:  {n_batches}')
+
+        batch_IX = 0
+        tr_accL = []
+        tr_f1L = []
+        tr_lssL = []
+
+        score_name = 'F1' if use_F1 else 'acc'
+        ts_score_max = 0  # test score (acc or F1) max
+        ts_score_all_results = []  # test score all results
+        ts_score_mav = MovAvg(mov_avg_factor)  # test score (acc or F1) moving average
+
         ts_bIX = [bIX for bIX in range(n_batches+1) if not bIX % test_freq] # batch indexes when test will be performed
         assert ts_bIX, 'ERR: model SHOULD BE tested while training!'
         ten_factor = int(0.1*len(ts_bIX)) # number of tests for last 10% of training
@@ -626,7 +635,7 @@ class NEModel(NNWrap):
 
             batch = self._batcher.get_batch()
             feed = self.build_feed(batch)
-            out = self(feed_dict=feed, fetch=['optimizer','loss','acc','gg_norm','gg_avt_norm'])
+            out = self(feed_dict=feed, fetch=['optimizer','loss','acc','f1','gg_norm','gg_avt_norm'])
             out.pop('optimizer')
 
             batch_IX += 1
@@ -635,60 +644,73 @@ class NEModel(NNWrap):
             if self['do_TB']:
                 for k in out:
                     self.log_TB(value=out[k], tag=f'tr/{k}', step=self['train_batch_IX'])
-            tr_lssL.append(out['loss'])
             tr_accL.append(out['acc'])
+            tr_f1L.append(out['f1'])
+            tr_lssL.append(out['loss'])
 
             if batch_IX in ts_bIX:
-                ts_acc, ts_loss = self.test()
-                acc_mav = ts_acc_mav.upd(ts_acc)
-                ts_results.append(ts_acc)
+                ts_acc, ts_f1, ts_loss = self.test()
+
+                ts_score = ts_f1 if use_F1 else ts_acc
+                if ts_score is not None:
+                    ts_score_all_results.append(ts_score)
                 if self['do_TB']:
-                    self.log_TB(value=ts_loss, tag='ts/loss',    step=self['train_batch_IX'])
-                    self.log_TB(value=ts_acc,  tag='ts/acc',     step=self['train_batch_IX'])
-                    self.log_TB(value=acc_mav, tag='ts/acc_mav', step=self['train_batch_IX'])
-                self._nwwlog.info(f'# {self["train_batch_IX"]:5d} TR: {100*sum(tr_accL)/test_freq:.1f} / {sum(tr_lssL)/test_freq:.3f} -- TS: {100*ts_acc:.1f} / {ts_loss:.3f}')
-                tr_lssL = []
+                    self.log_TB(value=ts_loss,                      tag='ts/loss',              step=self['train_batch_IX'])
+                    self.log_TB(value=ts_acc,                       tag='ts/acc',               step=self['train_batch_IX'])
+                    self.log_TB(value=ts_f1,                        tag='ts/F1',                step=self['train_batch_IX'])
+                    self.log_TB(value=ts_score_mav.upd(ts_score),   tag=f'ts/{score_name}_mav', step=self['train_batch_IX'])
+
+                tr_acc_nfo = f'{100*sum(tr_accL)/test_freq:.1f}'
+                tr_f1_nfo =  f'{100*sum(tr_f1L)/test_freq:.1f}'
+                ts_acc_nfo = f'{100*ts_acc:.1f}'
+                ts_f1_nfo = f'{100*ts_f1:.1f}'
+                self._nwwlog.info(f'# {self["train_batch_IX"]:5d} TR: {tr_acc_nfo} / {tr_f1_nfo} / {sum(tr_lssL)/test_freq:.3f} -- TS: {ts_acc_nfo} / {ts_f1_nfo} / {ts_loss:.3f}')
+
                 tr_accL = []
+                tr_f1L = []
+                tr_lssL = []
 
-                if ts_acc > ts_acc_max:
-                    ts_acc_max = ts_acc
-                    if not self['read_only'] and save: self.save_ckpt() # model is saved for max_ts_acc
+                if ts_score is not None and ts_score > ts_score_max:
+                    ts_score_max = ts_score
+                    if not self['read_only'] and save_max: self.save_ckpt() # model is saved for max ts_score
 
-        # weighted test value for last 10% test results
-        ts_wval = 0
-        weight = 1
-        sum_weight = 0
-        for tr in ts_results[-ten_factor:]:
-            ts_wval += tr*weight
-            sum_weight += weight
-            weight += 1
-        ts_wval /= sum_weight
+        # weighted (linear ascending weight) test score for last 10% test results
+        ts_score_wval = None
+        if ts_score_all_results:
+            ts_score_wval = 0.0
+            weight = 1
+            sum_weight = 0
+            for tr in ts_score_all_results[-ten_factor:]:
+                ts_score_wval += tr*weight
+                sum_weight += weight
+                weight += 1
+            ts_score_wval /= sum_weight
 
-        if self['do_TB']: self.log_TB(value=ts_wval, tag='ts/ts_wval', step=self['train_batch_IX'])
+            if self['do_TB']: self.log_TB(value=ts_score_wval, tag=f'ts/ts_{score_name}_wval', step=self['train_batch_IX'])
+
         self._nwwlog.info(f'### model {self.name} finished training')
-        self._nwwlog.info(f' > test_acc_max: {ts_acc_max:.4f}')
-        self._nwwlog.info(f' > test_wval:    {ts_wval:.4f}')
+        if ts_score_wval is not None:
+            self._nwwlog.info(f' > test_{score_name}_max:  {ts_score_max:.4f}')
+            self._nwwlog.info(f' > test_{score_name}_wval: {ts_score_wval:.4f}')
 
-        return ts_wval
+        return ts_score_wval
 
-    def test(
-            self,
-            data=   None,
-            **kwargs) -> Tuple[float,float]:
+    def test(self, **kwargs) -> Tuple[Optional[float], Optional[float], float]:
 
-        if data is not None: self.load_data(data)
         if not self._batcher: raise NEModelException('NEModel has not been given data for testing, use load_data() or give it while testing!')
 
         batches = self._batcher.get_TS_batches()
         lossL = []
         accL = []
+        f1L = []
         for batch in batches:
             feed = self.build_feed(batch)
-            out = self(feed_dict=feed, fetch=['loss','acc'])
+            out = self(feed_dict=feed, fetch=['loss','acc','f1'])
             lossL.append(out['loss'])
             accL.append(out['acc'])
+            f1L.append(out['f1'])
 
-        return sum(accL)/len(accL), sum(lossL)/len(lossL)
+        return sum(accL)/len(accL), sum(f1L)/len(f1L), sum(lossL)/len(lossL)
 
     @property
     def gFWD(self):

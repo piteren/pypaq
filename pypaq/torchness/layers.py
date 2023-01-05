@@ -35,7 +35,7 @@ class LayDense(torch.nn.Linear):
         if self.bias is not None:
             torch.nn.init.zeros_(self.bias)
 
-            # original Linear (with uniform) reset for bias
+            ### original Linear (with uniform) reset for bias
             # fan_in, _ = torch.nn.init._calculate_fan_in_and_fan_out(self.weight)
             # bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
             # torch.nn.init.uniform_(self.bias, -bound, bound)
