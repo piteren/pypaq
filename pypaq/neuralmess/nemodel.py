@@ -599,14 +599,12 @@ class NEModel(NNWrap):
     #  - load_data()
     def train(
             self,
-            data=                       None,
             n_batches: Optional[int]=   None,
             test_freq=                  100,
             mov_avg_factor=             0.1,
             save=                       True,
             **kwargs) -> float:
 
-        if data is not None: self.load_data(data)
         if not self._batcher: raise NEModelException('NEModel has not been given data for training, use load_data() or give it while training!')
 
         self._nwwlog.info(f'{self.name} - training starts [acc/loss]')

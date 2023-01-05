@@ -368,32 +368,40 @@ class MOTorch(NNWrap, Module):
         return out
 
     # adds conversion to torch.Tensors and moves to device
-    def load_data(self, data: Dict):
+    def load_data(
+            self,
+            data_TR: Dict,
+            data_VL: Optional[Dict]=    None,
+            data_TS: Optional[Dict]=    None):
 
+        data = {
+            'data_TR': data_TR,
+            'data_VL': data_VL,
+            'data_TS': data_TS}
         data_td = {}
         for k in data:
-            data_td[k] = {}
-            for l in data[k]:
-                d = data[k][l]
-                if type(d) is not torch.Tensor: d = torch.tensor(d)
-                d = d.to(self._torch_dev)
-                data_td[k][l] = d
+            if data[k]:
+                data_td[k] = {}
+                for l in data[k]:
+                    d = data[k][l]
+                    if type(d) is not torch.Tensor: d = torch.tensor(d)
+                    d = d.to(self._torch_dev)
+                    data_td[k][l] = d
 
-        super(self).load_data(data=data_td)
+        super(MOTorch, self).load_data(**data_td)
 
     def train(
             self,
-            data=                       None,
             n_batches: Optional[int]=   None,
             test_freq=                  100,
             mov_avg_factor=             0.1,
             save=                       True,
             **kwargs) -> float:
 
-        if data is not None: self.load_data(data)
-        if not self._batcher: raise MOTorchException('MOTorch has not been given data for training, use load_data() or give it while training!')
+        if not self._batcher: raise MOTorchException('MOTorch has not been given data for training, use load_data()')
 
         self._nwwlog.info(f'{self.name} - training starts [acc/loss]')
+        self._nwwlog.info(f'data sizes (TR,VL,TS): {self._batcher.get_data_size()}')
 
         self.__set_training(True)
 

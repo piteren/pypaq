@@ -359,17 +359,16 @@ class NNWrap(ParaSave, ABC):
     # ***************************************************************************************************** train / test
 
     # loads data to Batcher
-    def load_data(self, data: Dict):
-
-        if 'train' not in data:
-            msg = 'given data should be a dict with at least "train" key present!'
-            self._nwwlog.error(msg)
-            raise NNWrapException(msg)
+    def load_data(
+            self,
+            data_TR: Dict,
+            data_VL: Optional[Dict]=    None,
+            data_TS: Optional[Dict]=    None):
 
         self._batcher = Batcher(
-            data_TR=        data['train'],
-            data_VL=        data['valid'] if 'valid' in data else None,
-            data_TS=        data['test'] if 'test' in data else None,
+            data_TR=        data_TR,
+            data_VL=        data_VL,
+            data_TS=        data_TS,
             batch_size=     self['batch_size'],
             batching_type=  'random_cov',
             logger=         get_hi_child(self._nwwlog, 'Batcher'))

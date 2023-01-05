@@ -10,6 +10,7 @@
 """
 
 import numpy as np
+from typing import Dict, Optional, Tuple
 
 from pypaq.lipytools.pylogger import get_pylogger
 
@@ -28,14 +29,14 @@ class Batcher:
 
     def __init__(
             self,
-            data_TR: dict,
-            data_VL: dict=      None,
-            data_TS: dict=      None,
-            batch_size: int=    16,
-            bs_mul: int=        2,      # VL & TS batch_size multiplier
-            batching_type: str= 'random_cov',
-            seed=               123,
-            logger=             None):
+            data_TR: Dict[str,np.ndarray],
+            data_VL: Optional[Dict[str,np.ndarray]]=    None,
+            data_TS: Optional[Dict[str,np.ndarray]]=    None,
+            batch_size: int=                            16,
+            bs_mul: int=                                2,      # VL & TS batch_size multiplier
+            batching_type: str=                         'random_cov',
+            seed=                                       123,
+            logger=                                     None):
 
         self.__log = logger or get_pylogger()
 
@@ -66,7 +67,6 @@ class Batcher:
         self.__log.debug('> Batcher keys:')
         for k in self._data_keys:
             self.__log.debug(f'>> {k}, shape: {self._data_TR[k].shape}, type:{type(self._data_TR[k][0])}')
-
 
     def _extend_ixmap(self):
 
@@ -112,14 +112,12 @@ class Batcher:
             counter += 1
         return split
 
-
     def get_VL_batches(self) -> list:
         if self._VL_batches is None:
             if self._data_VL is None:
                 raise BatcherException('ERR: cannot prepare VL batches - data nat given')
             self._VL_batches =  Batcher.__split_data(self._data_VL, self._batch_size * self._bs_mul)
         return self._VL_batches
-
 
     def get_TS_batches(self) -> list:
         if self._TS_batches is None:
@@ -129,3 +127,38 @@ class Batcher:
                 raise BatcherException(err)
             self._TS_batches = Batcher.__split_data(self._data_TS, self._batch_size * self._bs_mul)
         return self._TS_batches
+
+    def get_data_size(self) -> Tuple[int,int,int]:
+        k = self._data_keys[0]
+        return self._data_TR[k].shape[0], self._data_VL[k].shape[0] if self._data_VL else 0, self._data_TS[k].shape[0] if self._data_TS else 0
+
+
+def split_data_TR(
+        data: Dict[str,np.ndarray],
+        split_VL: float=    0.0,  # if > 0.0 and not data_VL then factor of data_TR will be put to data_VL
+        split_TS: float=    0.0,  # if > 0.0 and not data_TS then factor of data_TR will be put to data_TS
+) -> Tuple[Dict[str,np.ndarray], Optional[Dict[str,np.ndarray]], Optional[Dict[str,np.ndarray]]]:
+
+    if split_VL == 0.0 and split_TS == 0.0:
+        return data, None, None
+    else:
+        data_keys = list(data.keys())
+        d_len = data[data_keys[0]].shape[0]
+        indices = np.random.permutation(d_len)
+        nVL = int(d_len * split_VL)
+        nTS = int(d_len * split_TS)
+        nTR = d_len-nVL-nTS
+        indices_TR = indices[:nTR]
+        indices_VL = indices[nTR:nTR+nVL] if nVL else None
+        indices_TS = indices[nTR+nVL:] if nTS else None
+
+        dTR = {}
+        dVL = {}
+        dTS = {}
+        for k in data_keys:
+            dTR[k] = data[k][indices_TR]
+            if indices_VL is not None:
+                dVL[k] = data[k][indices_VL]
+            if indices_TS is not None: dTS[k] = data[k][indices_TS]
+
+        return dTR, dVL or None, dTS or None
