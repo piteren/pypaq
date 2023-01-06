@@ -60,7 +60,7 @@ class Module(ABC, torch.nn.Module):
         logits = logits.detach().cpu().numpy()
         preds = np.argmax(logits, axis=-1)
         labels = labels.cpu().numpy()
-        return f1_score(labels, preds)
+        return f1_score(labels, preds, zero_division=0)
 
     # returned dict updates forward() Dict with loss & acc keys (accuracy or any other (increasing) performance float)
     @abstractmethod
