@@ -32,6 +32,7 @@ from pypaq.torchness.grad_clipping import GradClipperAVT
 
 
 # torch.nn.Module to be implemented with forward & loss methods
+# device/s are managed by MOTorch
 class Module(ABC, torch.nn.Module):
 
     def __init__(self):
@@ -89,6 +90,7 @@ class MOTorch(NNWrap, torch.nn.Module):
     INIT_DEFAULTS = {
         'seed':             123,                # seed for torch and numpy
         'devices':          -1,                 # :DevicesParam (check pypaq.mpython.devices)
+        'dtype':            torch.float32,
             # training
         'batch_size':       64,                 # training batch size
         'n_batches':        1000,               # default length of training
@@ -179,9 +181,9 @@ class MOTorch(NNWrap, torch.nn.Module):
     def _build_graph(self) -> None:
 
         self._nwwlog.info('MOTorch builds graph')
-        #self.nngraph.__init__(self, **self._dna_nngraph)
         self._nngraph_module = self.nngraph(**self._dna_nngraph)
         self.to(self._torch_dev)
+        self.to(self['dtype'])
         self._nwwlog.debug(f'{self.name} (MOTorch) Module initialized!')
 
         try:
@@ -219,7 +221,7 @@ class MOTorch(NNWrap, torch.nn.Module):
             do_clip=        self['do_clip'],
             logger=         get_hi_child(self._nwwlog, 'GradClipperAVT'))
 
-        self.__set_training(False)
+        self.train(False)
         self._nwwlog.debug(f'> set MOTorch train.mode to False..')
 
     def __call__(self, *args, **kwargs) -> dict:
@@ -317,10 +319,6 @@ class MOTorch(NNWrap, torch.nn.Module):
             kwargs = {k: kwargs[k].to(self._torch_dev) for k in kwargs}
         return args, kwargs
 
-    # sets self (as nn.Module) training.mode
-    def __set_training(self, mode: bool):
-        torch.nn.Module.train(self, mode=mode)
-
     # runs forward on nn.Module (with current nn.Module.training.mode - by default not training)
     # INFO: since MOTorch is a torch.nn.Module, call forward() call should be avoided, instead use just MOTorch.__call__() /self()
     def forward(
@@ -330,10 +328,10 @@ class MOTorch(NNWrap, torch.nn.Module):
             to_devices=                     True,   # moves tensors to devices
             set_training: Optional[bool]=   None,   # for not None forces given training mode for torch.nn.Module
             **kwargs) -> DTNS:
-        if set_training is not None: self.__set_training(set_training)
+        if set_training is not None: self.train(set_training)
         args, kwargs = self.__torch_dev(*args, to_torch=to_torch, to_devices=to_devices, **kwargs)
         out = self._nngraph_module.forward(*args, **kwargs)
-        if set_training: self.__set_training(False) # eventually roll back to default
+        if set_training: self.train(False) # eventually roll back to default
         return out
 
     # runs loss calculation on nn.Module (with current nn.Module.training.mode - by default not training)
@@ -344,10 +342,10 @@ class MOTorch(NNWrap, torch.nn.Module):
             to_devices=                     True,   # moves tensors to devices
             set_training: Optional[bool]=   None,   # for not None forces given training mode for torch.nn.Module
             **kwargs) -> DTNS:
-        if set_training is not None: self.__set_training(set_training)
+        if set_training is not None: self.train(set_training)
         args, kwargs = self.__torch_dev(*args, to_torch=to_torch, to_devices=to_devices, **kwargs)
         out = self._nngraph_module.loss_acc(*args, **kwargs)
-        if set_training: self.__set_training(False) # eventually roll back to default
+        if set_training: self.train(False) # eventually roll back to default
         return out
 
     # runs loss calculation + update of nn.Module (by default with training.mode = True)
@@ -418,7 +416,7 @@ class MOTorch(NNWrap, torch.nn.Module):
         self._nwwlog.info(f'batch size:             {self["batch_size"]}')
         self._nwwlog.info(f'train for num_batches:  {n_batches}')
 
-        self.__set_training(True)
+        self.train(True)
 
         batch_IX = 0                            # this loop (local) batch counter
         tr_accL = []
@@ -465,9 +463,9 @@ class MOTorch(NNWrap, torch.nn.Module):
 
             if batch_IX in ts_bIX:
 
-                self.__set_training(False)
+                self.train(False)
                 ts_acc, ts_f1, ts_loss = self.run_test()
-                self.__set_training(True)
+                self.train(True)
 
                 ts_score = ts_f1 if use_F1 else ts_acc
                 if ts_score is not None:
@@ -513,7 +511,7 @@ class MOTorch(NNWrap, torch.nn.Module):
             self._nwwlog.info(f' > test_{score_name}_max:  {ts_score_max:.4f}')
             self._nwwlog.info(f' > test_{score_name}_wval: {ts_score_wval:.4f}')
 
-        self.__set_training(False)
+        self.train(False)
 
         return ts_score_wval
 
@@ -524,7 +522,7 @@ class MOTorch(NNWrap, torch.nn.Module):
 
         if not self._batcher: raise MOTorchException('MOTorch has not been given data for testing, use load_data() or give it while testing!')
 
-        if set_training is not None: self.__set_training(set_training)
+        if set_training is not None: self.train(set_training)
 
         batches = self._batcher.get_TS_batches()
         lossL = []
@@ -538,7 +536,7 @@ class MOTorch(NNWrap, torch.nn.Module):
             if 'f1' in out:
                 f1L.append(out['f1'])
 
-        if set_training is not None: self.__set_training(False)  # eventually roll back to default
+        if set_training is not None: self.train(False)  # eventually roll back to default
 
         acc_avg = sum(accL)/len(accL) if accL else None
         f1_avg = sum(f1L)/len(f1L) if f1L else None
