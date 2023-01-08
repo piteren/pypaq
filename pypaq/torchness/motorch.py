@@ -150,7 +150,7 @@ class MOTorch(NNWrap, torch.nn.Module):
             self,
             given_name: Optional[str],
             timestamp: bool) -> str:
-        name = f'MOTorch_{self.nngraph.__name__}' if not given_name else given_name
+        name = f'{self.nngraph.__name__}_MOTorch' if not given_name else given_name
         if timestamp: name += f'_{stamp()}'
         return name
 
