@@ -293,6 +293,6 @@ class ParaSave(SubGX):
         return '--empty dna--'
 
     def __str__(self):
-        s = f'\n(ParaSave) name: {self.name}, family: {self.family}\n'
+        s = f'(ParaSave) name: {self.name}, family: {self.family}\n'
         s += self.dict_2str(self.get_point())
         return s

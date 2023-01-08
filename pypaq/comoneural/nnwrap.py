@@ -79,7 +79,7 @@ class NNWrap(ParaSave, ABC):
 
     def __init__(
             self,
-            nngraph: Optional[Union[Callable, type]]=   None,
+            nngraph: Optional[Union[Callable, type]]=   None,   # function (Callable) or type (of object) that defines NN
             name: Optional[str]=                        None,
             name_timestamp=                             False,  # adds timestamp to the name
             save_topdir: Optional[str]=                 None,
@@ -94,7 +94,7 @@ class NNWrap(ParaSave, ABC):
         if not name and not nngraph:
             raise NNWrapException ('NNWrap ERROR: name OR nngraph must be given!')
 
-        self.nngraph = nngraph
+        self.nngraph = nngraph # TODO: here we save TYPE, then it is called with _build_graph()
 
         self.name = self._generate_name(
             given_name= name,
@@ -375,7 +375,7 @@ class NNWrap(ParaSave, ABC):
 
      # trains model, returns optional test score
     @abstractmethod
-    def train(
+    def run_train(
             self,
             data=                       None,
             n_batches: Optional[int]=   None,
@@ -387,7 +387,7 @@ class NNWrap(ParaSave, ABC):
 
     # tests model, returns: optional accuracy, optional F1, loss (average)
     @abstractmethod
-    def test(self, **kwargs) -> Tuple[Optional[float], Optional[float], float]: pass
+    def run_test(self, **kwargs) -> Tuple[Optional[float], Optional[float], float]: pass
 
     # updates model baseLR
     @abstractmethod

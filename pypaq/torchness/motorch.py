@@ -79,7 +79,7 @@ class MOTorchException(NNWrapException):
 
 
 # extends Module (torch.nn.Module) with ParaSave and many others
-class MOTorch(NNWrap, Module):
+class MOTorch(NNWrap, torch.nn.Module):
 
     SPEC_KEYS = {
         'loss',         # loss
@@ -124,10 +124,14 @@ class MOTorch(NNWrap, Module):
             loglevel=                           20,
             **kwargs):
 
+        torch.nn.Module.__init__(self)
+
         self._torch_dev = None # will be set by _manage_devices()
         self._opt = None
         self._scheduler = None
         self._grad_clipper = None
+
+        self._nngraph_module: nngraph = None
 
         NNWrap.__init__(
             self,
@@ -175,7 +179,8 @@ class MOTorch(NNWrap, Module):
     def _build_graph(self) -> None:
 
         self._nwwlog.info('MOTorch builds graph')
-        self.nngraph.__init__(self, **self._dna_nngraph)
+        #self.nngraph.__init__(self, **self._dna_nngraph)
+        self._nngraph_module = self.nngraph(**self._dna_nngraph)
         self.to(self._torch_dev)
         self._nwwlog.debug(f'{self.name} (MOTorch) Module initialized!')
 
@@ -317,7 +322,7 @@ class MOTorch(NNWrap, Module):
         torch.nn.Module.train(self, mode=mode)
 
     # runs forward on nn.Module (with current nn.Module.training.mode - by default not training)
-    # INFO: since MOTorch is a nn.Module call forward() call should be avoided, instead use just MOTorch.__call__() /self()
+    # INFO: since MOTorch is a torch.nn.Module, call forward() call should be avoided, instead use just MOTorch.__call__() /self()
     def forward(
             self,
             *args,
@@ -327,16 +332,9 @@ class MOTorch(NNWrap, Module):
             **kwargs) -> DTNS:
         if set_training is not None: self.__set_training(set_training)
         args, kwargs = self.__torch_dev(*args, to_torch=to_torch, to_devices=to_devices, **kwargs)
-        out = self.nngraph.forward(self, *args, **kwargs)
+        out = self._nngraph_module.forward(*args, **kwargs)
         if set_training: self.__set_training(False) # eventually roll back to default
         return out
-
-    # without this override accuracy will be taken directly from Module (above)
-    def accuracy(
-            self,
-            logits: TNS,
-            labels: TNS) -> float:
-        return self.nngraph.accuracy(self, logits=logits, labels=labels)
 
     # runs loss calculation on nn.Module (with current nn.Module.training.mode - by default not training)
     def loss_acc(
@@ -348,7 +346,7 @@ class MOTorch(NNWrap, Module):
             **kwargs) -> DTNS:
         if set_training is not None: self.__set_training(set_training)
         args, kwargs = self.__torch_dev(*args, to_torch=to_torch, to_devices=to_devices, **kwargs)
-        out = self.nngraph.loss_acc(self, *args, **kwargs)
+        out = self._nngraph_module.loss_acc(*args, **kwargs)
         if set_training: self.__set_training(False) # eventually roll back to default
         return out
 
@@ -402,7 +400,7 @@ class MOTorch(NNWrap, Module):
 
         super(MOTorch, self).load_data(**data_td)
 
-    def train(
+    def run_train(
             self,
             n_batches: Optional[int]=   None,
             test_freq=                  100,
@@ -468,7 +466,7 @@ class MOTorch(NNWrap, Module):
             if batch_IX in ts_bIX:
 
                 self.__set_training(False)
-                ts_acc, ts_f1, ts_loss = self.test()
+                ts_acc, ts_f1, ts_loss = self.run_test()
                 self.__set_training(True)
 
                 ts_score = ts_f1 if use_F1 else ts_acc
@@ -519,7 +517,7 @@ class MOTorch(NNWrap, Module):
 
         return ts_score_wval
 
-    def test(
+    def run_test(
             self,
             set_training: Optional[bool]=   None,   # for not None sets training mode for torch.nn.Module, allows to calculate loss with training/evaluating module mode
     ) -> Tuple[Optional[float], Optional[float], float]:
@@ -552,4 +550,6 @@ class MOTorch(NNWrap, Module):
         self._scheduler.update_base_lr0(lr)
 
     def __str__(self):
-        return f'MOTorch: {self.name}\n{self.nngraph.__str__(self)}{ParaSave.__str__(self)}'
+        s = f'MOTorch: {ParaSave.__str__(self)}\n'
+        s += str(self._nngraph_module)
+        return s

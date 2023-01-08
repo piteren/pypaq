@@ -597,7 +597,7 @@ class NEModel(NNWrap):
 
     # TODO: refactor according to MOTorch train concept
     #  - load_data()
-    def train(
+    def run_train(
             self,
             n_batches: Optional[int]=   None,
             test_freq=                  100,
@@ -649,7 +649,7 @@ class NEModel(NNWrap):
             tr_lssL.append(out['loss'])
 
             if batch_IX in ts_bIX:
-                ts_acc, ts_f1, ts_loss = self.test()
+                ts_acc, ts_f1, ts_loss = self.run_test()
 
                 ts_score = ts_f1 if use_F1 else ts_acc
                 if ts_score is not None:
@@ -695,7 +695,7 @@ class NEModel(NNWrap):
 
         return ts_score_wval
 
-    def test(self, **kwargs) -> Tuple[Optional[float], Optional[float], float]:
+    def run_test(self, **kwargs) -> Tuple[Optional[float], Optional[float], float]:
 
         if not self._batcher: raise NEModelException('NEModel has not been given data for testing, use load_data() or give it while testing!')
 

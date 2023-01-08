@@ -131,7 +131,7 @@ class TestNEModel(unittest.TestCase):
 
         nnm.load_data(data=data)
 
-        nnm.train()
+        nnm.run_train()
 
     def test_GX(self):
 
