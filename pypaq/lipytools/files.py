@@ -3,6 +3,7 @@ import json
 import os
 import pickle
 import shutil
+import yaml
 from pathlib import Path
 from typing import Union, Dict, List
 
@@ -77,6 +78,16 @@ def r_csv(
     with open(file_path, newline='') as f:
         reader = csv.reader(f)
         return [row for row in reader][1:]
+
+# yaml read
+def r_yaml(
+        file_path,
+        raise_exception=    False):
+    if not os.path.isfile(file_path):
+        if raise_exception: raise FileNotFoundError(f'file {file_path} not exists!')
+        return None
+    with open(file_path) as file:
+        return yaml.load(file, yaml.Loader)
 
 
 def get_dir(path: Union[str, Path]):
