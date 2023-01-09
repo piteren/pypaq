@@ -161,13 +161,13 @@ class MOTorch(NNWrap, torch.nn.Module):
 
         self._nwwlog.debug(f'> MOTorch resolves devices, given: {self["devices"]}, torch.cuda.is_available(): {torch.cuda.is_available()}')
 
-        self['devices'] = get_devices(
+        dev = get_devices(
             devices=    self['devices'],
             namespace=  'torch',
             logger=     get_hi_child(self._nwwlog, 'get_devices'))
-        self._nwwlog.info(f'> MOTorch will use devices: {self["devices"]}')
+        self._nwwlog.info(f'> MOTorch given devices: {self["devices"]}, will use {dev}')
         # TODO: by now supported is only the first given device
-        self._torch_dev = torch.device(self['devices'][0])
+        self._torch_dev = torch.device(dev[0])
 
     # sets seed in all possible areas
     def _set_seed(self) -> None:

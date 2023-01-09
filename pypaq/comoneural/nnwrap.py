@@ -94,7 +94,7 @@ class NNWrap(ParaSave, ABC):
         if not name and not nngraph:
             raise NNWrapException ('NNWrap ERROR: name OR nngraph must be given!')
 
-        self.nngraph = nngraph # TODO: here we save TYPE, then it is called with _build_graph()
+        self.nngraph = nngraph # INFO: here we save TYPE
 
         self.name = self._generate_name(
             given_name= name,
@@ -112,7 +112,6 @@ class NNWrap(ParaSave, ABC):
         _read_only = kwargs.get('read_only', False)
 
         self.nnwrap_dir = f'{save_topdir}/{self.name}'
-        if not _read_only: prep_folder(self.nnwrap_dir)
 
         if not logger:
             logger = get_pylogger(
@@ -120,7 +119,7 @@ class NNWrap(ParaSave, ABC):
                 add_stamp=  False,
                 folder=     None if _read_only else self.nnwrap_dir,
                 level=      loglevel)
-        self._nwwlog = logger # TODO: NNWrap and itd children use _nwwlog instead of _log
+        self._nwwlog = logger
         nng_info = self.nngraph.__name__ if self.nngraph else 'nngraph NOT GIVEN (will try to load from saved)'
         self._nwwlog.info(f'*** NNWrap *** name: {self.name} initializes for nngraph: {nng_info}')
         self._nwwlog.info(f'> NNWrap dir: {self.nnwrap_dir}{" <- read only mode!" if _read_only else ""}')
