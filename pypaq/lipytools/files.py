@@ -5,6 +5,7 @@ import pickle
 import shutil
 import yaml
 from pathlib import Path
+import sys
 from typing import Union, Dict, List
 
 
@@ -75,6 +76,7 @@ def r_csv(
     if not os.path.isfile(file_path):
         if raise_exception: raise FileNotFoundError(f'file {file_path} not exists!')
         return None
+    csv.field_size_limit(sys.maxsize)
     with open(file_path, newline='') as f:
         reader = csv.reader(f)
         return [row for row in reader][1:]

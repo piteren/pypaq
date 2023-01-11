@@ -380,7 +380,8 @@ class MOTorch(NNWrap, torch.nn.Module):
             self,
             data_TR: Dict,
             data_VL: Optional[Dict]=    None,
-            data_TS: Optional[Dict]=    None):
+            data_TS: Optional[Dict]=    None,
+            convert_to_tensor=          True):
 
         data = {
             'data_TR': data_TR,
@@ -392,8 +393,10 @@ class MOTorch(NNWrap, torch.nn.Module):
                 data_td[k] = {}
                 for l in data[k]:
                     d = data[k][l]
-                    if type(d) is not torch.Tensor: d = torch.tensor(d)
-                    d = d.to(self._torch_dev)
+                    if convert_to_tensor:
+                        if type(d) is not torch.Tensor: d = torch.tensor(d)
+                    if type(d) is torch.Tensor:
+                        d = d.to(self._torch_dev)
                     data_td[k][l] = d
 
         super(MOTorch, self).load_data(**data_td)
