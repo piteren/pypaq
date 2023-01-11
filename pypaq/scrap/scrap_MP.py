@@ -1,6 +1,7 @@
 import random
 import time
 from typing import Optional, List
+import warnings
 
 from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.mpython.devices import DevicesParam
@@ -50,7 +51,10 @@ class MPScrapper:
             loglevel=               20,
             devices: DevicesParam=  0.5,
             task_timeout=           30,
-            report_delay=           5):
+            report_delay=           5,
+            off_bs4_warnings=       True):
+
+        if off_bs4_warnings: warnings.filterwarnings("ignore", module='bs4')
 
         if not logger:
             logger = get_pylogger(
