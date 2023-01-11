@@ -38,11 +38,19 @@ def extract_subURLs(response: RESPONSE) -> List[URL]:
     return list(response.html.absolute_links)
 
 # extracts text from response
-def extract_text(response:RESPONSE, logger) -> Optional[str]:
+def extract_text(
+        response:RESPONSE,
+        logger,
+        separator=      '\n',
+        encode_decode=  True,
+) -> Optional[str]:
     try:
         soup = BeautifulSoup(response.text, 'html.parser')
-        return soup.get_text(separator='\n')
-        #return[data.get_text() for data in soup.find_all("p")]
+        text = soup.get_text(separator=separator)
+        if encode_decode:
+            text = text.encode("ascii", "ignore")
+            text = text.decode()
+        return text
     except Exception as e:
         msg = f'get_texts() got exception: "{e}"'
         logger.warning(msg)
