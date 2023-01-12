@@ -474,7 +474,8 @@ class MOTorch(NNWrap, torch.nn.Module):
                 if ts_score is not None:
                     ts_score_all_results.append(ts_score)
                 if self['do_TB']:
-                    self.log_TB(value=ts_loss,                          tag='ts/loss',              step=self['train_batch_IX'])
+                    if ts_loss is not None:
+                        self.log_TB(value=ts_loss,                      tag='ts/loss',              step=self['train_batch_IX'])
                     if ts_acc is not None:
                         self.log_TB(value=ts_acc,                       tag='ts/acc',               step=self['train_batch_IX'])
                     if ts_f1 is not None:
@@ -486,7 +487,8 @@ class MOTorch(NNWrap, torch.nn.Module):
                 tr_f1_nfo =  f'{100*sum(tr_f1L)/test_freq:.1f}' if f1 is not None else '--'
                 ts_acc_nfo = f'{100*ts_acc:.1f}' if ts_acc is not None else '--'
                 ts_f1_nfo = f'{100*ts_f1:.1f}' if ts_f1 is not None else '--'
-                self._nwwlog.info(f'# {self["train_batch_IX"]:5d} TR: {tr_acc_nfo} / {tr_f1_nfo} / {sum(tr_lssL)/test_freq:.3f} -- TS: {ts_acc_nfo} / {ts_f1_nfo} / {ts_loss:.3f}')
+                ts_loss_nfo = f'{ts_loss:.3f}' if ts_loss is not None else '--'
+                self._nwwlog.info(f'# {self["train_batch_IX"]:5d} TR: {tr_acc_nfo} / {tr_f1_nfo} / {sum(tr_lssL)/test_freq:.3f} -- TS: {ts_acc_nfo} / {ts_f1_nfo} / {ts_loss_nfo}')
                 tr_accL = []
                 tr_f1L = []
                 tr_lssL = []
@@ -543,7 +545,8 @@ class MOTorch(NNWrap, torch.nn.Module):
 
         acc_avg = sum(accL)/len(accL) if accL else None
         f1_avg = sum(f1L)/len(f1L) if f1L else None
-        return acc_avg, f1_avg, sum(lossL)/len(lossL)
+        loss_avg = sum(lossL)/len(lossL) if lossL else None
+        return acc_avg, f1_avg, loss_avg
 
     # updates scheduler baseLR of 0 group
     def update_baseLR(self, lr: float):

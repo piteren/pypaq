@@ -10,7 +10,7 @@
 """
 
 import numpy as np
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, List
 
 from pypaq.lipytools.pylogger import get_pylogger
 
@@ -102,8 +102,9 @@ class Batcher:
         self._data_ixmap = self._data_ixmap[self._batch_size:]
         return {k: self._data_TR[k][indexes] for k in self._data_keys}
 
+    # splits data into batches of given size
     @staticmethod
-    def __split_data(data:dict, size:int) -> list:
+    def __split_data(data:dict, size:int) -> List[Dict]:
         split = []
         counter = 0
         keys = list(data.keys())
@@ -112,20 +113,24 @@ class Batcher:
             counter += 1
         return split
 
-    def get_VL_batches(self) -> list:
+    def get_VL_batches(self) -> List[Dict]:
         if self._VL_batches is None:
             if self._data_VL is None:
-                raise BatcherException('ERR: cannot prepare VL batches - data nat given')
-            self._VL_batches =  Batcher.__split_data(self._data_VL, self._batch_size * self._bs_mul)
+                batches = []
+                self.__log.warning('Batcher asked to prepare VL batches, but no VL data was given')
+            else:
+                batches = Batcher.__split_data(self._data_VL, self._batch_size * self._bs_mul)
+            self._VL_batches = batches
         return self._VL_batches
 
-    def get_TS_batches(self) -> list:
+    def get_TS_batches(self) -> List[Dict]:
         if self._TS_batches is None:
             if self._data_TS is None:
-                err = 'ERR: cannot prepare TS batches - data nat given'
-                self.__log.error(err)
-                raise BatcherException(err)
-            self._TS_batches = Batcher.__split_data(self._data_TS, self._batch_size * self._bs_mul)
+                batches = []
+                self.__log.warning('Batcher asked to prepare TS batches, but no TS data was given')
+            else:
+                batches = Batcher.__split_data(self._data_TS, self._batch_size * self._bs_mul)
+            self._TS_batches = batches
         return self._TS_batches
 
     def get_data_size(self) -> Tuple[int,int,int]:
