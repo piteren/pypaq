@@ -14,7 +14,7 @@ from pypaq.lipytools.stats import stats_pd, msmx
 def histogram(
         val_list: list or np.array,
         name=                   'values',
-        rem_nstd: float=        0.0,    # removes values out of N*stddev
+        rem_nstd: float=        2.0,    # removes values out of N*stddev
         msmx_stats=             True,   # prints minimal stats
         pandas_stats=           False,  # prints pandas extended stats
         density=                True,
