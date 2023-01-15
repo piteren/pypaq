@@ -3,6 +3,7 @@ from typing import List, Dict
 import urllib
 
 from pypaq.scrap.scrap_base import URL, download_response, extract_subURLs
+from pypaq.lipytools.pylogger import get_pylogger
 
 GOOGLE_DOMAINS = (
     'https://www.google.',
@@ -40,12 +41,12 @@ class URLMeta:
 # https://practicaldatascience.co.uk/data-science/how-to-scrape-google-search-results-using-python
 def _dogoogle_urls(query:str, logger) -> List[URL]:
 
-    google_url = f'https://www.google.co.uk/search?q={urllib.parse.quote_plus(query)}'
+    google_url = f'https://www.google.com/search?q={urllib.parse.quote_plus(query)}'
     google_response = download_response(google_url, logger)
 
     urls = []
     if not google_response:
-        logger.warning(f'query: >{query}< did not return response from google')
+        logger.warning(f'query: >{query}< did not return any response from google')
         return urls
 
     urls = extract_subURLs(google_response)
@@ -55,7 +56,10 @@ def _dogoogle_urls(query:str, logger) -> List[URL]:
     return urls
 
 
-def download_google_urls(queries:List[str], logger) -> Dict[URL, URLMeta]:
+def download_google_urls(queries:List[str], logger=None) -> Dict[URL, URLMeta]:
+
+    if not logger: logger = get_pylogger()
+
     umD: Dict[URL, URLMeta] = {}
     for q in queries:
         s_time = time.time()
@@ -74,3 +78,7 @@ def download_google_urls(queries:List[str], logger) -> Dict[URL, URLMeta]:
 
     logger.info(f'scrapped {len(umD)} unique urls')
     return umD
+
+
+if __name__ == '__main__':
+    download_google_urls(['got talent'])

@@ -21,17 +21,21 @@ HEADERS = [
 ]
 
 
-# tries to download response (source (HTML) code of URL)
+# tries to download response (HTML code of URL)
 def download_response(url:URL, logger) -> Optional[RESPONSE]:
-    for header in HEADERS:
-        try:
+    try:
+        response = None
+        for header in HEADERS:
             session = HTMLSession()
             response = session.get(url, headers=header)
-            return response
-        except Exception as e:
-            msg = f'get_response() got exception: "{e}", url: {url}, header: {header}'
-            logger.warning(msg)
-            return None
+            if not response:
+                logger.warning(f'get_response() received response: {response} for {url}')
+            if response: break
+        return response
+    except Exception as e:
+        msg = f'get_response() got exception: "{e}", url: {url}, header: {header}'
+        logger.warning(msg)
+        return None
 
 # extracts sub-urls from response
 def extract_subURLs(response: RESPONSE) -> List[URL]:

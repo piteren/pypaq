@@ -341,16 +341,17 @@ class OMPRunner:
                     while not msg:
                         msg = self.que_RW.get_timeout(timeout=self.task_timeout/5)
 
-                        oldest_rww_id = list(task_times.keys())[0]
-                        if time.time() - task_times[oldest_rww_id] > self.task_timeout:
-                            self.rwwD[oldest_rww_id]['rww'].kill()      # kill him
-                            task_ix, task_try, _ = rww_tasks[oldest_rww_id] # get his task data
-                            killed_tasks[oldest_rww_id] = (task_ix, task_try)
-                            if msg: rww_msgL.append(msg)                # do not lose good msg
-                            # prepare msg for killed RWW (killed RRW does not return message after kill)
-                            msg = QMessage(
-                                type=   f'ex_timeout_killed, ExSubprocess id: {oldest_rww_id}',
-                                data=   oldest_rww_id)  # return ID here to allow process identification
+                        if task_times:
+                            oldest_rww_id = list(task_times.keys())[0]
+                            if time.time() - task_times[oldest_rww_id] > self.task_timeout:
+                                self.rwwD[oldest_rww_id]['rww'].kill()      # kill him
+                                task_ix, task_try, _ = rww_tasks[oldest_rww_id] # get his task data
+                                killed_tasks[oldest_rww_id] = (task_ix, task_try)
+                                if msg: rww_msgL.append(msg)                # do not lose good msg
+                                # prepare msg for killed RWW (killed RRW does not return message after kill)
+                                msg = QMessage(
+                                    type=   f'ex_timeout_killed, ExSubprocess id: {oldest_rww_id}',
+                                    data=   oldest_rww_id)  # return ID here to allow process identification
 
                 else: msg = self.que_RW.get()
 
