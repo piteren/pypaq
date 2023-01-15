@@ -21,7 +21,9 @@ class TeXClas(Module):
             mid_drop: float=                        0.0,
             num_classes: int=                       2,
             class_weights: Optional[List[float]]=   None,
-            initializer: INI=                       None):
+            initializer: INI=                       None,
+            device=                                 None,
+            dtype=                                  None):
 
         Module.__init__(self)
 
@@ -38,7 +40,9 @@ class TeXClas(Module):
             out_features=   mid_width,
             activation=     torch.nn.ReLU,
             bias=           True,
-            initializer=    initializer)
+            initializer=    initializer,
+            device=         device,
+            dtype=          dtype)
 
         self.mid_drop = torch.nn.Dropout(p=mid_drop) if mid_drop else None
 
@@ -47,7 +51,9 @@ class TeXClas(Module):
             out_features=   num_classes,
             activation=     None,
             bias=           False,
-            initializer=    initializer)
+            initializer=    initializer,
+            device=         device,
+            dtype=          dtype)
 
         if class_weights:
             class_weights = torch.nn.Parameter(torch.tensor(class_weights), requires_grad=False)

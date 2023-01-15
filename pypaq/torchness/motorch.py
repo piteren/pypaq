@@ -304,8 +304,9 @@ class MOTorch(NNWrap, torch.nn.Module):
 
     # ***************************************************************************************************** train / test
 
+    # TODO: maybe do it more carefully with try/except
     # converts all values given with args & kwargs to tensors and moves to self._torch_dev (device)
-    def __torch_dev(
+    def _conv_move(
             self,
             *args,
             to_torch=   True,  # converts given data to torch.Tensors
@@ -329,7 +330,7 @@ class MOTorch(NNWrap, torch.nn.Module):
             set_training: Optional[bool]=   None,   # for not None forces given training mode for torch.nn.Module
             **kwargs) -> DTNS:
         if set_training is not None: self.train(set_training)
-        args, kwargs = self.__torch_dev(*args, to_torch=to_torch, to_devices=to_devices, **kwargs)
+        args, kwargs = self._conv_move(*args, to_torch=to_torch, to_devices=to_devices, **kwargs)
         out = self._nngraph_module.forward(*args, **kwargs)
         if set_training: self.train(False) # eventually roll back to default
         return out
@@ -343,7 +344,7 @@ class MOTorch(NNWrap, torch.nn.Module):
             set_training: Optional[bool]=   None,   # for not None forces given training mode for torch.nn.Module
             **kwargs) -> DTNS:
         if set_training is not None: self.train(set_training)
-        args, kwargs = self.__torch_dev(*args, to_torch=to_torch, to_devices=to_devices, **kwargs)
+        args, kwargs = self._conv_move(*args, to_torch=to_torch, to_devices=to_devices, **kwargs)
         out = self._nngraph_module.loss_acc(*args, **kwargs)
         if set_training: self.train(False) # eventually roll back to default
         return out
