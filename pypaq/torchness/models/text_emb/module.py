@@ -21,7 +21,12 @@ class TextEMBModule(Module):
         tokenizer = self.st_model.tokenizer
         return [tokenizer.tokenize(t) for t in texts]
 
-    def encode(self, texts:List[str], device=None, show_progress_bar=True) -> np.ndarray:
+    def encode(
+            self,
+            texts: List[str],
+            device=             None,
+            show_progress_bar=  True,
+    ) -> np.ndarray:
         return self.st_model.encode(
             sentences=          texts,
             batch_size=         self.enc_batch_size,

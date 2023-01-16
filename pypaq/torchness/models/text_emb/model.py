@@ -21,9 +21,15 @@ class TextEMB_MOTorch(MOTorch):
         self._nwwlog.info(f'TextedMOTorch prepares tokens for {len(lines)} lines..')
         return self._nngraph_module.tokenize(lines)
 
-    def get_embeddings(self, lines: List[str]) -> np.ndarray:
+    def get_embeddings(
+            self,
+            lines: List[str],
+            show_progress_bar=  True) -> np.ndarray:
         self._nwwlog.info(f'TextedMOTorch prepares embeddings for {len(lines)} lines..')
-        return self._nngraph_module.encode(lines)
+        return self._nngraph_module.encode(
+            texts=              lines,
+            device=             self._torch_dev, # fixes bug of SentenceTransformers.encode() device placement
+            show_progress_bar=  show_progress_bar)
 
     @property
     def width(self) -> int:

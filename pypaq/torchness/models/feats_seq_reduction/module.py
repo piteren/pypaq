@@ -1,4 +1,5 @@
 import torch
+from typing import Tuple, Union
 
 from pypaq.torchness.motorch import Module
 from pypaq.torchness.types import ACT, TNS, DTNS
@@ -11,6 +12,7 @@ class FeatsSeqReductor(Module):
 
     def __init__(
             self,
+            num_layers: int,
             num_layers_TAT: int,
             d_model: int,
             shared_lays=                            None,
@@ -27,7 +29,7 @@ class FeatsSeqReductor(Module):
         Module.__init__(self)
 
         self.enc = EncTNS(
-            num_layers=     0,
+            num_layers=     num_layers,
             num_layers_TAT= num_layers_TAT,
             shared_lays=    shared_lays,
             max_seq_len=    max_seq_len,
@@ -43,6 +45,26 @@ class FeatsSeqReductor(Module):
 
     def reduce(self, feats: TNS) -> DTNS:
         return self.enc(feats)
+
+    def reduce_pyramidal(
+            self,
+            feats: TNS,
+            pyramide: Union[Tuple[int],int]=    (64,), # pyramide shape, split size of following layers, last layer finally reduces pyramide
+    ):
+        if type(pyramide) is int: pyramide = (pyramide,)
+
+        inp = feats
+        zsL = []
+        for sl in pyramide:
+            in_split = torch.split(inp, sl, dim=0)
+            outL = [self.enc(i) for i in in_split]
+            inp = [o['out'] for o in outL]
+            inp = torch.cat(inp, dim=0)
+            zsLL = [o['zsL'] for o in outL]
+            zsL += [e for el in zsLL for e in el]
+        out = self.enc(inp)
+        out['zsL'] += zsL
+        return out
 
     def forward(self, *args, **kwargs) -> DTNS:
         raise NotImplementedError

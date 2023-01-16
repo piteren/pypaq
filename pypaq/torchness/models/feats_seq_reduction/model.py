@@ -13,12 +13,20 @@ class FeatsSeqReductor_MOTorch(MOTorch):
 
     def reduce(
             self,
-            *args,
+            feats,
+            to_torch=   True,
+            to_devices= True) -> DTNS:
+        _ , kwargs = self._conv_move(feats=feats, to_torch=to_torch, to_devices=to_devices)
+        return self._nngraph_module.reduce(**kwargs)
+
+    def reduce_pyramidal(
+            self,
+            feats,
             to_torch=   True,
             to_devices= True,
             **kwargs) -> DTNS:
-        args, kwargs = self._conv_move(*args, to_torch=to_torch, to_devices=to_devices, **kwargs)
-        return self._nngraph_module.reduce(*args, **kwargs)
+        _ , kw = self._conv_move(feats=feats, to_torch=to_torch, to_devices=to_devices)
+        return self._nngraph_module.reduce_pyramidal(**kw, **kwargs)
 
 
 def get_FeatsSeqReductor_MOTorch(**kwargs) -> FeatsSeqReductor_MOTorch:

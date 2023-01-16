@@ -73,6 +73,16 @@ class Module(ABC, torch.nn.Module):
         # out['f1'] = self.f1(logits, labels)
         raise NotImplementedError
 
+    @property
+    def size(self) -> int:
+        pp = 0
+        for p in list(self.parameters()):
+            nn = 1
+            for s in list(p.size()):
+                nn = nn * s
+            pp += nn
+        return pp
+
 
 
 class MOTorchException(NNWrapException):
@@ -553,6 +563,10 @@ class MOTorch(NNWrap, torch.nn.Module):
     def update_baseLR(self, lr: float):
         self['baseLR'] = lr # in case model will be saved >> loaded
         self._scheduler.update_base_lr0(lr)
+
+    @property
+    def size(self) -> int:
+        return self._nngraph_module.size
 
     def __str__(self):
         s = f'MOTorch: {ParaSave.__str__(self)}\n'
