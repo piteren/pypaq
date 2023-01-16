@@ -405,9 +405,8 @@ class NNWrap(ParaSave, ABC):
         if self['do_TB']: self._TBwr.add(value=value, tag=tag, step=step)
         else: self._nwwlog.warning(f'NNWrap {self.name} cannot log TensorBoard since do_TB flag is False!')
 
-    @abstractmethod
     @property
-    def size(self) -> int: pass
+    def size(self) -> int: return -1
 
     # returns nice string about self
     @abstractmethod
