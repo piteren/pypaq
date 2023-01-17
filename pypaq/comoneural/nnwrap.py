@@ -28,11 +28,11 @@
 """
 
 from abc import ABC, abstractmethod
+import numpy as np
 from typing import Optional, Callable, Union, Tuple, Dict
 
-from pypaq.comoneural.batcher import Batcher
+from pypaq.comoneural.batcher import Batcher, split_data_TR
 from pypaq.lipytools.little_methods import get_params, get_func_dna
-from pypaq.lipytools.files import prep_folder
 from pypaq.lipytools.pylogger import get_pylogger, get_hi_child
 from pypaq.pms.parasave import ParaSave
 from pypaq.torchness.tbwr import TBwr
@@ -196,6 +196,9 @@ class NNWrap(ParaSave, ABC):
         # get defaults of given nngraph (object.__init__ or callable)
         nngraph_func = self.nngraph.__init__ if type(self.nngraph) is object else self.nngraph
         nngraph_func_params = get_params(nngraph_func)
+        for pn in ['device','devices']:
+            if pn in nngraph_func_params['without_defaults'] or pn in nngraph_func_params['with_defaults']:
+                self._nwwlog.warning(f'NNWrap nngraph should not have parameter \'{pn}\' since it is managed by NNWrap')
         nngraph_func_params_defaults = nngraph_func_params['with_defaults']   # get init params defaults
         if 'logger' in nngraph_func_params_defaults: nngraph_func_params_defaults.pop('logger')
 
@@ -211,9 +214,7 @@ class NNWrap(ParaSave, ABC):
 
         dna_with_nwwlog = {}
         dna_with_nwwlog.update(self._dna)
-        dna_with_nwwlog['logger'] = get_hi_child(
-            logger= self._nwwlog,
-            name=   f'{self.name}_sublogger'),
+        dna_with_nwwlog['logger'] = self._nwwlog
         self._dna_nngraph = get_func_dna(nngraph_func, dna_with_nwwlog)
 
         not_used_kwargs = {}
@@ -369,9 +370,15 @@ class NNWrap(ParaSave, ABC):
     # loads data to Batcher
     def load_data(
             self,
-            data_TR: Dict,
-            data_VL: Optional[Dict]=    None,
-            data_TS: Optional[Dict]=    None):
+            data: Dict[str, np.ndarray],
+            split_VL: float=    0.0,
+            split_TS: float=    0.0):
+
+        data_TR, data_VL, data_TS = split_data_TR(
+            data=       data,
+            split_VL=   split_VL,
+            split_TS=   split_TS,
+            seed=       self['seed'])
 
         self._batcher = Batcher(
             data_TR=        data_TR,
