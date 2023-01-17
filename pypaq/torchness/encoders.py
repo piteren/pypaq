@@ -183,6 +183,7 @@ class LayBlockCNN(torch.nn.Module):
     def __init__(
             self,
             n_filters: int,                             # num of filters
+            padded=                     True,           # if not padded reduces sequence length
             kernel_size: int=           3,              # layer kernel
             activation: ACT=            torch.nn.ReLU,  # global enc activation func
             lay_dropout: float=         0.0,
@@ -202,6 +203,7 @@ class LayBlockCNN(torch.nn.Module):
         super(LayBlockCNN, self).__init__()
 
         if kernel_size % 2 != 1: raise TorchnessException('LayBlockCNN kernel_size cannot be even number')
+        self.padded = padded
         self.kernel_size = kernel_size
 
         self.lay_ln = torch.nn.LayerNorm(
@@ -240,18 +242,18 @@ class LayBlockCNN(torch.nn.Module):
     def forward(self, input:TNS, history:Optional[TNS]=None) -> DTNS:
 
         zsL = []
-
         out = self.lay_ln(input)
 
-        if history is None:
-            in_sh = list(input.shape)
-            pad_width = int((self.kernel_size-1)/2)
-            in_sh[-2] = pad_width
-            pad = torch.zeros(in_sh)
-            conc = [pad, out, pad] # pad both sides (encoder)
-        else:
-            conc = [history, out] # concatenate with history (casual encoder)
-        out = torch.concat(conc, dim=-2)
+        if self.padded:
+            if history is None:
+                in_sh = list(input.shape)
+                pad_width = int((self.kernel_size-1)/2)
+                in_sh[-2] = pad_width
+                pad = torch.zeros(in_sh).to(out.device)
+                conc = [pad, out, pad] # pad both sides (encoder)
+            else:
+                conc = [history, out] # concatenate with history (casual encoder)
+            out = torch.concat(conc, dim=-2)
 
         out = self.lay_conv1D(out)
 
@@ -262,7 +264,9 @@ class LayBlockCNN(torch.nn.Module):
         if self.lay_drop:
             out = self.lay_drop(out)
 
-        out = self.res(input=out, bypass=input)
+        # it is not possible to do RES for not padded version
+        if self.padded:
+            out = self.res(input=out, bypass=input)
 
         if self.lay_DRT:
             lay_out = self.lay_DRT(out)
@@ -286,6 +290,7 @@ class EncCNN(torch.nn.Module):
             # layer
             shared_lays: bool=          False,          # shared variables in enc_layers
             n_layers :int=              6,              # num of layers
+            padded=                     True,           # if not padded reduces sequence length
             kernel_size :int=           3,              # layer kernel
             n_filters :Optional[int]=   None,           # num of filters
             activation: ACT=            torch.nn.ReLU,  # global enc activation func
@@ -327,6 +332,7 @@ class EncCNN(torch.nn.Module):
 
         self.blocks = [LayBlockCNN(
             n_filters=          self.n_filters,
+            padded=             padded,
             kernel_size=        self.kernel_size,
             activation=         activation,
             lay_dropout=        lay_dropout,
@@ -356,7 +362,7 @@ class EncCNN(torch.nn.Module):
         in_sh.insert(-2, self.n_layers)
         in_sh[-2] = self.kernel_size - 1
         in_sh[-1] = self.n_filters
-        return torch.zeros(in_sh)
+        return torch.zeros(in_sh).to(input.device)
 
     def forward(self, input:TNS, history:Optional[TNS]=None) -> DTNS:
 
