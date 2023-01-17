@@ -55,13 +55,15 @@ class Module(ABC, torch.nn.Module):
         return float(np.average(np.equal(preds, labels)))
 
     # baseline F1 implementation for logits & lables
-    def f1(self,
-           logits: TNS,
-           labels: TNS) -> float:
+    def f1(
+            self,
+            logits: TNS,
+            labels: TNS,
+            average=    'weighted') -> float:
         logits = logits.detach().cpu().numpy()
         preds = np.argmax(logits, axis=-1)
         labels = labels.cpu().numpy()
-        return f1_score(labels, preds, average='macro', zero_division=0)
+        return f1_score(labels, preds, average=average, zero_division=0)
 
     # returned dict updates forward() Dict with loss & acc keys (accuracy or any other (increasing) performance float)
     @abstractmethod
