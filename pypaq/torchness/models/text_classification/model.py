@@ -5,7 +5,7 @@
 
 import math
 import numpy as np
-from typing import List, Optional
+from typing import List, Optional, Union
 from tqdm import tqdm
 
 from pypaq.torchness.motorch import MOTorch
@@ -17,7 +17,7 @@ class TeXClas_MOTorch(MOTorch):
 
     def __init__(
             self,
-            nngraph: Optional[type(TeXClas)]=   None,
+            nngraph: Optional[type(TeXClas)]=   TeXClas,
             enc_batch_size=                     128,    # number of lines in batch for embeddings
             fwd_batch_size=                     256,    # number of embeddings in batch for probs
             **kwargs):
@@ -29,11 +29,17 @@ class TeXClas_MOTorch(MOTorch):
             fwd_batch_size= fwd_batch_size,
             **kwargs)
 
-    def get_embeddings(self, lines:List[str]) -> np.ndarray:
+    def get_embeddings(
+            self,
+            lines: Union[List[str],str],
+            show_progress_bar=      'auto') -> np.ndarray:
+        if type(lines) is str: lines = [lines]
         self._nwwlog.info(f'TeXClas_MOTorch prepares embeddings for {len(lines)} lines..')
+        if show_progress_bar == 'auto':
+            show_progress_bar = self._nwwlog.level < 21 and len(lines) > 1000
         out = self._nngraph_module.encode(
             texts=              lines,
-            show_progress_bar=  self._nwwlog.level < 21,
+            show_progress_bar=  show_progress_bar,
             device=             self._torch_dev) # need to give device here because of SentenceTransformer bug in encode() #153
         return out['embeddings']
 

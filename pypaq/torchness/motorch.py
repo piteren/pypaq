@@ -257,8 +257,8 @@ class MOTorch(NNWrap, torch.nn.Module):
         """
         checkpoint = torch.load(
             self.__get_ckpt_path(),
-            #map_location=   'cpu') # works for for OSX
-            map_location=   self._torch_dev) # INFO: to immediately place all tensors to current device (not previously saved one)
+            map_location=   self._torch_dev, # INFO: to immediately place all tensors to current device (not previously saved one)
+        )
         self.load_state_dict(checkpoint['model_state_dict'])
 
     # saves model checkpoint
@@ -567,6 +567,8 @@ class MOTorch(NNWrap, torch.nn.Module):
     @property
     def size(self) -> int:
         return self._nngraph_module.size
+
+    def get_devices(self): return self._torch_dev
 
     def __str__(self):
         s = f'MOTorch: {ParaSave.__str__(self)}\n'

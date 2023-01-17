@@ -139,8 +139,11 @@ def get_devices(
 
         lib_devices = []
         for dev in pypaq_devices:
-            if type(dev) is int: lib_devices.append(f'{device_pfx}{gpu_pfx}:{dev}')
-            if dev is None:      lib_devices.append(f'{device_pfx}{cpu_pfx}:0')
+            if type(dev) is int:
+                lib_devices.append(f'{device_pfx}{gpu_pfx}:{dev}')
+            if dev is None:
+                suffix = '' if namespace == 'torch' else ':0'
+                lib_devices.append(f'{device_pfx}{cpu_pfx}{suffix}')
 
         logger.debug(f'get_devices is returning {len(lib_devices)} lib_devices: {lib_devices}')
         return lib_devices

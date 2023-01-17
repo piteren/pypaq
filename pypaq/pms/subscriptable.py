@@ -18,7 +18,7 @@
 """
 
 from copy import deepcopy
-from typing import List, Optional, Union, Dict
+from typing import List, Optional, Union, Dict, Set, Tuple
 
 from pypaq.lipytools.pylogger import get_pylogger, get_hi_child
 from pypaq.textools.text_metrics import lev_dist
@@ -67,7 +67,7 @@ class Subscriptable:
     def check_params_sim(
             self,
             params: Optional[Union[Dict,List]]= None,
-            lev_dist_diff: int=                 1):
+            lev_dist_diff: int=                 1) -> Optional[Set[Tuple[str,str]]]:
 
         if params is None: params = []
         paramsL = params if type(params) is list else list(params.keys())
@@ -89,7 +89,7 @@ class Subscriptable:
             self.__log.warning('Subscriptable was asked to check for params similarity and found:')
             for pa,pb in found: self.__log.warning(f'> params \'{pa}\' and \'{pb}\' are too CLOSE !!!')
 
-        return len(found) > 0
+        return found or None
 
     def __str__(self):
         s = f'\n(Subscriptable):\n'

@@ -88,11 +88,14 @@ class NNWrap(ParaSave, ABC):
             loglevel=                                   20,
             **kwargs):
 
+        if not name and not nngraph:
+            raise NNWrapException('NNWrap ERROR: name OR nngraph must be given!')
+
+        if 'device' in kwargs:
+            raise NNWrapException('NNWrap uses \'devices\' param to set devices, not \'device\'!')
+
         if not save_topdir: save_topdir = self.SAVE_TOPDIR
         if not save_fn_pfx: save_fn_pfx = self.SAVE_FN_PFX
-
-        if not name and not nngraph:
-            raise NNWrapException ('NNWrap ERROR: name OR nngraph must be given!')
 
         self.nngraph = nngraph # INFO: here we save TYPE
 
@@ -137,7 +140,13 @@ class NNWrap(ParaSave, ABC):
             lock_managed_params=    True,
             logger=                 get_hi_child(self._nwwlog),
             **self._dna)
-        self.check_params_sim(params= list(self.SPEC_KEYS) + list(self.INIT_DEFAULTS.keys())) # safety check
+
+        # params names safety check
+        pms = sorted(list(self.SPEC_KEYS) + list(self.INIT_DEFAULTS.keys()) + list(kwargs.keys()))
+        found = self.check_params_sim(params=pms)
+        if found:
+            self._nwwlog.warning('NNWrap was asked to check for params similarity and found:')
+            for pa, pb in found: self._nwwlog.warning(f'> params \'{pa}\' and \'{pb}\' are too CLOSE !!!')
 
         self._manage_devices()
 
@@ -406,7 +415,11 @@ class NNWrap(ParaSave, ABC):
         else: self._nwwlog.warning(f'NNWrap {self.name} cannot log TensorBoard since do_TB flag is False!')
 
     @property
-    def size(self) -> int: return -1
+    def size(self) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_devices(self): pass
 
     # returns nice string about self
     @abstractmethod

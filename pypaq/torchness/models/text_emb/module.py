@@ -41,7 +41,4 @@ class TextEMBModule(Module):
 
     @property
     def width(self) -> int:
-        width = {'all-MiniLM-L6-v2': 384}
-        if self.st_name in width:
-            return width[self.st_name]
-        raise MOTorchException(f'Cannot get TextEMB_MOTorch width for {self.st_name}!')
+        return self.st_model.get_sentence_embedding_dimension()
