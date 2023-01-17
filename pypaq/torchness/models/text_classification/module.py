@@ -1,6 +1,7 @@
 import torch
 from typing import List, Optional, Union
 
+from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.torchness.motorch import Module
 from pypaq.torchness.types import DTNS, INI
 from pypaq.torchness.base_elements import my_initializer
@@ -22,8 +23,11 @@ class TeXClas(Module):
             num_classes: int=                       2,
             class_weights: Optional[List[float]]=   None,
             initializer: INI=                       None,
-            device=                                 None,
-            dtype=                                  None):
+            dtype=                                  None,
+            logger=                                 None):
+
+        if not logger: logger = get_pylogger()
+        self.logger = logger
 
         Module.__init__(self)
 
@@ -35,13 +39,13 @@ class TeXClas(Module):
 
         self.drop = torch.nn.Dropout(p=in_drop) if in_drop else None
 
+        self.logger.info(f'TeXClas Module inits with self.te_module.width: {self.te_module.width}')
         self.mid = LayDense(
             in_features=    self.te_module.width,
             out_features=   mid_width,
             activation=     torch.nn.ReLU,
             bias=           True,
             initializer=    initializer,
-            device=         device,
             dtype=          dtype)
 
         self.mid_drop = torch.nn.Dropout(p=mid_drop) if mid_drop else None
@@ -52,7 +56,6 @@ class TeXClas(Module):
             activation=     None,
             bias=           False,
             initializer=    initializer,
-            device=         device,
             dtype=          dtype)
 
         if class_weights:

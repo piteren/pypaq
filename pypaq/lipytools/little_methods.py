@@ -15,7 +15,7 @@ from typing import Dict, List, Callable, Any, Optional
 
 
 # prepares function parameters dictionary
-def get_params(function: Callable):
+def get_params(function: Callable) -> Dict:
     params_dict = {'without_defaults':[], 'with_defaults':OrderedDict()}
     if function:
         specs = inspect.getfullargspec(function)

@@ -391,28 +391,19 @@ class MOTorch(NNWrap, torch.nn.Module):
     # adds conversion to torch.Tensors and moves to device
     def load_data(
             self,
-            data_TR: Dict,
-            data_VL: Optional[Dict]=    None,
-            data_TS: Optional[Dict]=    None,
-            convert_to_tensor=          True):
+            data: Dict[str, np.ndarray],
+            convert_to_tensor=  True,
+            **kwargs):
 
-        data = {
-            'data_TR': data_TR,
-            'data_VL': data_VL,
-            'data_TS': data_TS}
         data_td = {}
-        for k in data:
-            if data[k]:
-                data_td[k] = {}
-                for l in data[k]:
-                    d = data[k][l]
-                    if convert_to_tensor:
-                        if type(d) is not torch.Tensor: d = torch.tensor(d)
-                    if type(d) is torch.Tensor:
-                        d = d.to(self._torch_dev)
-                    data_td[k][l] = d
+        for k,d in data.items():
+            if convert_to_tensor:
+                d = torch.tensor(d)
+            if type(d) is torch.Tensor:
+                d = d.to(self._torch_dev)
+            data_td[k] = d
 
-        super(MOTorch, self).load_data(**data_td)
+        super(MOTorch, self).load_data(data=data_td, **kwargs)
 
     def run_train(
             self,
