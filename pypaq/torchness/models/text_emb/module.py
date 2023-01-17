@@ -1,8 +1,9 @@
 import numpy as np
 from sentence_transformers import SentenceTransformer
+import torch
 from typing import List
 
-from pypaq.torchness.motorch import Module, MOTorchException
+from pypaq.torchness.motorch import Module
 from pypaq.torchness.types import DTNS
 
 
@@ -21,6 +22,7 @@ class TextEMBModule(Module):
         tokenizer = self.st_model.tokenizer
         return [tokenizer.tokenize(t) for t in texts]
 
+    # original, wrapped version
     def encode(
             self,
             texts: List[str],
@@ -32,6 +34,24 @@ class TextEMBModule(Module):
             batch_size=         self.enc_batch_size,
             show_progress_bar=  show_progress_bar,
             device=             device)
+    """
+    # extracted essence, not working for cuda
+    def encode(
+            self,
+            texts: List[str],
+            device=             None,
+            show_progress_bar=  True,
+    ) -> torch.Tensor:
+
+        # texts should be split in batches
+        features = self.st_model.tokenize(texts)
+        with torch.no_grad():
+            out_features = self.st_model.forward(features)
+        #embeddings = out_features['sentence_embedding']
+        #embeddings = embeddings.detach().cpu().numpy()
+
+        return out_features['sentence_embedding']
+    #"""
 
     def forward(self, *args, **kwargs) -> DTNS:
         raise NotImplementedError

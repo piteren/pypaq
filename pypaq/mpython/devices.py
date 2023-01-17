@@ -22,7 +22,8 @@ devices: DevicesParam - (parameter) represents some devices (GPU / CPU)
     '/device:GPU:0'     - (str)       TF1 for GPU
     'CPU:0'             - (str)       TF2 for CPU
     'GPU:0'             - (str)       TF2 for GPU
-    'cpu:0'             - (str)       PyTorch for CPU
+    'cpu'               - (str)       PyTorch for CPU
+    'cuda'              - (str)       PyTorch for GPU
     'cuda:0'            - (str)       PyTorch for GPU
     [str]               - (list)      list with strings of above, possible repetitions   
 """
@@ -113,7 +114,9 @@ def get_devices(
                 pypaq_devices.append(None)
                 known_device = True
             if 'gpu' in d_low or 'cuda' in d_low:
-                pypaq_devices.append(int(d_low.split(':')[-1]))
+                dn = 0
+                if ':' in d_low: dn = int(d_low.split(':')[-1])
+                pypaq_devices.append(dn)
                 known_device = True
 
         if d is None:
