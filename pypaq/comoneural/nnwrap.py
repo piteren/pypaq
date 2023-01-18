@@ -422,6 +422,10 @@ class NNWrap(ParaSave, ABC):
         else: self._nwwlog.warning(f'NNWrap {self.name} cannot log TensorBoard since do_TB flag is False!')
 
     @property
+    def logger(self):
+        return self._nwwlog
+
+    @property
     def size(self) -> int:
         raise NotImplementedError
 
