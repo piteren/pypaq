@@ -109,7 +109,7 @@ class STextCSF_MOTorch(MOTorch):
 
         self._nwwlog.info(f'{self.name} computes probs for {len(featsL)} batches of embeddings')
         iter = tqdm(featsL) if self._nwwlog.level < 21 else featsL
-        probsL = [self(feats)['probs'].cpu().detach().numpy() for feats in iter]
+        probsL = [self(feats)['probs'] for feats in iter]
         probs = np.concatenate(probsL)
         self._nwwlog.info(f'> got probs {probs.shape}')
 
