@@ -1,22 +1,19 @@
 import torch
-from typing import List, Optional, Union
+from typing import List, Optional
 
 from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.torchness.motorch import Module
 from pypaq.torchness.types import TNS, DTNS, INI
 from pypaq.torchness.base_elements import my_initializer
 from pypaq.torchness.layers import LayDense
-from pypaq.torchness.models.text_emb.module import TextEMB
 
 
-
-# Text Classification Module based on Sentence-Transformers
-class TeXClas(Module):
+# Simple Feats Classification Module
+class SFeatsCSF(Module):
 
     def __init__(
             self,
-            enc_batch_size=                         256,
-            st_name: str=                           'all-MiniLM-L6-v2',
+            feats_width: int,
             in_drop: float=                         0.0,
             mid_width: int=                         30,
             mid_drop: float=                        0.0,
@@ -31,17 +28,13 @@ class TeXClas(Module):
 
         Module.__init__(self)
 
-        self.te_module = TextEMB(
-            st_name=        st_name,
-            enc_batch_size= enc_batch_size)
-
         if initializer is None: initializer = my_initializer
 
         self.drop = torch.nn.Dropout(p=in_drop) if in_drop else None
 
-        self.logger.info(f'TeXClas Module inits with self.te_module.width: {self.te_module.width}')
+        self.logger.info(f'SFeatsCSF Module inits for feats of width {feats_width}')
         self.mid = LayDense(
-            in_features=    self.te_module.width,
+            in_features=    feats_width,
             out_features=   mid_width,
             activation=     torch.nn.ReLU,
             bias=           True,
@@ -62,23 +55,6 @@ class TeXClas(Module):
             class_weights = torch.nn.Parameter(torch.tensor(class_weights), requires_grad=False)
         self.class_weights = class_weights
 
-        self.enc_batch_size = enc_batch_size
-
-    def encode(
-            self,
-            texts: Union[str, List[str]],
-            show_progress_bar=  'auto',
-            device=             None) -> DTNS:
-        if show_progress_bar == 'auto':
-            show_progress_bar = False
-            if type(texts) is list and len(texts) > 1000:
-                show_progress_bar = True
-        embeddings = self.te_module.encode(
-            texts=              texts,
-            show_progress_bar=  show_progress_bar,
-            device=             device)
-        return {'embeddings': embeddings}
-
     def forward(self, feats:TNS) -> DTNS:
         if self.drop: feats = self.drop(feats)
         mid = self.mid(feats)
@@ -88,10 +64,11 @@ class TeXClas(Module):
         labels = torch.argmax(logits, dim=-1)
         return {
             'logits':   logits,
-            'probs':    probs,
-            'labels':   labels}
+            'probs':    probs.detach().cpu().numpy(),
+            'labels':   labels.detach().cpu().numpy()}
 
     def loss(self, feats:TNS, labels:TNS) -> DTNS:
+
         out = self.forward(feats)
         logits = out['logits']
 
