@@ -29,13 +29,24 @@ class MPScrapper:
     # RunningWorker to retrieve URL content
     class UTUS_retriever(RunningWorker):
 
-        def __init__(self, logger):
+        def __init__(
+                self,
+                logger,
+                proxies: Optional[List[str]]):
             self.logger = logger
+            self.proxies = proxies
 
         def process(self, url:URL) -> UTUS:
             text = None
             urls = []
             response = download_response(url=url, logger=self.logger)
+            if not response and response.status_code == 429 and self.proxies:
+                for ix in range(10):
+                    proxy = random.choice(self.proxies)
+                    response = download_response(url=url, logger=self.logger, proxy=proxy)
+                    if response:
+                        self.logger.info(f'done with proxy at try {ix}')
+                        break
             if response:
                 text = extract_text(response=response, logger=self.logger)
                 if text is not None: text = whitespace_normalization(text, remove_nlines=False)
@@ -48,11 +59,12 @@ class MPScrapper:
     def __init__(
             self,
             logger,
-            loglevel=               20,
-            devices: DevicesParam=  0.5,
-            task_timeout=           30,
-            report_delay=           5,
-            off_bs4_warnings=       True):
+            loglevel=                       20,
+            devices: DevicesParam=          0.5,
+            task_timeout=                   30,
+            report_delay=                   5,
+            proxies: Optional[List[str]]=   None,
+            off_bs4_warnings=               True):
 
         if off_bs4_warnings: warnings.filterwarnings("ignore", module='bs4')
 
@@ -66,7 +78,7 @@ class MPScrapper:
 
         self.ompr = OMPRunner(
             rw_class=           MPScrapper.UTUS_retriever,
-            rw_init_kwargs=     {'logger': logger},
+            rw_init_kwargs=     {'logger': logger, 'proxies':proxies},
             devices=            devices,
             ordered_results=    False,
             task_timeout=       task_timeout,

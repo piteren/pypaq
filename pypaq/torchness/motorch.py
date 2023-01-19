@@ -332,7 +332,6 @@ class MOTorch(NNWrap, torch.nn.Module):
         return self.__get_ckpt_path_static(self.nnwrap_dir, self.name)
 
     def load_ckpt(self) -> None:
-        # TODO: load all that has been saved
         checkpoint = torch.load(
             self.__get_ckpt_path(),
             map_location=   self._torch_dev, # INFO: to immediately place all tensors to current device (not previously saved one)
@@ -341,7 +340,6 @@ class MOTorch(NNWrap, torch.nn.Module):
 
     # saves model checkpoint
     def save_ckpt(self) -> None:
-        # TODO: decide what to save
         torch.save({
             #'epoch': 5,
             'model_state_dict': self.state_dict(),

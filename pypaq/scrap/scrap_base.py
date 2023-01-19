@@ -22,18 +22,19 @@ HEADERS = [
 
 
 # tries to download response (HTML code of URL)
-def download_response(url:URL, logger) -> Optional[RESPONSE]:
+def download_response(url:URL, logger, proxy=None) -> Optional[RESPONSE]:
     try:
         response = None
         for header in HEADERS:
             session = HTMLSession()
-            response = session.get(url, headers=header)
+            proxies = {'http': f'http://{proxy}'} if proxy else None
+            response = session.get(url, headers=header, proxies=proxies)
             if not response:
-                logger.warning(f'get_response() received response: {response} for {url}')
+                logger.warning(f'download_response() received response: {response} for {url}')
             if response: break
         return response
     except Exception as e:
-        msg = f'get_response() got exception: "{e}", url: {url}, header: {header}'
+        msg = f'download_response() got exception: "{e}", url: {url}, header: {header}'
         logger.warning(msg)
         return None
 
