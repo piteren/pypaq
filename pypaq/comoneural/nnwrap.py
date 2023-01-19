@@ -33,6 +33,7 @@ from typing import Optional, Callable, Union, Tuple, Dict
 
 from pypaq.comoneural.batcher import Batcher, split_data_TR
 from pypaq.lipytools.little_methods import get_params, get_func_dna
+from pypaq.lipytools.moving_average import MovAvg
 from pypaq.lipytools.pylogger import get_pylogger, get_hi_child
 from pypaq.pms.parasave import ParaSave
 from pypaq.torchness.tbwr import TBwr
@@ -72,7 +73,7 @@ class NNWrap(ParaSave, ABC):
         'do_clip':          False,
             # other
         'hpmser_mode':      False,      # it will set model to be read_only and quiet when running with hpmser
-        'read_only':        False,      # sets model to be read only - wont save anything (wont even create self.nnwrap_dir)
+        'read_only':        False,      # sets model to be read only - won't save anything (won't even create self.nnwrap_dir)
         'do_TB':            True}       # runs TensorBard, saves in self.nnwrap_dir
 
     SAVE_TOPDIR = '_models'
@@ -161,7 +162,7 @@ class NNWrap(ParaSave, ABC):
         self._nwwlog.debug(str(self))
         self._nwwlog.info(f'NNWrap init finished!')
 
-    # ******************************************************************************************* NNWrap init submethods
+    # ************************************************************************************************** init submethods
 
     # generates NNWrap name
     @abstractmethod
@@ -198,7 +199,7 @@ class NNWrap(ParaSave, ABC):
         nngraph_func_params = get_params(nngraph_func)
         for pn in ['device','devices']:
             if pn in nngraph_func_params['without_defaults'] or pn in nngraph_func_params['with_defaults']:
-                self._nwwlog.warning(f'NNWrap nngraph should not have parameter \'{pn}\' since it is managed by NNWrap')
+                self._nwwlog.warning(f'NNWrap nngraph \'{pn}\' parameter wont be used, since devices are managed by NNWrap')
         nngraph_func_params_defaults = nngraph_func_params['with_defaults']   # get init params defaults
         if 'logger' in nngraph_func_params_defaults: nngraph_func_params_defaults.pop('logger')
 
@@ -244,8 +245,13 @@ class NNWrap(ParaSave, ABC):
     @abstractmethod
     def _build_graph(self) -> None: pass
 
+    # **************************************************************************** model call (run NN with data) methods
+
     @abstractmethod
     def __call__(self, *args, **kwargs) -> dict: pass
+
+    @abstractmethod
+    def loss(self, *args, **kwargs) -> dict: pass
 
     @abstractmethod
     def backward(self, *args, **kwargs) -> dict: pass
@@ -318,7 +324,8 @@ class NNWrap(ParaSave, ABC):
             save_topdir_B: Optional[str]=       None,
             save_topdir_child: Optional[str]=   None,
             ratio: float=                       0.5,
-            noise: float=                       0.03) -> None: pass
+            noise: float=                       0.03) -> None:
+        raise NotImplementedError
 
     # performs GX on saved NNWrap objects, without even building child objects
     @classmethod
@@ -389,20 +396,160 @@ class NNWrap(ParaSave, ABC):
             logger=         get_hi_child(self._nwwlog, 'Batcher'))
 
      # trains model, returns optional test score
-    @abstractmethod
     def run_train(
             self,
-            data=                       None,
-            n_batches: Optional[int]=   None,
-            test_freq=                  100,    # number of batches between tests, model SHOULD BE tested while training
-            mov_avg_factor=             0.1,
-            save_max=                   True,   # allows to save model while training (after max test)
-            use_F1=                     True,   # uses F1 as a train/test score (not acc)
-            **kwargs) -> Optional[float]: pass
+            data: Optional[Dict[str, np.ndarray]]=  None,
+            split_VL: float=                        0.0,
+            split_TS: float=                        0.0,
+            n_batches: Optional[int]=               None,
+            test_freq=                              100,    # number of batches between tests, model SHOULD BE tested while training
+            mov_avg_factor=                         0.1,
+            save_max=                               True,   # allows to save model while training (after max test)
+            use_F1=                                 True,   # uses F1 as a train/test score (not acc)
+            **kwargs) -> Optional[float]:
 
-    # tests model, returns: optional accuracy, optional F1, loss (average)
-    @abstractmethod
-    def run_test(self, **kwargs) -> Tuple[Optional[float], Optional[float], float]: pass
+        if data:
+            self.load_data(
+                data=       data,
+                split_VL=   split_VL,
+                split_TS=   split_TS)
+
+        if not self._batcher: raise NNWrapException(f'{self.name} has not been given data for training, use load_data()')
+
+        self._nwwlog.info(f'{self.name} - training starts [acc / F1 / loss]')
+        self._nwwlog.info(f'data sizes (TR,VL,TS) samples: {self._batcher.get_data_size()}')
+
+        if n_batches is None: n_batches = self['n_batches']  # take default
+        self._nwwlog.info(f'batch size:             {self["batch_size"]}')
+        self._nwwlog.info(f'train for num_batches:  {n_batches}')
+
+        batch_IX = 0                            # this loop (local) batch counter
+        tr_accL = []
+        tr_f1L = []
+        tr_lssL = []
+
+        score_name = 'F1' if use_F1 else 'acc'
+        ts_score_max = 0                        # test score (acc or F1) max
+        ts_score_all_results = []               # test score all results
+        ts_score_mav = MovAvg(mov_avg_factor)   # test score (acc or F1) moving average
+
+        ts_bIX = [bIX for bIX in range(n_batches+1) if not bIX % test_freq] # batch indexes when test will be performed
+        assert ts_bIX, 'ERR: model SHOULD BE tested while training!'
+        ten_factor = int(0.1*len(ts_bIX)) # number of tests for last 10% of training
+        if ten_factor < 1: ten_factor = 1 # we need at least one result
+        if self['hpmser_mode']: ts_bIX = ts_bIX[-ten_factor:]
+
+        while batch_IX < n_batches:
+
+            out = self.backward(**self._batcher.get_batch())
+
+            loss = out['loss']
+            acc = out['acc'] if 'acc' in out else None
+            f1 = out['f1'] if 'f1' in out else None
+
+            batch_IX += 1
+            self['train_batch_IX'] += 1
+
+            if self['do_TB']:
+                self.log_TB(value=loss,                 tag='tr/loss',      step=self['train_batch_IX'])
+                self.log_TB(value=out['gg_norm'],       tag='tr/gn',        step=self['train_batch_IX'])
+                self.log_TB(value=out['gg_avt_norm'],   tag='tr/gn_avt',    step=self['train_batch_IX'])
+                self.log_TB(value=out['currentLR'],     tag='tr/cLR',       step=self['train_batch_IX'])
+                if acc is not None:
+                    self.log_TB(value=acc,              tag='tr/acc',       step=self['train_batch_IX'])
+                if f1 is not None:
+                    self.log_TB(value=f1,               tag='tr/F1',       step=self['train_batch_IX'])
+
+            if acc is not None: tr_accL.append(acc)
+            if f1 is not None: tr_f1L.append(f1)
+            tr_lssL.append(loss)
+
+            if batch_IX in ts_bIX:
+
+                ts_loss, ts_acc, ts_f1 = self.run_test()
+
+                ts_score = ts_f1 if use_F1 else ts_acc
+                if ts_score is not None:
+                    ts_score_all_results.append(ts_score)
+                if self['do_TB']:
+                    if ts_loss is not None:
+                        self.log_TB(value=ts_loss,                      tag='ts/loss',              step=self['train_batch_IX'])
+                    if ts_acc is not None:
+                        self.log_TB(value=ts_acc,                       tag='ts/acc',               step=self['train_batch_IX'])
+                    if ts_f1 is not None:
+                        self.log_TB(value=ts_f1,                        tag='ts/F1',                step=self['train_batch_IX'])
+                    if ts_score is not None:
+                        self.log_TB(value=ts_score_mav.upd(ts_score),   tag=f'ts/{score_name}_mav', step=self['train_batch_IX'])
+
+                tr_acc_nfo = f'{100*sum(tr_accL)/test_freq:.1f}' if acc is not None else '--'
+                tr_f1_nfo =  f'{100*sum(tr_f1L)/test_freq:.1f}' if f1 is not None else '--'
+                tr_loss_nfo = f'{sum(tr_lssL)/test_freq:.3f}'
+                ts_acc_nfo = f'{100*ts_acc:.1f}' if ts_acc is not None else '--'
+                ts_f1_nfo = f'{100*ts_f1:.1f}' if ts_f1 is not None else '--'
+                ts_loss_nfo = f'{ts_loss:.3f}' if ts_loss is not None else '--'
+                self._nwwlog.info(f'# {self["train_batch_IX"]:5d} TR: {tr_acc_nfo} / {tr_f1_nfo} / {tr_loss_nfo} -- TS: {ts_acc_nfo} / {ts_f1_nfo} / {ts_loss_nfo}')
+                tr_accL = []
+                tr_f1L = []
+                tr_lssL = []
+
+                if ts_score is not None and ts_score > ts_score_max:
+                    ts_score_max = ts_score
+                    if not self['read_only'] and save_max: self.save_ckpt() # model is saved for max ts_score
+
+        # weighted (linear ascending weight) test score for last 10% test results
+        ts_score_wval = None
+        if ts_score_all_results:
+            ts_score_wval = 0.0
+            weight = 1
+            sum_weight = 0
+            for tr in ts_score_all_results[-ten_factor:]:
+                ts_score_wval += tr*weight
+                sum_weight += weight
+                weight += 1
+            ts_score_wval /= sum_weight
+
+            if self['do_TB']: self.log_TB(value=ts_score_wval, tag=f'ts/ts_{score_name}_wval', step=self['train_batch_IX'])
+
+        self._nwwlog.info(f'### model {self.name} finished training')
+        if ts_score_wval is not None:
+            self._nwwlog.info(f' > test_{score_name}_max:  {ts_score_max:.4f}')
+            self._nwwlog.info(f' > test_{score_name}_wval: {ts_score_wval:.4f}')
+
+        return ts_score_wval
+
+    # tests model, returns: optional loss (average), optional accuracy, optional F1
+    # optional loss <- since there may be not TS batches
+    def run_test(
+            self,
+            data: Optional[Dict[str, np.ndarray]]=  None,
+            split_VL: float=                        0.0,
+            split_TS: float=                        1.0, # if data for test will be given above, by default MOTorch will be tested on ALL
+            **kwargs) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+
+        if data:
+            self.load_data(
+                data=       data,
+                split_VL=   split_VL,
+                split_TS=   split_TS)
+
+        if not self._batcher: raise NNWrapException(f'{self.name} has not been given data for testing, use load_data() or give it while testing!')
+
+        batches = self._batcher.get_TS_batches()
+        lossL = []
+        accL = []
+        f1L = []
+        for batch in batches:
+            out = self.loss(**batch)
+            lossL.append(out['loss'])
+            if 'acc' in out: accL.append(out['acc'])
+            if 'f1' in out:  f1L.append(out['f1'])
+
+        acc_avg = sum(accL)/len(accL) if accL else None
+        f1_avg = sum(f1L)/len(f1L) if f1L else None
+        loss_avg = sum(lossL)/len(lossL) if lossL else None
+        return loss_avg, acc_avg, f1_avg
+
+    # *********************************************************************************************** other / properties
 
     # updates model baseLR
     @abstractmethod

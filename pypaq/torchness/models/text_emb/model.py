@@ -6,7 +6,7 @@
 import numpy as np
 from typing import List
 
-from pypaq.torchness.models.text_emb.module import TextEMBModule
+from pypaq.torchness.models.text_emb.module import TextEMB
 from pypaq.torchness.motorch import MOTorch
 
 
@@ -14,18 +14,18 @@ from pypaq.torchness.motorch import MOTorch
 class TextEMB_MOTorch(MOTorch):
 
     def __init__(self, st_name:str, **kwargs):
-        name = f'TextedMOTorch_TexEmbMod_{st_name}'
+        name = f'TextEMB_MOTorch_{st_name}'
         MOTorch.__init__(self, name=name, st_name=st_name, **kwargs)
 
     def get_tokens(self, lines: List[str]):
-        self._nwwlog.info(f'TextedMOTorch prepares tokens for {len(lines)} lines..')
+        self._nwwlog.info(f'{self.name} prepares tokens for {len(lines)} lines..')
         return self._nngraph_module.tokenize(lines)
 
     def get_embeddings(
             self,
             lines: List[str],
             show_progress_bar=  True) -> np.ndarray:
-        self._nwwlog.info(f'TextedMOTorch prepares embeddings for {len(lines)} lines..')
+        self._nwwlog.info(f'{self.name} prepares embeddings for {len(lines)} lines..')
         return self._nngraph_module.encode(
             texts=              lines,
             device=             self._torch_dev, # fixes bug of SentenceTransformers.encode() device placement
@@ -38,6 +38,6 @@ class TextEMB_MOTorch(MOTorch):
 
 def get_TextEMB_MOTorch(st_name:str='all-MiniLM-L6-v2', **kwargs) -> TextEMB_MOTorch:
     return TextEMB_MOTorch(
-        nngraph=    TextEMBModule,
+        nngraph=    TextEMB,
         st_name=    st_name,
         **kwargs)

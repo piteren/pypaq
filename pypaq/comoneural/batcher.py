@@ -139,9 +139,9 @@ class Batcher:
 
 
 def split_data_TR(
-        data: Dict[str,np.ndarray],
-        split_VL: float=    0.0,  # if > 0.0 and not data_VL then factor of data_TR will be put to data_VL
-        split_TS: float=    0.0,  # if > 0.0 and not data_TS then factor of data_TR will be put to data_TS
+        data: Dict[str,np.ndarray], # INFO: it will also accept Dict[str,torch.Tensor] :) !
+        split_VL: float=    0.0,    # if > 0.0 and not data_VL then factor of data_TR will be put to data_VL
+        split_TS: float=    0.0,    # if > 0.0 and not data_TS then factor of data_TR will be put to data_TS
         seed=               123,
 ) -> Tuple[Dict[str,np.ndarray], Optional[Dict[str,np.ndarray]], Optional[Dict[str,np.ndarray]]]:
 

@@ -4,14 +4,19 @@
  MOTorch implements NNWrap interface with PyTorch.
 
     nngraph for MOTorch:
-        - Should be type of Module (defined below).
-        - Should implement forward() and loss_acc() methods.
+        - should be type of Module (defined below)
+        - should implement forward() and loss_acc() methods
+            - ALL arguments for parameters of forward() will be cast to TNS (by default) by MOTorch,
+              if not ALL are to be casted:
+                - default cast should be turned off when calling MOTorch forward() or loss_acc()
+                    (to_torch, to_devices, to_dtype <- False)
+                - custom MOTorch forward() should override this behaviour
+        - device/s are managed by MOTorch
 
  MOTorch extends Module. By default, after init, MOTorch is set to train.mode=False.
  MOTorch manages its train.mode by itself.
 """
 
-from abc import abstractmethod, ABC
 import numpy as np
 import shutil
 from sklearn.metrics import f1_score
@@ -31,15 +36,14 @@ from pypaq.torchness.scaled_LR import ScaledLR
 from pypaq.torchness.grad_clipping import GradClipperAVT
 
 
-# torch.nn.Module to be implemented with forward & loss methods
-# device/s are managed by MOTorch
-class Module(ABC, torch.nn.Module):
+# torch.nn.Module to be implemented
+# forward & loss_acc methods are needed for MOTorch.run_train()
+class Module(torch.nn.Module):
 
     def __init__(self):
         torch.nn.Module.__init__(self)
 
-    # returned dict should have at least 'logits' key with logits tensor
-    @abstractmethod
+    # returned dict should have at least 'logits' key with logits tensor for proper MOTorch.run_train()
     def forward(self, *args, **kwargs) -> DTNS:
         # return {'logits': self.logits(input)}
         raise NotImplementedError
@@ -59,32 +63,21 @@ class Module(ABC, torch.nn.Module):
             self,
             logits: TNS,
             labels: TNS,
-            average=    'weighted') -> float:
+            average=    'macro', # 'weighted'
+    ) -> float:
         logits = logits.detach().cpu().numpy()
         preds = np.argmax(logits, axis=-1)
         labels = labels.cpu().numpy()
         return f1_score(labels, preds, average=average, zero_division=0)
 
-    # returned dict updates forward() Dict with loss & acc keys (accuracy or any other (increasing) performance float)
-    @abstractmethod
-    def loss_acc(self, *args, **kwargs) -> DTNS:
+    # returned dict updates forward() Dict with loss (and optional acc, f1)
+    def loss(self, *args, **kwargs) -> DTNS:
         # out = self.forward(input)
         # logits = out['logits']
         # out['loss'] = torch.nn.functional.cross_entropy(logits, labels, reduction='mean')
         # out['acc'] = self.accuracy(logits, labels)
         # out['f1'] = self.f1(logits, labels)
         raise NotImplementedError
-
-    @property
-    def size(self) -> int:
-        pp = 0
-        for p in list(self.parameters()):
-            nn = 1
-            for s in list(p.size()):
-                nn = nn * s
-            pp += nn
-        return pp
-
 
 
 class MOTorchException(NNWrapException):
@@ -122,14 +115,14 @@ class MOTorch(NNWrap, torch.nn.Module):
         'do_clip':          False,
             # other
         'hpmser_mode':      False,              # it will set model to be read_only and quiet when running with hpmser
-        'read_only':        False,              # sets model to be read only - wont save anything (wont even create self.nnwrap_dir)
+        'read_only':        False,              # sets model to be read only - won't save anything (won't even create self.nnwrap_dir)
         'do_TB':            True}               # runs TensorBard, saves in self.nnwrap_dir
 
     SAVE_FN_PFX = 'motorch_dna' # filename (DNA) prefix
 
     def __init__(
             self,
-            nngraph: Optional[type(Module)]=    None,
+            nngraph: Optional[type(Module)]=    None,   # also accepts torch.nn.Module but then some methods won't work (run_train, etc.)
             name: Optional[str]=                None,
             name_timestamp=                     False,
             save_topdir: Optional[str]=         None,
@@ -158,7 +151,7 @@ class MOTorch(NNWrap, torch.nn.Module):
             nngraph=        nngraph,
             **kwargs)
 
-    # ******************************************************************************************* NNWrap init submethods
+    # ************************************************************************************************** init submethods
 
     def _generate_name(
             self,
@@ -171,13 +164,13 @@ class MOTorch(NNWrap, torch.nn.Module):
     # sets CPU / GPU devices for MOTorch
     def _manage_devices(self):
 
-        self._nwwlog.debug(f'> MOTorch resolves devices, given: {self["devices"]}, torch.cuda.is_available(): {torch.cuda.is_available()}')
+        self._nwwlog.debug(f'> {self.name} resolves devices, given: {self["devices"]}, torch.cuda.is_available(): {torch.cuda.is_available()}')
 
         dev = get_devices(
             devices=    self['devices'],
             namespace=  'torch',
             logger=     get_hi_child(self._nwwlog, 'get_devices'))
-        self._nwwlog.info(f'> MOTorch given devices: {self["devices"]}, will use {dev}')
+        self._nwwlog.info(f'> {self.name} given devices: {self["devices"]}, will use {dev}')
         # TODO: by now supported is only the first given device
         self._torch_dev = torch.device(dev[0])
 
@@ -192,7 +185,7 @@ class MOTorch(NNWrap, torch.nn.Module):
     # builds MOTorch graph (Module)
     def _build_graph(self) -> None:
 
-        self._nwwlog.info('MOTorch builds graph')
+        self._nwwlog.info(f'{self.name} builds graph')
         self._nngraph_module = self.nngraph(**self._dna_nngraph)
         self.to(self._torch_dev)
         self.to(self['dtype'])
@@ -200,9 +193,9 @@ class MOTorch(NNWrap, torch.nn.Module):
 
         try:
             self.load_ckpt()
-            self._nwwlog.info(f'> MOTorch checkpoint loaded from {self.__get_ckpt_path()}')
+            self._nwwlog.info(f'> {self.name} checkpoint loaded from {self.__get_ckpt_path()}')
         except Exception as e:
-            self._nwwlog.info(f'> MOTorch checkpoint NOT loaded ({e})..')
+            self._nwwlog.info(f'> {self.name} checkpoint NOT loaded ({e})..')
 
         # optimizer params may be given with 'opt_' prefix
         opt_params = {k[4:]: self[k] for k in self.get_managed_params() if k.startswith('opt_')}
@@ -233,11 +226,99 @@ class MOTorch(NNWrap, torch.nn.Module):
             do_clip=        self['do_clip'],
             logger=         get_hi_child(self._nwwlog, 'GradClipperAVT'))
 
+        # MOTorch by default is not in training mode
         self.train(False)
-        self._nwwlog.debug(f'> set MOTorch train.mode to False..')
+        self._nwwlog.debug(f'> set {self.name} train.mode to False..')
+
+    # **************************************************************************** model call (run NN with data) methods
 
     def __call__(self, *args, **kwargs) -> dict:
         return torch.nn.Module.__call__(self, *args, **kwargs)
+
+    # converts (type,device,dtype) input data given with *args & **kwargs
+    def _conv_(
+            self,
+            *args,
+            to_torch=   True,  # converts given data to torch.Tensors
+            to_devices= True,  # moves tensors to devices
+            to_dtype=   True,  # converts given data to dtype
+            **kwargs):
+        elements = list(args) + list(kwargs.values())
+        if to_torch:
+            elements = [torch.tensor(e) for e in elements]
+        if to_devices:
+            elements = [e.to(self._torch_dev) for e in elements]
+        if to_dtype:
+            elements = [e.to(self['dtype']) for e in elements]
+        args = elements[:len(args)]
+        kwargs = {k:e for k,e in zip(kwargs.keys(), elements[len(args):])}
+        return args, kwargs
+
+    # for user managed cast of data to tensor compatible with self (type,device,dtype)
+    def convert(self, data):
+        return self._conv_(data)[0][0]
+
+    # runs forward on nn.Module (with current nn.Module.training.mode - by default not training)
+    # INFO: since MOTorch is a torch.nn.Module, call forward() call should be avoided, instead use just MOTorch.__call__() /self()
+    def forward(
+            self,
+            *args,
+            to_torch=                       True,
+            to_devices=                     True,
+            to_dtype=                       True,
+            set_training: Optional[bool]=   None,   # for not None forces given training mode for torch.nn.Module
+            **kwargs) -> DTNS:
+        if set_training is not None: self.train(set_training)
+        args, kwargs = self._conv_(*args, to_torch=to_torch, to_devices=to_devices, to_dtype=to_dtype, **kwargs)
+        out = self._nngraph_module.forward(*args, **kwargs)
+        if set_training: self.train(False) # eventually roll back to default
+        return out
+
+    # runs loss calculation on nn.Module (with current nn.Module.training.mode - by default not training)
+    def loss(
+            self,
+            *args,
+            # INFO: since loss() is used in training loop ( run_training() while testing ) where data is converted while loading we do not want to convert each batch separately
+            to_torch=                       False,
+            to_devices=                     False,
+            to_dtype=                       False,
+            set_training: Optional[bool]=   None,   # for not None forces given training mode for torch.nn.Module
+            **kwargs) -> DTNS:
+        if set_training is not None: self.train(set_training)
+        args, kwargs = self._conv_(*args, to_torch=to_torch, to_devices=to_devices, to_dtype=to_dtype, **kwargs)
+        out = self._nngraph_module.loss(*args, **kwargs)
+        if set_training: self.train(False) # eventually roll back to default
+        return out
+
+    # runs loss calculation + update of nn.Module (by default with training.mode = True)
+    def backward(
+            self,
+            *args,
+            # INFO: since backward() is used in training loop ( run_training() ) where data is converted while loading we do not want to convert each batch separately
+            to_torch=           False,
+            to_devices=         False,
+            to_dtype=           False,
+            set_training: bool= True, # for backward training mode is set by default
+            **kwargs) -> DTNS:
+
+        out = self.loss(
+            *args,
+            to_torch=       to_torch,
+            to_devices=     to_devices,
+            to_dtype=       to_dtype,
+            set_training=   set_training,
+            **kwargs)
+
+        out['loss'].backward()          # update gradients
+        gnD = self._grad_clipper.clip() # clip gradients, adds: 'gg_norm' & 'gg_avt_norm' to out
+        self._opt.step()                # apply optimizer
+        self._opt.zero_grad()           # clear gradients
+        self._scheduler.step()          # apply LR scheduler
+
+        out['currentLR'] = self._scheduler.get_last_lr()[0] # INFO: we take currentLR of first group
+        out.update(gnD)
+
+        return out
 
     # *********************************************************************************************** load / save / copy
 
@@ -252,11 +333,6 @@ class MOTorch(NNWrap, torch.nn.Module):
 
     def load_ckpt(self) -> None:
         # TODO: load all that has been saved
-        """
-        print(f'@@@@@ {self._torch_dev}')
-        INFO: for OSX (mac) self._torch_dev == 'cpu:0' and it does not load, since:
-        MOTorch checkpoint NOT loaded: don't know how to restore data location of torch.storage.UntypedStorage (tagged with cpu:0)
-        """
         checkpoint = torch.load(
             self.__get_ckpt_path(),
             map_location=   self._torch_dev, # INFO: to immediately place all tensors to current device (not previously saved one)
@@ -316,241 +392,15 @@ class MOTorch(NNWrap, torch.nn.Module):
 
     # ***************************************************************************************************** train / test
 
-    # TODO: maybe do it more carefully with try/except
-    # converts all values given with args & kwargs to tensors and moves to self._torch_dev (device)
-    def _conv_move(
-            self,
-            *args,
-            to_torch=   True,  # converts given data to torch.Tensors
-            to_devices= True,  # moves tensors to devices
-            **kwargs):
-        if to_torch:
-            args = [torch.tensor(a) if type(a) is not torch.Tensor else a for a in args]
-            kwargs = {k: torch.tensor(kwargs[k]) if type(kwargs[k]) is not torch.Tensor else kwargs[k] for k in kwargs}
-        if to_devices:
-            args = [a.to(self._torch_dev) for a in args]
-            kwargs = {k: kwargs[k].to(self._torch_dev) for k in kwargs}
-        return args, kwargs
-
-    # runs forward on nn.Module (with current nn.Module.training.mode - by default not training)
-    # INFO: since MOTorch is a torch.nn.Module, call forward() call should be avoided, instead use just MOTorch.__call__() /self()
-    def forward(
-            self,
-            *args,
-            to_torch=                       True,   # converts given data to torch.Tensors
-            to_devices=                     True,   # moves tensors to devices
-            set_training: Optional[bool]=   None,   # for not None forces given training mode for torch.nn.Module
-            **kwargs) -> DTNS:
-        if set_training is not None: self.train(set_training)
-        args, kwargs = self._conv_move(*args, to_torch=to_torch, to_devices=to_devices, **kwargs)
-        out = self._nngraph_module.forward(*args, **kwargs)
-        if set_training: self.train(False) # eventually roll back to default
-        return out
-
-    # runs loss calculation on nn.Module (with current nn.Module.training.mode - by default not training)
-    def loss_acc(
-            self,
-            *args,
-            to_torch=                       True,   # converts given data to torch.Tensors
-            to_devices=                     True,   # moves tensors to devices
-            set_training: Optional[bool]=   None,   # for not None forces given training mode for torch.nn.Module
-            **kwargs) -> DTNS:
-        if set_training is not None: self.train(set_training)
-        args, kwargs = self._conv_move(*args, to_torch=to_torch, to_devices=to_devices, **kwargs)
-        out = self._nngraph_module.loss_acc(*args, **kwargs)
-        if set_training: self.train(False) # eventually roll back to default
-        return out
-
-    # runs loss calculation + update of nn.Module (by default with training.mode = True)
-    def backward(
-            self,
-            *args,
-            to_torch=           True,   # converts given data to torch.Tensors
-            to_devices=         True,   # moves tensors to devices
-            set_training: bool= True,
-            **kwargs) -> DTNS:
-
-        out = self.loss_acc(
-            *args,
-            to_torch=       to_torch,
-            to_devices=     to_devices,
-            set_training=   set_training,
-            **kwargs)
-
-        out['loss'].backward()          # update gradients
-        gnD = self._grad_clipper.clip() # clip gradients, adds: 'gg_norm' & 'gg_avt_norm' to out
-        self._opt.step()                # apply optimizer
-        self._opt.zero_grad()           # clear gradients
-        self._scheduler.step()          # apply LR scheduler
-
-        out['currentLR'] = self._scheduler.get_last_lr()[0] # INFO: we take currentLR of first group
-        out.update(gnD)
-
-        return out
-
-    # adds conversion to torch.Tensors and moves to device
+    # adds data conversion
     def load_data(
             self,
             data: Dict[str, np.ndarray],
-            convert_to_tensor=  True,
             **kwargs):
+        _, data = self._conv_(**data)
+        super(MOTorch, self).load_data(data=data, **kwargs)
 
-        data_td = {}
-        for k,d in data.items():
-            if convert_to_tensor:
-                d = torch.tensor(d)
-            if type(d) is torch.Tensor:
-                d = d.to(self._torch_dev)
-            data_td[k] = d
-
-        super(MOTorch, self).load_data(data=data_td, **kwargs)
-
-    def run_train(
-            self,
-            n_batches: Optional[int]=   None,
-            test_freq=                  100,
-            mov_avg_factor=             0.1,
-            save_max=                   True,
-            use_F1=                     True,
-            **kwargs) -> Optional[float]:
-
-        if not self._batcher: raise MOTorchException('MOTorch has not been given data for training, use load_data()')
-
-        self._nwwlog.info(f'{self.name} - training starts [acc / F1 / loss]')
-        self._nwwlog.info(f'data sizes (TR,VL,TS) samples: {self._batcher.get_data_size()}')
-
-        if n_batches is None: n_batches = self['n_batches']  # take default
-        self._nwwlog.info(f'batch size:             {self["batch_size"]}')
-        self._nwwlog.info(f'train for num_batches:  {n_batches}')
-
-        self.train(True)
-
-        batch_IX = 0                            # this loop (local) batch counter
-        tr_accL = []
-        tr_f1L = []
-        tr_lssL = []
-
-        score_name = 'F1' if use_F1 else 'acc'
-        ts_score_max = 0                        # test score (acc or F1) max
-        ts_score_all_results = []               # test score all results
-        ts_score_mav = MovAvg(mov_avg_factor)   # test score (acc or F1) moving average
-
-        ts_bIX = [bIX for bIX in range(n_batches+1) if not bIX % test_freq] # batch indexes when test will be performed
-        assert ts_bIX, 'ERR: model SHOULD BE tested while training!'
-        ten_factor = int(0.1*len(ts_bIX)) # number of tests for last 10% of training
-        if ten_factor < 1: ten_factor = 1 # we need at least one result
-        if self['hpmser_mode']: ts_bIX = ts_bIX[-ten_factor:]
-
-        while batch_IX < n_batches:
-
-            out = self.backward(
-                to_torch=   False,
-                to_devices= False,
-                **self._batcher.get_batch())
-
-            acc = out['acc'] if 'acc' in out else None
-            f1 = out['f1'] if 'f1' in out else None
-
-            batch_IX += 1
-            self['train_batch_IX'] += 1
-
-            if self['do_TB']:
-                self.log_TB(value=out['loss'],          tag='tr/loss',      step=self['train_batch_IX'])
-                self.log_TB(value=out['gg_norm'],       tag='tr/gn',        step=self['train_batch_IX'])
-                self.log_TB(value=out['gg_avt_norm'],   tag='tr/gn_avt',    step=self['train_batch_IX'])
-                self.log_TB(value=out['currentLR'],     tag='tr/cLR',       step=self['train_batch_IX'])
-                if acc is not None:
-                    self.log_TB(value=acc,              tag='tr/acc',       step=self['train_batch_IX'])
-                if f1 is not None:
-                    self.log_TB(value=f1,               tag='tr/F1',       step=self['train_batch_IX'])
-
-            if acc is not None: tr_accL.append(acc)
-            if f1 is not None: tr_f1L.append(f1)
-            tr_lssL.append(out['loss'])
-
-            if batch_IX in ts_bIX:
-
-                self.train(False)
-                ts_acc, ts_f1, ts_loss = self.run_test()
-                self.train(True)
-
-                ts_score = ts_f1 if use_F1 else ts_acc
-                if ts_score is not None:
-                    ts_score_all_results.append(ts_score)
-                if self['do_TB']:
-                    if ts_loss is not None:
-                        self.log_TB(value=ts_loss,                      tag='ts/loss',              step=self['train_batch_IX'])
-                    if ts_acc is not None:
-                        self.log_TB(value=ts_acc,                       tag='ts/acc',               step=self['train_batch_IX'])
-                    if ts_f1 is not None:
-                        self.log_TB(value=ts_f1,                        tag='ts/F1',                step=self['train_batch_IX'])
-                    if ts_score is not None:
-                        self.log_TB(value=ts_score_mav.upd(ts_score),   tag=f'ts/{score_name}_mav', step=self['train_batch_IX'])
-
-                tr_acc_nfo = f'{100*sum(tr_accL)/test_freq:.1f}' if acc is not None else '--'
-                tr_f1_nfo =  f'{100*sum(tr_f1L)/test_freq:.1f}' if f1 is not None else '--'
-                ts_acc_nfo = f'{100*ts_acc:.1f}' if ts_acc is not None else '--'
-                ts_f1_nfo = f'{100*ts_f1:.1f}' if ts_f1 is not None else '--'
-                ts_loss_nfo = f'{ts_loss:.3f}' if ts_loss is not None else '--'
-                self._nwwlog.info(f'# {self["train_batch_IX"]:5d} TR: {tr_acc_nfo} / {tr_f1_nfo} / {sum(tr_lssL)/test_freq:.3f} -- TS: {ts_acc_nfo} / {ts_f1_nfo} / {ts_loss_nfo}')
-                tr_accL = []
-                tr_f1L = []
-                tr_lssL = []
-
-                if ts_score is not None and ts_score > ts_score_max:
-                    ts_score_max = ts_score
-                    if not self['read_only'] and save_max: self.save_ckpt() # model is saved for max ts_score
-
-        # weighted (linear ascending weight) test score for last 10% test results
-        ts_score_wval = None
-        if ts_score_all_results:
-            ts_score_wval = 0.0
-            weight = 1
-            sum_weight = 0
-            for tr in ts_score_all_results[-ten_factor:]:
-                ts_score_wval += tr*weight
-                sum_weight += weight
-                weight += 1
-            ts_score_wval /= sum_weight
-
-            if self['do_TB']: self.log_TB(value=ts_score_wval, tag=f'ts/ts_{score_name}_wval', step=self['train_batch_IX'])
-
-        self._nwwlog.info(f'### model {self.name} finished training')
-        if ts_score_wval is not None:
-            self._nwwlog.info(f' > test_{score_name}_max:  {ts_score_max:.4f}')
-            self._nwwlog.info(f' > test_{score_name}_wval: {ts_score_wval:.4f}')
-
-        self.train(False)
-
-        return ts_score_wval
-
-    def run_test(
-            self,
-            set_training: Optional[bool]=   None,   # for not None sets training mode for torch.nn.Module, allows to calculate loss with training/evaluating module mode
-    ) -> Tuple[Optional[float], Optional[float], float]:
-
-        if not self._batcher: raise MOTorchException('MOTorch has not been given data for testing, use load_data() or give it while testing!')
-
-        if set_training is not None: self.train(set_training)
-
-        batches = self._batcher.get_TS_batches()
-        lossL = []
-        accL = []
-        f1L = []
-        for batch in batches:
-            out = self.loss_acc(**batch)
-            lossL.append(out['loss'])
-            if 'acc' in out:
-                accL.append(out['acc'])
-            if 'f1' in out:
-                f1L.append(out['f1'])
-
-        if set_training is not None: self.train(False)  # eventually roll back to default
-
-        acc_avg = sum(accL)/len(accL) if accL else None
-        f1_avg = sum(f1L)/len(f1L) if f1L else None
-        loss_avg = sum(lossL)/len(lossL) if lossL else None
-        return acc_avg, f1_avg, loss_avg
+    # *********************************************************************************************** other / properties
 
     # updates scheduler baseLR of 0 group
     def update_baseLR(self, lr: float):
@@ -559,9 +409,16 @@ class MOTorch(NNWrap, torch.nn.Module):
 
     @property
     def size(self) -> int:
-        return self._nngraph_module.size
+        pp = 0
+        for p in list(self.parameters()):
+            nn = 1
+            for s in list(p.size()):
+                nn = nn * s
+            pp += nn
+        return pp
 
-    def get_devices(self): return self._torch_dev
+    def get_devices(self):
+        return self._torch_dev
 
     def __str__(self):
         s = f'MOTorch: {ParaSave.__str__(self)}\n'

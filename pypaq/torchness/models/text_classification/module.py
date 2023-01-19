@@ -3,10 +3,10 @@ from typing import List, Optional, Union
 
 from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.torchness.motorch import Module
-from pypaq.torchness.types import DTNS, INI
+from pypaq.torchness.types import TNS, DTNS, INI
 from pypaq.torchness.base_elements import my_initializer
 from pypaq.torchness.layers import LayDense
-from pypaq.torchness.models.text_emb.module import TextEMBModule
+from pypaq.torchness.models.text_emb.module import TextEMB
 
 
 
@@ -31,7 +31,7 @@ class TeXClas(Module):
 
         Module.__init__(self)
 
-        self.te_module = TextEMBModule(
+        self.te_module = TextEMB(
             st_name=        st_name,
             enc_batch_size= enc_batch_size)
 
@@ -79,7 +79,7 @@ class TeXClas(Module):
             device=             device)
         return {'embeddings': embeddings}
 
-    def forward(self, feats) -> DTNS:
+    def forward(self, feats:TNS) -> DTNS:
         if self.drop: feats = self.drop(feats)
         mid = self.mid(feats)
         if self.mid_drop: mid = self.mid_drop(mid)
@@ -91,7 +91,7 @@ class TeXClas(Module):
             'probs':    probs,
             'labels':   labels}
 
-    def loss_acc(self, feats, labels) -> DTNS:
+    def loss(self, feats:TNS, labels:TNS) -> DTNS:
         out = self.forward(feats)
         logits = out['logits']
 

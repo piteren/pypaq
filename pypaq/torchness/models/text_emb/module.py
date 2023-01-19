@@ -7,13 +7,13 @@ from pypaq.torchness.motorch import Module
 from pypaq.torchness.types import DTNS
 
 
-class TextEMBModule(Module):
+class TextEMB(torch.nn.Module):
 
     def __init__(
             self,
             st_name: str,
             enc_batch_size= 256):
-        Module.__init__(self)
+        torch.nn.Module.__init__(self)
         self.st_name = st_name
         self.st_model = SentenceTransformer(model_name_or_path= st_name)
         self.enc_batch_size = enc_batch_size
@@ -52,12 +52,6 @@ class TextEMBModule(Module):
 
         return out_features['sentence_embedding']
     #"""
-
-    def forward(self, *args, **kwargs) -> DTNS:
-        raise NotImplementedError
-
-    def loss_acc(self, *args, **kwargs) -> DTNS:
-        raise NotImplementedError
 
     @property
     def width(self) -> int:

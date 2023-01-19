@@ -31,7 +31,7 @@ class LinModel(Module):
         logits = self.lin(inp)
         return {'logits': logits}
 
-    def loss_acc(self, inp, lbl) -> dict:
+    def loss(self, inp, lbl) -> dict:
         out = self(inp)
         out['loss'] = self.loss_func(out['logits'], lbl)
         out['acc'] = self.accuracy(out['logits'], lbl)  # using baseline

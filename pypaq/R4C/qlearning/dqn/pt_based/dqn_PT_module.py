@@ -63,7 +63,7 @@ class DQNModel(Module):
         # no good accuracy for this model
         return 0.0
 
-    def loss_acc(self, obs, lbl, mask=None) -> dict:
+    def loss(self, obs, lbl, mask=None) -> dict:
         out = self(obs)
         logits = out['logits']
         loss = self.loss(logits, lbl)

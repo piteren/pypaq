@@ -100,7 +100,7 @@ class A2CModel(Module):
             'probs':    probs,
             'zeroes':   zsL}
 
-    def loss_acc(self, observation, action_taken, dreturn) -> dict:
+    def loss(self, observation, action_taken, dreturn) -> dict:
 
         out = self(observation)
 

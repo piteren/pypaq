@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 import torch
 
 from pypaq.torchness.types import ACT, INI, TNS, DTNS
@@ -70,9 +70,9 @@ class LayBlockDRT(torch.nn.Module):
 
         self.res = LayRES(in_features=in_width, dropout=res_dropout) if residual else None
 
-    def forward(self, input:TNS) -> DTNS:
+    def forward(self, inp_tns:TNS) -> DTNS:
 
-        out = self.ln_in(input)
+        out = self.ln_in(inp_tns)
 
         out = self.denses[0](out)
         zsL = [zeroes(out)]
@@ -88,7 +88,7 @@ class LayBlockDRT(torch.nn.Module):
             out = self.drop_lay(out)
 
         if self.res:
-            out = self.res(input=out, bypass=input)
+            out = self.res(inp_tns=out, bypass=inp_tns)
 
         return {
             'out':  out,
@@ -153,11 +153,11 @@ class EncDRT(torch.nn.Module):
         for lix,lay in enumerate(self.drt_lays): self.add_module(f'lay_drt_{lix}',lay)
         if shared_lays and n_layers > 1: self.drt_lays *= n_layers
 
-    def forward(self, input:TNS) -> DTNS:
+    def forward(self, inp_tns:TNS) -> DTNS:
 
         zsL = []
 
-        out = input
+        out = inp_tns
 
         if self.in_drop_lay: # input dropout
             out = self.in_drop_lay(out)
@@ -239,14 +239,14 @@ class LayBlockCNN(torch.nn.Module):
             dtype=          dtype,
             initializer=    initializer) if do_ldrt else None
 
-    def forward(self, input:TNS, history:Optional[TNS]=None) -> DTNS:
+    def forward(self, inp_tns:TNS, history:Optional[TNS]=None) -> DTNS:
 
         zsL = []
-        out = self.lay_ln(input)
+        out = self.lay_ln(inp_tns)
 
         if self.padded:
             if history is None:
-                in_sh = list(input.shape)
+                in_sh = list(inp_tns.shape)
                 pad_width = int((self.kernel_size-1)/2)
                 in_sh[-2] = pad_width
                 pad = torch.zeros(in_sh).to(out.device)
@@ -266,7 +266,7 @@ class LayBlockCNN(torch.nn.Module):
 
         # it is not possible to do RES for not padded version
         if self.padded:
-            out = self.res(input=out, bypass=input)
+            out = self.res(inp_tns=out, bypass=inp_tns)
 
         if self.lay_DRT:
             lay_out = self.lay_DRT(out)
@@ -275,7 +275,7 @@ class LayBlockCNN(torch.nn.Module):
 
         return {
             'out':      out,
-            'state':    torch.split(input, split_size_or_sections=self.kernel_size-1, dim=-2)[-1],
+            'state':    torch.split(inp_tns, split_size_or_sections=self.kernel_size-1, dim=-2)[-1],
             'zsL':      zsL}
 
 
@@ -357,26 +357,29 @@ class EncCNN(torch.nn.Module):
             dtype=              dtype)
 
     # prepares initial history for casual mode, history has shape [.., n_layers, kernel_size-1, n_filters]
-    def get_zero_history(self, input:TNS) -> TNS:
-        in_sh = list(input.shape)
+    def get_zero_history(self, inp_tns:TNS) -> TNS:
+        in_sh = list(inp_tns.shape)
         in_sh.insert(-2, self.n_layers)
         in_sh[-2] = self.kernel_size - 1
         in_sh[-1] = self.n_filters
-        return torch.zeros(in_sh).to(input.device)
+        return torch.zeros(in_sh).to(inp_tns.device)
 
-    def forward(self, input:TNS, history:Optional[TNS]=None) -> DTNS:
+    def forward(
+            self,
+            inp_tns: TNS,
+            history_tns: Optional[TNS]= None) -> DTNS:
 
         states = []  # here we will store block states to concatenate them finally
         zsL = []
 
         if self.in_TFdrop_lay:
-            input = self.in_TFdrop_lay(input)
+            inp_tns = self.in_TFdrop_lay(inp_tns)
 
         if self.projection_lay:
-            input = self.projection_lay(input)
+            inp_tns = self.projection_lay(inp_tns)
 
-        output = input  # for 0 layers case
-        histories = torch.split(history,1,dim=-3) if history is not None else [None]*self.n_layers
+        output = inp_tns  # for 0 layers case
+        histories = torch.split(history_tns, 1, dim=-3) if history_tns is not None else [None]*self.n_layers
         for block,hist in zip(self.blocks, histories):
             if hist is not None: hist = torch.squeeze(hist, dim=-3)
             block_out = block(output, history=hist)
@@ -470,40 +473,41 @@ class LayBlockTNS(torch.nn.Module):
 
     def forward(
             self,
-            src: TNS,
-            task_query: Optional[TNS]=              None,           # forces task-attention mode (TAT)
-            src_mask: Optional[TNS]=                None,
-            src_key_padding_mask: Optional[TNS]=    None) -> DTNS:
+            inp_tns: TNS,
+            task_query_tns: Optional[TNS]=              None,           # forces task-attention mode (TAT)
+            inp_mask_tns: Optional[TNS]=                None,
+            inp_key_padding_mask_tns: Optional[TNS]=    None) -> DTNS:
 
-        x = src
+        x = inp_tns
 
-        if task_query is None: x = self.norm1(x) # norm first https://arxiv.org/pdf/2002.04745v1.pdf
-        else: task_query = self.norm1(task_query) # LN on task_query
+        if task_query_tns is None: x = self.norm1(x) # norm first https://arxiv.org/pdf/2002.04745v1.pdf
+        else: task_query_tns = self.norm1(task_query_tns) # LN on task_query
 
         x = self.self_attn(
-            query=              x if task_query is None else task_query,
+            query=              x if task_query_tns is None else task_query_tns,
             key=                x,
             value=              x,
-            key_padding_mask=   src_key_padding_mask,
+            key_padding_mask=   inp_key_padding_mask_tns,
             need_weights=       False,
-            attn_mask=          src_mask)[0]
+            attn_mask=          inp_mask_tns)[0]
 
         if self.dropout1:
             x = self.dropout1(x)
 
-        bypass = src if task_query is None else task_query
-        x = self.res1(input=x, bypass=bypass)
+        bypass = inp_tns if task_query_tns is None else task_query_tns
+        x = self.res1(inp_tns=x, bypass=bypass)
 
         return self.lay_drt(x)
 
 
-# Transformer Encoder (based on torch.nn.modules.transformer.TransformerEncoder)
+# Transformer Encoder (based on torch.nn.modules.transformer.TransformerEncoder), with TAT option and some others
 class EncTNS(torch.nn.Module):
 
     def __init__(
             self,
             num_layers: int=                        6,
             num_layers_TAT: int=                    0,
+            initial_TAT_avg: bool=                  True,   # how to prepare first block TAT task_query
             shared_lays: Optional[Tuple[int,...]]=  None,   # tuple defines layers groups with shared variables, e.g.: (2,2,2)
             max_seq_len: Optional[int]=             None,   # when given (int) adds positional embeddings (PE) to seq
             # block params
@@ -522,8 +526,19 @@ class EncTNS(torch.nn.Module):
         # positional embeddings (trainable)
         self.pos_emb = None
         if max_seq_len:
-            self.pos_emb = torch.nn.Parameter(torch.empty((max_seq_len, d_model), device=device, dtype=dtype))
+            self.pos_emb = torch.nn.Parameter(
+                data=   torch.empty(
+                    size=   (max_seq_len, d_model),
+                    device= device,
+                    dtype=  dtype))
             bert_initializer(self.pos_emb)
+
+        self.initial_task_query = None
+        if not initial_TAT_avg:
+            self.initial_task_query = torch.nn.Parameter(
+                data=           torch.empty(d_model, device=device, dtype=dtype),
+                requires_grad=  False) # TODO: check with experiments
+            bert_initializer(self.initial_task_query)
 
         # manage layers number
         num_layers_to_build = num_layers + num_layers_TAT
@@ -561,9 +576,10 @@ class EncTNS(torch.nn.Module):
             device=             device,
             dtype=              dtype)
 
-    def forward(self, src:TNS, mask:Optional[TNS]=None) -> DTNS:
+    # casual Transformer encoding
+    def _encode(self, inp_tns:TNS, mask_tns:Optional[TNS]=None) -> DTNS:
 
-        output = src
+        output = inp_tns
 
         # add positional embeddings if needed
         if self.pos_emb is not None:
@@ -571,22 +587,64 @@ class EncTNS(torch.nn.Module):
 
         zsL = []
         for mod in self.layers:
-            block_out = mod(src=output, src_mask=mask)
+            block_out = mod(inp_tns=output, inp_mask_tns=mask_tns)
             output = block_out['out']
             zsL += block_out['zsL']
 
         # pass through task-attention layers
         if self.layers_TAT:
+
             seq = output
-            task_query = torch.mean(seq, dim=-2, keepdim=True) # first initial reduce
+
+
+            if self.initial_task_query is not None:
+                task_query = self.initial_task_query                # from model
+                seq_shape = list(seq.shape)
+                seq_shape[-2] = 1
+                # TODO: not sure if it will work for batch of sequences, e.g. [128,64,512]
+                task_query = task_query.view(seq_shape)
+            else:
+                task_query = torch.mean(seq, dim=-2, keepdim=True)  # first initial from reduce
+
             for mod in self.layers_TAT:
-                block_out = mod(src=seq, task_query=task_query, src_mask=mask)
+                block_out = mod(inp_tns=seq, task_query_tns=task_query, inp_mask_tns=mask_tns)
                 task_query = block_out['out']
                 zsL += block_out['zsL']
-            output = task_query
+            output = torch.flatten(task_query,-2,-1) # remove seq (-2) dimension of size 1
 
         output = self.norm(output)
 
         return {
             'out':  output,
             'zsL':  zsL}
+
+    # pyramidal_encoding
+    def _encode_pyramidal(self, inp_tns:TNS, pyramide: Union[Tuple[int],int]) -> DTNS:
+
+        if type(pyramide) is int: pyramide = (pyramide,)
+
+        inp = inp_tns
+        zsL = []
+        for sl in pyramide:
+            in_split = torch.split(inp, sl, dim=0)
+            outL = [self._encode(inp_tns=i) for i in in_split]
+            inp = [o['out'] for o in outL]
+            inp = torch.stack(inp, dim=0)
+            zsLL = [o['zsL'] for o in outL]
+            zsL += [e for el in zsLL for e in el]
+        out = self._encode(inp)
+        out['zsL'] += zsL
+        return out
+
+    def forward(
+            self,
+            inp_tns: TNS,
+            mask_tns: Optional[TNS]=                    None,
+            pyramide: Optional[Union[Tuple[int],int]]=  None) -> DTNS:
+
+        if pyramide:
+            if mask_tns is not None:
+                raise TorchnessException('mask is not supported for pyramidal encoding')
+            return self._encode_pyramidal(inp_tns, pyramide)
+        else:
+            return self._encode(inp_tns, mask_tns)
