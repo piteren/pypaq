@@ -40,8 +40,8 @@ class LayDense(torch.nn.Linear):
             # bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
             # torch.nn.init.uniform_(self.bias, -bound, bound)
 
-    def forward(self, inp_tns:TNS) -> TNS:
-        out = super().forward(inp_tns)
+    def forward(self, inp:TNS) -> TNS:
+        out = super().forward(inp)
         if self.activation: out = self.activation(out)
         return out
 
@@ -49,7 +49,7 @@ class LayDense(torch.nn.Linear):
         act_info = '' if self.activation else ', activation=None'
         return f'in_features={self.in_features}, out_features={self.out_features}, bias={self.bias is not None}{act_info}'
 
-# time & feats dropout (for sequences), inp_tns tensor [...,seq,feats]
+# time & feats dropout (for sequences), inp tensor [...,seq,feats]
 class TF_Dropout(torch.nn.Dropout):
 
     def __init__(
@@ -61,10 +61,10 @@ class TF_Dropout(torch.nn.Dropout):
         self.feat_drop = feat_drop
         super(TF_Dropout, self).__init__(inplace=inplace)
 
-    def forward(self, inp_tns:TNS) -> TNS:
+    def forward(self, inp:TNS) -> TNS:
 
-        output = inp_tns
-        in_shape = inp_tns.size()
+        output = inp
+        in_shape = inp.size()
 
         if self.time_drop:
             t_drop = torch.ones(in_shape[-2])
@@ -135,14 +135,14 @@ class LayConv1D(torch.nn.Conv1d):
             # bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
             # torch.nn.init.uniform_(self.bias, -bound, bound)
 
-    def forward(self, inp_tns:TNS) -> TNS:
-        inp_trans = torch.transpose(input=inp_tns, dim0=-1, dim1=-2) # transposes inp_tns to (N,C,L) <- (N,L,C), since torch.nn.Conv1d assumes that channels is @ -2 dim
+    def forward(self, inp:TNS) -> TNS:
+        inp_trans = torch.transpose(input=inp, dim0=-1, dim1=-2) # transposes inp to (N,C,L) <- (N,L,C), since torch.nn.Conv1d assumes that channels is @ -2 dim
         out = super().forward(input=inp_trans)
         out = torch.transpose(out, dim0=-1, dim1=-2) # transpose back
         if self.activation: out = self.activation(out)
         return out
 
-# Residual Layer with dropout for bypass inp_tns
+# Residual Layer with dropout for bypass inp
 class LayRES(torch.nn.Module):
 
     def __init__(
@@ -157,19 +157,19 @@ class LayRES(torch.nn.Module):
 
         self.dropout = torch.nn.Dropout(p=dropout) if dropout else None
 
-    def forward(self, inp_tns:TNS, bypass:TNS) -> TNS:
+    def forward(self, inp:TNS, bypass:TNS) -> TNS:
         if self.dropout:
             bypass = self.dropout(bypass)
-        return inp_tns + bypass
+        return inp + bypass
 
 
-# returns [0,1] tensor: 1 where inp_tns not activated (value =< 0), looks at last dimension / features
-def zeroes(inp_tns :TNS) -> np.ndarray:
-    axes = [ix for ix in range(len(inp_tns.shape))][:-1]  # all but last(feats) axes indexes list like: [0,1,2] for 4d shape
+# returns [0,1] tensor: 1 where inp not activated (value =< 0), looks at last dimension / features
+def zeroes(inp :TNS) -> np.ndarray:
+    axes = [ix for ix in range(len(inp.shape))][:-1]  # all but last(feats) axes indexes list like: [0,1,2] for 4d shape
     activated = torch.where(                            # 1 for value greater than zero, other 0
-        condition=      torch.gt(inp_tns, 0),
-        input=          torch.ones_like(inp_tns),         # true
-        other=          torch.zeros_like(inp_tns))        # false
+        condition=      torch.gt(inp, 0),
+        input=          torch.ones_like(inp),         # true
+        other=          torch.zeros_like(inp))        # false
     activated_reduced = torch.sum(activated, dim=axes) if axes else activated  # 1 or more for activated, 0 for not activated, if not axes -> we have only-feats-tensor-case
     not_activated = torch.eq(activated_reduced, 0)      # true where summed gives zero (~invert)
     not_activated = not_activated.to(dtype=torch.int8)  # cast to int
