@@ -61,11 +61,11 @@ class SFeatsCSF(Module):
         if self.mid_drop: mid = self.mid_drop(mid)
         logits = self.logits(mid)
         probs = torch.nn.functional.softmax(logits, dim=-1)
-        labels = torch.argmax(logits, dim=-1)
+        preds = torch.argmax(logits, dim=-1)
         return {
             'logits':   logits,
             'probs':    probs.detach().cpu().numpy(),
-            'labels':   labels.detach().cpu().numpy()}
+            'preds':    preds.detach().cpu().numpy()}
 
     def loss(self, feats:TNS, labels:TNS) -> DTNS:
 
