@@ -1,13 +1,11 @@
 import random
 import time
-from typing import Optional, List
-import warnings
+from typing import Optional, List, Dict
 
 from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.mpython.devices import DevicesParam
-from pypaq.mpython.omp import RunningWorker, OMPRunner, ResultOMPRException
-from pypaq.scrap.scrap_base import URL, download_response, extract_text, extract_subURLs
-from pypaq.textools.text_processing import whitespace_normalization
+from pypaq.mpython.omp import RunningWorker, OMPRunner
+from pypaq.scrap.scrap_base import URL, download_response
 
 
 # Url, Text, sub-UrlS - this class keeps URL content (URL, its text and its sub-urls (links))
@@ -23,97 +21,96 @@ class UTUS:
         self.urls = urls
 
 
-# MultiProcessing Scrapper of List[URL] -> List[UTUS]
-class MPScrapper:
+# RunningWorker to retrieve URL content
+class ResponseRetriever(RunningWorker):
 
-    # RunningWorker to retrieve URL content
-    class UTUS_retriever(RunningWorker):
+    def __init__(self, logger):
+        self.logger = logger
 
-        def __init__(
-                self,
-                logger,
-                proxies: Optional[List[str]]):
-            self.logger = logger
-            self.proxies = proxies
+    def process(
+            self,
+            url: URL,
+            header: Optional[Dict]= None,
+            proxy: Optional[str]=   None) -> dict:
 
-        def process(self, url:URL) -> UTUS:
-            text = None
-            urls = []
-            response = download_response(url=url, logger=self.logger)
-            if not response and response.status_code == 429 and self.proxies:
-                for ix in range(10):
-                    proxy = random.choice(self.proxies)
-                    response = download_response(url=url, logger=self.logger, proxy=proxy)
-                    if response:
-                        self.logger.info(f'done with proxy at try {ix}')
-                        break
-            if response:
-                text = extract_text(response=response, logger=self.logger)
-                if text is not None: text = whitespace_normalization(text, remove_nlines=False)
-                urls = extract_subURLs(response)
-            return UTUS(
-                url=    url,
-                text=   text,
-                urls=   urls)
+        response = download_response(
+            url=    url,
+            header= header,
+            proxy=  proxy,
+            logger= self.logger)
+
+        return {
+            'url':      url,
+            'header':   header,
+            'proxy':    proxy,
+            'response': response}
+
+# MultiProcessing Scrapper
+class MPScrapper(OMPRunner):
 
     def __init__(
             self,
-            logger,
-            loglevel=                       20,
-            devices: DevicesParam=          0.5,
-            task_timeout=                   30,
-            report_delay=                   5,
-            proxies: Optional[List[str]]=   None,
-            off_bs4_warnings=               True):
-
-        if off_bs4_warnings: warnings.filterwarnings("ignore", module='bs4')
+            rw_class=                                   ResponseRetriever,
+            devices: DevicesParam=                      [None]*4,
+            task_timeout=                               30,
+            report_delay=                               5,
+            headers: Optional[List[Optional[Dict]]]=    None,
+            proxies: Optional[List[str]]=               None,
+            logger=                                     None,
+            loglevel=                                   20,
+            **kwargs):
 
         if not logger:
             logger = get_pylogger(
-                name=       'MPScrapper',
+                name=       self.omp_name,
                 add_stamp=  False,
                 folder=     None,
                 level=      loglevel)
         self.logger = logger
 
-        self.ompr = OMPRunner(
-            rw_class=           MPScrapper.UTUS_retriever,
-            rw_init_kwargs=     {'logger': logger, 'proxies':proxies},
+        OMPRunner.__init__(
+            self,
+            rw_class=           rw_class,
             devices=            devices,
             ordered_results=    False,
             task_timeout=       task_timeout,
             restart_ex_tasks=   False,
             report_delay=       report_delay,
-            logger=             self.logger)
+            logger=             self.logger,
+            **kwargs)
+
+        self.headers = headers
+        self.proxies = proxies
 
         self.logger.info('*** MPScrapper *** initialized')
-        self.logger.info(f' > num of workers: {self.ompr.get_num_workers()}')
+        self.logger.info(f' > num of workers: {self.get_num_workers()}')
 
-    def download_UTUSL(
+    # wraps process() + get_all_results() with tasks preparation, with header & proxy management, timeout
+    def scrap(
             self,
             urls: List[URL],
-            max_time: Optional[int]=    None) -> List[UTUS]:
+            max_time: Optional[int]=    None,   # max num minutes for download()
+            retry: Optional[int]=       2,      # number of retries for 429
+    ) -> List[dict]:
 
-        self.logger.info(f'MPScrapper is starting to download UTUS for {len(urls)} urls')
+        self.logger.info(f'MPScrapper is starting to download RESPONSES for {len(urls)} urls')
         random.shuffle(urls)
-        tasks = [{'url': u} for u in urls]
-        self.ompr.process(tasks)
+        tasks = [{
+            'url':      u,
+            'header':   random.choice(self.headers) if self.headers else None,
+            'proxy':    random.choice(self.proxies) if self.proxies else None,
+        } for u in urls]
+        self.process(tasks)
 
-        utusL = []
+        sc_results = []
         s_time = time.time()
         for ix in range(len(urls)):
-            utusL.append(self.ompr.get_result())
+            sc_results.append(self.get_result())
             if max_time is not None:
                 tmt = (time.time() - s_time) / 60
                 if tmt > max_time:
-                    self.logger.warning(f'BREAKING the loop of retrieving RD because max_time exceeded')
+                    self.logger.warning(f'BREAKING the loop of download_RESPONSES because max_time exceeded')
                     break
+        self.logger.info(f'MPScrapper got {len(sc_results)} sc_results, time taken: {(time.time() - s_time) / 60:.1f} min')
 
-        n_all = len(utusL)
-        utusL = [r for r in utusL if type(r) is not ResultOMPRException]  # pop exceptions
-        self.logger.info(f'MPScrapper got {len(utusL)} UTUS / {len(urls)} urls ({n_all - len(utusL)} exceptions)')
-
-        return utusL
-
-    def exit(self):
-        self.ompr.exit()
+        return sc_results
