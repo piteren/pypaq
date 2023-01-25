@@ -35,6 +35,7 @@ from typing import Any, List, Dict, Optional, Tuple, Union
 
 from pypaq.lipytools.pylogger import get_pylogger, get_hi_child
 from pypaq.lipytools.moving_average import MovAvg
+from pypaq.lipytools.little_methods import get_params
 from pypaq.mpython.devices import DevicesParam, get_devices
 from pypaq.mpython.mptools import QMessage, ExSubprocess, Que
 
@@ -269,15 +270,17 @@ class OMPRunner:
                 msg = self.ique.get_if()
                 if msg:
                     if msg.type == 'poison':
+                        self.logger.debug(f'> {self.ip_name} loop received \'poison msg\', breaks..')
                         break_loop = True
                     if msg.type == 'tasks':
                         for task in msg.data:
                             tasks_que.append((next_task_ix, 0, task))
                             next_task_ix += 1
 
-                if not tasks_que and len(resources) == len(self.rwwD):
+                if not break_loop and not tasks_que and len(resources) == len(self.rwwD):
                     msg = self.ique.get() # wait here for task or poison
                     if msg.type == 'poison':
+                        self.logger.debug(f'> {self.ip_name} loop received \'poison msg\', breaks..')
                         break_loop = True
                     if msg.type == 'tasks':
                         for task in msg.data:
@@ -291,6 +294,7 @@ class OMPRunner:
                         msg = self.ique.get_if()
                         if msg:
                             if msg.type == 'poison':
+                                self.logger.debug(f'> {self.ip_name} loop received \'poison msg\', breaks..')
                                 break_loop = True
                                 break
                             if msg.type == 'tasks':
@@ -303,6 +307,7 @@ class OMPRunner:
                     # all RWW have to be killed here, from the loop
                     # we want to kill them because it is quicker than waiting for them till finish tasks
                     # - we do not need their results anymore
+                    self.logger.debug(f'> {self.ip_name} is going to kill all RWW (since breaking the loop)..')
                     self._kill_allRWW()
                     break
 
@@ -483,7 +488,7 @@ class OMPRunner:
     def __init__(
             self,
             rw_class: type(RunningWorker),          # RunningWorker class that will run() given tasks
-            rw_init_kwargs: Optional[Dict]= None,   # RunningWorker __init__ kwargs
+            rw_init_kwargs: Optional[Dict]= None,   # RunningWorker __init__ kwargs, logger is managed by OMPRunner
             rw_lifetime: Optional[int]=     None,   # RunningWorker lifetime, for None or 0 is unlimited, for N <1,n> each RW will be restarted after processing N tasks
             devices: DevicesParam=          'all',
             name: str=                      'OMPRunner',
@@ -518,6 +523,14 @@ class OMPRunner:
 
         if report_delay == 'none': report_delay = None
         if report_delay == 'auto': report_delay = 30 if loglevel>10 else 10
+
+        if not rw_init_kwargs:
+            rw_init_kwargs = {}
+
+        # eventually add self.logger to rw_init_kwargs
+        rw_class_params = get_params(rw_class.__init__)
+        if 'logger' in rw_class_params['with_defaults'] or 'logger' in rw_class_params['without_defaults']:
+            rw_init_kwargs['logger'] = self.logger
 
         self._internal_processor = OMPRunner.InternalProcessor(
             ique=                   self._tasks_que,
