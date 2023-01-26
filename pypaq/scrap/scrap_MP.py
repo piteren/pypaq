@@ -4,7 +4,7 @@ from typing import Optional, List, Dict
 
 from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.mpython.devices import DevicesParam
-from pypaq.mpython.omp import RunningWorker, OMPRunner
+from pypaq.mpython.ompr import RunningWorker, OMPRunner
 from pypaq.scrap.scrap_base import URL, download_response
 
 
@@ -83,7 +83,7 @@ class MPScrapper(OMPRunner):
         self.proxies = proxies
 
         self.logger.info('*** MPScrapper *** initialized')
-        self.logger.info(f' > num of workers: {self.get_num_workers()}')
+        self.logger.info(f'> num of workers: {self.get_num_workers()}')
 
     # wraps process() + get_all_results() with tasks preparation, with header & proxy management, timeout
     def scrap(

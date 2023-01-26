@@ -101,7 +101,7 @@ class ExSubprocess(Process, ABC):
     def subprocess_method(self): pass
 
     # when exception occurs, message with exception data is put on the output que
-    def __exception_handle(self, name: str):
+    def __exception_handle(self, name:str):
         msg = QMessage(
             type=   f'ex_{name}, ExSubprocess id: {self.id}, pid: {self.pid}',
             data=   self.id) # returns ID here to allow process identification
