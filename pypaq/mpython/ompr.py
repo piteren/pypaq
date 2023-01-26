@@ -367,8 +367,9 @@ class InternalProcessor(ExSubprocess):
             # TODO: implement sleep based on tasks processing time / num RWW
             #time.sleep(0.001)
 
-            # get message from the ique
-            msg = self.ique.get_if()
+            # get message from the ique, block when not tasks present and all RWW waiting
+            if not tasks_que and len(resources) == len(self.rwwD):  msg = self.ique.get()
+            else:                                                   msg = self.ique.get_if()
 
             # process ique message
             if msg:

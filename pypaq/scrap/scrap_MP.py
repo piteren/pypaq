@@ -74,7 +74,6 @@ class MPScrapper(OMPRunner):
             devices=            devices,
             ordered_results=    False,
             task_timeout=       task_timeout,
-            restart_ex_tasks=   False,
             report_delay=       report_delay,
             logger=             self.logger,
             **kwargs)
