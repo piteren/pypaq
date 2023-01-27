@@ -147,7 +147,7 @@ class NNWrap(ParaSave, ABC):
         found = self.check_params_sim(params=pms)
         if found:
             self._nwwlog.warning('NNWrap was asked to check for params similarity and found:')
-            for pa, pb in found: self._nwwlog.warning(f'> params \'{pa}\' and \'{pb}\' are too CLOSE !!!')
+            for pa, pb in found: self._nwwlog.warning(f'> params \'{pa}\' and \'{pb}\' are close !!!')
 
         self._manage_devices()
 

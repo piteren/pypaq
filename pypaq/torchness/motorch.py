@@ -278,7 +278,7 @@ class MOTorch(NNWrap, torch.nn.Module):
     def loss(
             self,
             *args,
-            # INFO: since loss() is used in training loop ( run_training() while testing ) where data is converted while loading we do not want to convert each batch separately
+            # INFO: not converted by default
             to_torch=                       False,
             to_devices=                     False,
             to_dtype=                       False,
@@ -294,7 +294,7 @@ class MOTorch(NNWrap, torch.nn.Module):
     def backward(
             self,
             *args,
-            # INFO: since backward() is used in training loop ( run_training() ) where data is converted while loading we do not want to convert each batch separately
+            # INFO: not converted by default
             to_torch=           False,
             to_devices=         False,
             to_dtype=           False,

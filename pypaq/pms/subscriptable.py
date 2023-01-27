@@ -87,7 +87,7 @@ class Subscriptable:
 
         if found:
             self.__log.warning('Subscriptable was asked to check for params similarity and found:')
-            for pa,pb in found: self.__log.warning(f'> params \'{pa}\' and \'{pb}\' are too CLOSE !!!')
+            for pa,pb in found: self.__log.warning(f'> params \'{pa}\' and \'{pb}\' are close !!!')
 
         return found or None
 

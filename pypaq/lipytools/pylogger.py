@@ -11,7 +11,7 @@ def get_pylogger(
         add_stamp=              True,   # to prevent merging loggers from one class many objects
         folder: Optional[str]=  None,   # if given then writes logfile
         level=                  logging.INFO,
-        format: str=            '%(asctime)s {%(filename)17s:%(lineno)3d} p%(process)s %(levelname)s: %(message)s',
+        format: str=            '%(asctime)s {%(filename)20s:%(lineno)3d} p%(process)s %(levelname)s: %(message)s',
         to_stdout=              True):
 
     if not name: name = 'logger'
