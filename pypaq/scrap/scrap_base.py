@@ -33,7 +33,7 @@ def download_response(
         proxy: Optional[str]=   None) -> Optional[RESPONSE]:
     try:
         session = HTMLSession()
-        proxies = {'http': f'http://{proxy}', 'https': f'https://{proxy}'} if proxy else None
+        proxies = {'http': f'http://{proxy}'} if proxy else None
         response = session.get(url, headers=header, proxies=proxies)
         logger.debug(f'download_response() got response: "{response}" from url: {url}, header: {header}, proxy: {proxy}')
         response.session = session
