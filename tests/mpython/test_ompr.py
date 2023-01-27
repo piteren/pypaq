@@ -1,6 +1,7 @@
 import random
 import time
 import unittest
+from typing import Union
 
 from pypaq.mpython.ompr import OMPRunner, RunningWorker
 
@@ -10,14 +11,14 @@ class BRW(RunningWorker):
     def process(
             self,
             id: int,
-            sec: int,
+            sec: Union[float,int],
             exception_prob: float=  0.0) -> object:
-        if random.random() < exception_prob: raise Exception('randomly crashed')
         time.sleep(sec)
+        if random.random() < exception_prob: raise Exception('randomly crashed')
         return f'{id}_{sec}'
 
 
-class TestOMPR_NB(unittest.TestCase):
+class TestOMPR(unittest.TestCase):
 
     def test_OMPR_base(self):
 
@@ -119,18 +120,60 @@ class TestOMPR_NB(unittest.TestCase):
         ompr.exit()
 
     # OMPRunner example with process lifetime and exceptions
-    def test_OMPR_lifetime_exceptions(self):
+    def test_OMPR_lifetime(self):
 
-        n_tasks =           50
+        n_tasks =           100
         cores =             10
-        max_sec =           5
+        max_sec =           3
         process_lifetime=   2
-        exception_prob=     0.1
 
         ompr = OMPRunner(
             rw_class=       BRW,
             rw_lifetime=    process_lifetime,
-            devices=        [None] * cores)
+            devices=        [None] * cores,
+            loglevel=       10,
+        )
+
+        tasks = [{
+            'id':               id,
+            'sec':              random.randrange(1, max_sec)}
+            for id in range(n_tasks)]
+
+        print(f'tasks: ({len(tasks)}) {tasks}')
+        ompr.process(tasks)
+        results = ompr.get_all_results()
+        print(f'results: ({len(results)}) {results}')
+        self.assertTrue(isinstance(results[0], str))
+        self.assertEqual(len(tasks), len(results))
+
+        # additional 30 tasks
+        tasks = [{
+            'id':   id,
+            'sec':  random.randrange(1, max_sec)}
+            for id in range(30)]
+
+        print(f'tasks: ({len(tasks)}) {tasks}')
+        ompr.process(tasks)
+        results = ompr.get_all_results()
+        print(f'results: ({len(results)}) {results}')
+        self.assertTrue(isinstance(results[0], str))
+        self.assertEqual(len(tasks), len(results))
+
+        ompr.exit()
+
+        # OMPRunner example with process lifetime and exceptions
+    def test_OMPR_exceptions(self):
+
+        n_tasks =           100
+        cores =             10
+        max_sec =           3
+        exception_prob=     0.3
+
+        ompr = OMPRunner(
+            rw_class=       BRW,
+            devices=        [None] * cores,
+            loglevel=       10,
+        )
 
         tasks = [{
             'id':               id,
@@ -187,6 +230,37 @@ class TestOMPR_NB(unittest.TestCase):
         ompr.process(tasks)
         results = ompr.get_all_results()
         print(f'results: ({len(results)}) {results}')
+        self.assertEqual(len(tasks), len(results))
+
+        ompr.exit()
+
+    # OMPRunner with many task timeout
+    def test_OMPR_timeout_many(self):
+
+        n_tasks =           10000
+        workers =           36
+        min_time =          0.001
+        max_time =          0.009
+        timeout =           0.003
+        exception_prob =    0.9
+
+        ompr = OMPRunner(
+            rw_class=           BRW,
+            devices=            [None] * workers,
+            task_timeout=       timeout,
+            #loglevel=           10,
+        )
+
+        tasks = [{
+            'id':               id,
+            'sec':              min_time + random.random() * (max_time-min_time),
+            'exception_prob':   exception_prob}
+            for id in range(n_tasks)]
+
+        print(f'tasks: ({len(tasks)})')
+        ompr.process(tasks)
+        results = ompr.get_all_results()
+        print(f'results: ({len(results)})')
         self.assertEqual(len(tasks), len(results))
 
         ompr.exit()
