@@ -91,7 +91,7 @@ class MPScrapper(OMPRunner):
         self.logger.info('*** MPScrapper *** initialized')
         self.logger.info(f'> num of workers: {self.get_num_workers()}')
 
-        self.scrap_stats = {'download_exceptions':0, 'response.None':0}
+        self.scrap_stats = {'download_exception':0, 'response.None':0}
 
     # logs global or given scrap stats
     def log_scrap_stats(self, scrap_stats:Optional=None):
@@ -119,7 +119,7 @@ class MPScrapper(OMPRunner):
 
         self.logger.info(f'MPScrapper is starting to download RESPONSES for {len(urls)} urls')
 
-        scrap_stats = {'download_exceptions': 0, 'response.None': 0} # session scrap stats
+        scrap_stats = {'download_exception': 0, 'response.None': 0} # session scrap stats
 
         random.shuffle(urls)
         tasks = [{
@@ -137,7 +137,7 @@ class MPScrapper(OMPRunner):
 
             # update stats
             if type(result) is not dict:
-                scrap_stats['download_exceptions'] += 1
+                scrap_stats['download_exception'] += 1
             else:
                 response = result['response']
                 if response is None:
