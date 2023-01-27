@@ -437,6 +437,9 @@ class InternalProcessor(ExSubprocess):
                     if self.ordered_results: resultsD[task_ix] = res_msg
                     else: self.oque.put(res_msg)
 
+                    n_tasks_processed += 1
+                    iv_n_tasks += 1
+
             # get RWW result
             msg = self.que_RW.get_if()
 
@@ -449,7 +452,7 @@ class InternalProcessor(ExSubprocess):
                     rww_id = msg.data['rww_id']
                     task_ix = msg.data['task_ix']
 
-                    # if this is not killed task (there is a possibility that while killing RWW will finish and return its msg to que_RW, we need to get rid of this task)
+                    # if this is not a killed task (there is a possibility that while killing RWW will finish and return its msg to que_RW, we need to get rid of this task)
                     if task_ix not in killed_tasks:
 
                         rww_tasks.pop(rww_id)
@@ -461,8 +464,9 @@ class InternalProcessor(ExSubprocess):
                         res_msg = QMessage(type='result', data=msg.data['result'])
                         if self.ordered_results: resultsD[task_ix] = res_msg
                         else: self.oque.put(res_msg)
-                        iv_n_tasks += 1
+
                         n_tasks_processed += 1
+                        iv_n_tasks += 1
 
                         resources.append(rww_id)
 
@@ -491,6 +495,9 @@ class InternalProcessor(ExSubprocess):
                     if self.ordered_results: resultsD[task_ix] = res_msg
                     else: self.oque.put(res_msg)
 
+                    n_tasks_processed += 1
+                    iv_n_tasks += 1
+
             # flush resultsD
             while task_result_ix in resultsD:
                 self.oque.put(resultsD.pop(task_result_ix))
@@ -506,232 +513,13 @@ class InternalProcessor(ExSubprocess):
                         else:           speed_str = f'{1 / speed:.1f} min/task'
                     n_tasks_left = len(tasks_que)
                     est = n_tasks_left / speed
-                    n_total_tasks = n_tasks_processed + n_tasks_left
-                    progress = n_tasks_processed / n_total_tasks
-                    self.logger.info(f'> ({progress * 100:4.1f}% left:{n_tasks_left}/{n_total_tasks} {time.strftime("%H:%M:%S")}) speed: {speed_str}, EST:{est:.1f}min')
+                    progress = n_tasks_processed / next_task_ix
+                    self.logger.info(f'> ({progress * 100:4.1f}% left:{n_tasks_left}/{next_task_ix} {time.strftime("%H:%M:%S")}) speed: {speed_str}, EST:{est:.1f}min')
                 else: self.logger.info(f'> processing speed unknown yet..')
                 iv_time = time.time()
                 iv_n_tasks = 0
                 self.logger.debug(self._get_RWW_info())
 
-    """ 
-    # main loop of OMP_IP, run by ExSubprocess  
-    def subprocess_method(self):
-
-        self.logger.info(f'> {self.ip_name} loop starts with {len(self.rwwD)} subprocesses (RWW)')
-        self.build_and_start_allRWW()
-
-        next_task_ix = 0                                # next task index (index of task that will be processed next)
-        task_result_ix = 0                              # index of task result that should be put to self.results_que now
-        rww_ntasks = {k: 0 for k in self.rwwD.keys()}   # number of tasks processed by each RWW since restart
-
-        iv_time = time.time()                           # interval report time
-        iv_n_tasks = 0                                  # number of tasks finished since last interval
-        n_tasks_processed = 0                           # number of tasks processed (total)
-        speed_cache = MovAvg(factor=0.2)                # speed moving average
-        tasks_que = deque()                             # que of (task_ix, task_try, task) to be processed (received from the self.tasks_que or restarted after exception)
-        resources = list(self.rwwD.keys())              # list [rww_id] of all available (not busy) resources
-        rww_tasks: Dict[int, Tuple[int,int,Any]] = {}   # {rww.id: (task_ix,task_try,task)}
-        task_times: Dict[int, float] = {}               # {rww.id: time} here we note time when RWW got current task, it is a dict but we also use property that order is maintained
-        killed_tasks: Dict[int, Tuple[int,int]] = {}    # {rww_id: (task_ix,task_try)} here we note tasks that may come from RWW that were killed, we need to get rid of them
-
-        resultsD: Dict[int, Any] = {}                   # results dict {task_ix: result(data)}
-        while True:
-
-            break_loop = False # flag to break this loop
-
-            # to allow poison to be received while tasks still present
-            msg = self.ique.get_if()
-            if msg:
-                if msg.type == 'poison':
-                    self.logger.debug(f'> {self.ip_name} loop received \'poison msg\', breaks..')
-                    break_loop = True
-                if msg.type == 'tasks':
-                    for task in msg.data:
-                        tasks_que.append((next_task_ix, 0, task))
-                        next_task_ix += 1
-
-            if not break_loop and not tasks_que and len(resources) == len(self.rwwD):
-                msg = self.ique.get() # wait here for task or poison
-                if msg.type == 'poison':
-                    self.logger.debug(f'> {self.ip_name} loop received \'poison msg\', breaks..')
-                    break_loop = True
-                if msg.type == 'tasks':
-                    for task in msg.data:
-                        tasks_que.append((next_task_ix, 0, task))
-                        next_task_ix += 1
-
-            # try to flush the que
-            if not self.ique.empty() or self.ique.qsize():
-                self.logger.debug(f'ique is empty - {self.ique.empty()}, it has {self.ique.qsize()} objects, trying to flush in the 2nd loop')
-                while True:
-                    msg = self.ique.get_if()
-                    if msg:
-                        if msg.type == 'poison':
-                            self.logger.debug(f'> {self.ip_name} loop received \'poison msg\', breaks..')
-                            break_loop = True
-                            break
-                        if msg.type == 'tasks':
-                            for task in msg.data:
-                                tasks_que.append((next_task_ix, 0, task))
-                                next_task_ix += 1
-                    else: break
-
-            if break_loop:
-                # all RWW have to be killed here, from the loop
-                # we want to kill them because it is quicker than waiting for them till finish tasks
-                # - we do not need their results anymore
-                self.logger.debug(f'> {self.ip_name} is going to kill all RWW (since breaking the loop)..')
-                self._kill_allRWW()
-                break
-
-            self.logger.debug(f'>> free resources: {len(resources)}, tasks_que len: {len(tasks_que)}, ique.qsize: {self.ique.qsize()}')
-
-            # put all needed resources into work
-            while resources and tasks_que:
-
-                rww_id = resources.pop(0) # take first free resource
-
-                # eventually restart RWW (lifetime limit)
-                if self.rw_lifetime and rww_ntasks[rww_id] >= self.rw_lifetime:
-                    self.logger.debug(f'>> restarting RWWrap id: {rww_id}..')
-                    self._kill_RWW(rww_id)
-                    self._build_and_start_RWW(rww_id)
-                    rww_ntasks[rww_id] = 0
-
-                # get first task, prepare and put message for RWWrap
-                task_ix, task_try, task = tasks_que.popleft()
-                msg = QMessage(
-                    type=   'task',
-                    data=   {'task_ix':task_ix, 'task_try':task_try, 'task':task})
-                self.rwwD[rww_id]['rww'].ique.put(msg)
-                rww_tasks[rww_id] = (task_ix, task_try, task)
-                task_times[rww_id] = time.time()
-
-                self.logger.debug(f'>> put task {task_ix} for RWWrap({rww_id})')
-
-            ### flush que_RW (get messages from RWWraps)
-            rww_msgL: List[QMessage] = []
-
-            ### get at least one
-            # do it in a timeout loop to check for over-timed RWW
-            if self.task_timeout:
-                msg = None
-                while not msg:
-                    msg = self.que_RW.get_timeout(timeout=self.task_timeout/5)
-
-                    if task_times:
-                        oldest_rww_id = list(task_times.keys())[0]
-                        if time.time() - task_times[oldest_rww_id] > self.task_timeout:
-                            self.rwwD[oldest_rww_id]['rww'].kill()      # kill him
-                            task_ix, task_try, _ = rww_tasks[oldest_rww_id] # get his task data
-                            killed_tasks[oldest_rww_id] = (task_ix, task_try)
-                            if msg: rww_msgL.append(msg)                # do not lose good msg
-                            # prepare msg for killed RWW (killed RRW does not return message after kill)
-                            msg = QMessage(
-                                type=   f'ex_timeout_killed, ExSubprocess id: {oldest_rww_id}',
-                                data=   oldest_rww_id)  # return ID here to allow process identification
-
-            else: msg = self.que_RW.get()
-
-            # get more (ready)
-            while msg:
-                rww_msgL.append(msg)
-                msg = self.que_RW.get_if()
-            self.logger.debug(f'>> received {len(rww_msgL)} messages from RWWraps')
-
-            # eventually get rid of task from killed RWW
-            # INFO: it is possible that killed process returned its result in the meanwhile (while processing kill)
-            # eventually clean_up killed_tasks
-            cleaned_rww_msgL = []   # new, clean lost
-            clean_rww_id = []       # clean those RWW from killed_tasks
-            for msg in rww_msgL:
-                msg_ok = True
-                for rww_id in killed_tasks:
-                    if msg.type == 'result' and msg.data['rww_id'] == rww_id:
-                        clean_rww_id.append(rww_id)
-                        if msg.data['task_ix'] == killed_tasks[rww_id][0] and msg.data['task_try'] == killed_tasks[rww_id][1]:
-                            msg_ok = False
-                if msg_ok: cleaned_rww_msgL.append(msg)
-            for rww_id in clean_rww_id:
-                killed_tasks.pop(rww_id)
-            rww_msgL = cleaned_rww_msgL
-
-            # process all RWW messages
-            for msg in rww_msgL:
-
-                if msg.type == 'result':
-
-                    rww_id = msg.data['rww_id']
-                    rww_ntasks[rww_id] += 1
-
-                    task_ix, task_try, _ = rww_tasks.pop(rww_id) # ..could also be get from msg.data
-                    task_times.pop(rww_id)
-
-                    iv_n_tasks += 1
-                    n_tasks_processed += 1
-                    self.logger.debug(f'>> got result of task_ix: {task_ix} try: {task_try}')
-
-                    res_msg = QMessage(type='result', data=msg.data['result'])
-                    if self.ordered_results: resultsD[task_ix] = res_msg
-                    else: self.oque.put(res_msg)
-
-                    resources.append(rww_id)
-
-                # RWWrap exception
-                else:
-                    if 'ex_' not in msg.type: raise OMPRException('ERR: unknown RWWrap message received!')
-
-                    rww_id = msg.data
-                    task_ix, task_try, task = rww_tasks.pop(rww_id)
-                    task_times.pop(rww_id)
-
-                    if self.log_RWW_exception:
-                        self.logger.warning(f'> {self.ip_name} received exception message: {msg.type}, not finished task_ix: {task_ix}, recreating RWWrap..')
-
-                    # close rww
-                    rww = self.rwwD[rww_id]['rww']
-                    if rww is not None: # if RWW was killed it is None then
-                        rww.join() # we cannot kill that process since only alive process can be killed
-                        rww.close()
-                        self.rwwD[rww_id]['rww'] = None
-
-                    # rebuild RWW and put to resources
-                    self._build_and_start_RWW(rww_id)
-                    rww_ntasks[rww_id] = 0
-                    resources.append(rww_id)
-
-                    res_msg = QMessage(
-                        type=   'exception_result',
-                        data=   OMPRException(msg.type, task=task))
-                    if self.ordered_results: resultsD[task_ix] = res_msg
-                    else: self.oque.put(res_msg)
-                    if self.log_RWW_exception:
-                        self.logger.warning(f'>> returned OMPRException as a result')
-
-                # flush resultsD
-                while task_result_ix in resultsD:
-                    self.oque.put(resultsD.pop(task_result_ix))
-                    task_result_ix += 1
-
-            if self.report_delay is not None and time.time()-iv_time > self.report_delay:
-                iv_speed = iv_n_tasks/((time.time()-iv_time)/60)
-                speed = speed_cache.upd(iv_speed)
-                if speed != 0:
-                    if speed > 10:      speed_str = f'{int(speed)} tasks/min'
-                    else:
-                        if speed > 1:   speed_str = f'{speed:.1f} tasks/min'
-                        else:           speed_str = f'{1 / speed:.1f} min/task'
-                    n_tasks_left = len(tasks_que)
-                    est = n_tasks_left / speed
-                    n_total_tasks = n_tasks_processed + n_tasks_left
-                    progress = n_tasks_processed / n_total_tasks
-                    self.logger.info(f'> ({progress * 100:4.1f}% left:{n_tasks_left}/{n_total_tasks} {time.strftime("%H:%M:%S")}) speed: {speed_str}, EST:{est:.1f}min')
-                else: self.logger.info(f'> processing speed unknown yet..')
-                iv_time = time.time()
-                iv_n_tasks = 0
-                self.logger.debug(self._get_RWW_info())
-    """
     def after_exception_handle_run(self):
         self._kill_allRWW()
         self.logger.debug(f'> {self.ip_name} killed all RW after exception occurred')
