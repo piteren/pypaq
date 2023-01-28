@@ -90,16 +90,27 @@ class OMPRunner:
 
                 while True:
                     ompr_msg: QMessage = self.ique.get()
-                    if ompr_msg.type == 'break': break
-                    if ompr_msg.type == 'hold_check':self.oque.put(QMessage(type='hold_ready', data=None))
+                    if ompr_msg.type == 'break':
+                        break
+                    if ompr_msg.type == 'hold_check':
+                        self.oque.put(QMessage(type='hold_ready', data=None))
                     if ompr_msg.type == 'task':
-                        result = rwo.process(**ompr_msg.data['task'])
-                        self.oque.put(QMessage(
-                            type=   'result',
-                            data=   {
-                                'rww_id':   self.id,
-                                'task_ix':  ompr_msg.data['task_ix'],
-                                'result':   result}))
+                        task_ix = ompr_msg.data['task_ix']
+                        try:
+                            result = rwo.process(**ompr_msg.data['task'])
+                            self.oque.put(QMessage(
+                                type=   'result',
+                                data=   {
+                                    'rww_id':   self.id,
+                                    'task_ix':  task_ix,
+                                    'result':   result}))
+                        except Exception as e:
+                            self.oque.put(QMessage(
+                                type=   'exception',
+                                data={
+                                    'rww_id':   self.id,
+                                    'task_ix':  task_ix,
+                                    'result':   f'exception while processing task {task_ix}: {e}'}))
 
                 self.logger.info(f'> RWWrap (id: {self.id}) finished process loop')
 
@@ -268,7 +279,7 @@ class OMPRunner:
 
                 # process ique message
                 if msg:
-                    self.logger.debug(f'> {self.ip_name} got message from ique: {msg}')
+                    self.logger.debug(f'> {self.ip_name} got \'{msg.type}\' message from ique')
                     if msg.type == 'poison':
                         # all RWW have to be killed here, from the loop
                         # we want to kill them because it is quicker than waiting for them till finish tasks
@@ -282,14 +293,14 @@ class OMPRunner:
                             next_task_ix += 1
 
                 # put resource into work
-                if resources and tasks_que:
+                while resources and tasks_que:
                     self.logger.debug(f'> free resources: {len(resources)}, tasks_que len: {len(tasks_que)}, ique.qsize: {self.ique.qsize()}')
 
                     rww_id = resources.pop(0) # take first free resource
 
                     # eventually restart RWW (lifetime limit)
                     if self.rw_lifetime and rww_ntasks[rww_id] >= self.rw_lifetime:
-                        self.logger.debug(f'> restarting RWWrap id: {rww_id}..')
+                        self.logger.debug(f'> restarting RWWrap id: {rww_id} because of lifetime condition..')
                         self._kill_RWW(rww_id)
                         self._build_and_start_RWW(rww_id)
                         rww_ntasks[rww_id] = 0
@@ -327,9 +338,10 @@ class OMPRunner:
                         killed_tasks.add(task_ix)  # note that this task has been killed
 
                         # prepare msg for killed RWW (killed RWW does not return message after kill)
+                        nfo = f'exception: timeout killed RWW id {rww_id} while processing task {task_ix}'
                         res_msg = QMessage(
-                            type=   f'ex_timeout_killed, ExSubprocess id: {rww_id}',
-                            data=   OMPRException(f'ex_timeout_killed, RWW id: {rww_id}', task=task))
+                            type=   nfo,
+                            data=   OMPRException(nfo, task=task))
                         if self.ordered_results: resultsD[task_ix] = res_msg
                         else: self.oque.put(res_msg)
 
@@ -341,73 +353,48 @@ class OMPRunner:
 
                 # process RWW message
                 if msg:
-                    self.logger.debug(f'> {self.ip_name} got message from que_RW: {msg}')
 
-                    # there is a possibility that while killing RWW will finish or raise exception and return its msg to que_RW, we need to get rid of this result
+                    if msg.type not in ['result','exception']:
+                        raise OMPRException(f'received RWW message of unknown type: {msg.type}')
 
-                    if msg.type == 'result':
+                    rww_id =    msg.data['rww_id']
+                    task_ix =   msg.data['task_ix']
+                    result =    msg.data['result']
 
-                        rww_id = msg.data['rww_id']
-                        task_ix = msg.data['task_ix']
+                    self.logger.debug(f'> {self.ip_name} got message from RWW {rww_id} for task {task_ix}: {result}')
 
-                        # get rid of msg that may come from timeout-killed-RWW
-                        if task_ix in killed_tasks and self.log_RWW_exception:
-                            self.logger.warning(f'RWW {rww_id} returned proper result while being timeout killed: {msg.data}')
+                    # get rid of this msg since it came from timeout-killed-RWW
+                    if task_ix in killed_tasks:
+                        if self.log_RWW_exception:
+                            self.logger.warning(f'RWW {rww_id} returned {msg.type} while being timeout killed')
 
-                        else:
-
-                            rww_tasks.pop(rww_id)
-
-                            rww_ntasks[rww_id] += 1
-                            task_times.pop(rww_id)
-
-                            self.logger.debug(f'> got result of task_ix: {task_ix}')
-                            res_msg = QMessage(type='result', data=msg.data['result'])
-                            if self.ordered_results: resultsD[task_ix] = res_msg
-                            else: self.oque.put(res_msg)
-
-                            n_tasks_processed += 1
-                            iv_n_tasks += 1
-
-                            resources.append(rww_id)
-
-                    # RWWrap exception (other than timeout)
                     else:
-                        if 'ex_' not in msg.type: raise OMPRException(f'ERR: unknown RWWrap message received: {msg.type}')
 
-                        rww_id = msg.data
+                        _, task = rww_tasks.pop(rww_id)
 
-                        # here things get more complicated:
-                        # this msg may also come from timeout-killed-RWW,
-                        # we cannot get task_ix directly from msg, so we are not able to check if task_ix is in killed_tasks
-                        # BUT: if this msg is from timeout-killed-RWW then this rww_id won't be in rww_tasks
-                        if rww_id not in rww_tasks and self.log_RWW_exception:
-                            self.logger.warning(f'RWW {rww_id} returned exception while being timeout killed')
+                        # RWWrap result
+                        if msg.type == 'result':
+                            res_msg = QMessage(
+                                type=   'result',
+                                data=   result)
 
+                        # RWWrap exception (other than timeout)
                         else:
-
-                            task_ix, task = rww_tasks.pop(rww_id)
-
                             if self.log_RWW_exception:
-                                self.logger.warning(f'> {self.ip_name} received exception message: {msg.type}, not finished task_ix: {task_ix}, recreating RWWrap, returning OMPRException as a result')
-
-                            # close RWW, rebuild and put back to resources
-                            self.rwwD[rww_id]['rww'].join() # we cannot kill that process since only alive process can be killed
-                            self.rwwD[rww_id]['rww'].close()
-                            self.rwwD[rww_id]['rww'] = None
-                            self._build_and_start_RWW(rww_id)
-                            rww_ntasks[rww_id] = 0
-                            task_times.pop(rww_id)
-                            resources.append(rww_id)
-
+                                self.logger.warning(f'> {self.ip_name} got message from RWW {rww_id} for task {task_ix}: {result}')
                             res_msg = QMessage(
                                 type=   'exception_result',
-                                data=   OMPRException(msg.type, task=task))
-                            if self.ordered_results: resultsD[task_ix] = res_msg
-                            else: self.oque.put(res_msg)
+                                data=   OMPRException(result, task=task))
 
-                            n_tasks_processed += 1
-                            iv_n_tasks += 1
+                        if self.ordered_results: resultsD[task_ix] = res_msg
+                        else: self.oque.put(res_msg)
+
+                        rww_ntasks[rww_id] += 1
+                        task_times.pop(rww_id)
+                        resources.append(rww_id)
+
+                        n_tasks_processed += 1
+                        iv_n_tasks += 1
 
                 # flush resultsD
                 while task_result_ix in resultsD:
