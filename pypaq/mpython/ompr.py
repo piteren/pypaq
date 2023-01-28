@@ -546,7 +546,7 @@ class OMPRunner:
 # function to simple process tasks with function using OMPR
 def simple_process(
         tasks: List[Dict],      # tasks to process
-        function: Callable,         # processing function
+        function: Callable,     # processing function
         num_workers: int=   4,
         **kwargs,
 ) -> List[Any]:
