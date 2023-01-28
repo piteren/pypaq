@@ -44,14 +44,18 @@ def download_response(
         return None
 
 # extracts sub-urls from RESPONSE
-def extract_subURLs(response: RESPONSE) -> List[URL]:
-    html = requests_html.HTML(
-        session=            HTMLSession(),
-        url=                response.url,
-        html=               response.content,
-        default_encoding=   response.encoding)
-    return list(html.absolute_links)
-    #return list(response.html.absolute_links)
+def extract_subURLs(response: RESPONSE, logger) -> List[URL]:
+    try:
+        html = requests_html.HTML(
+            session=            HTMLSession(),
+            url=                response.url,
+            html=               response.content,
+            default_encoding=   response.encoding)
+        return list(html.absolute_links)
+    except Exception as e:
+        msg = f'extract_subURLs() got exception: "{e}"'
+        logger.warning(msg)
+        return []
 
 # filters given URLs removes those containing any filter before first /
 def filter_URLs(

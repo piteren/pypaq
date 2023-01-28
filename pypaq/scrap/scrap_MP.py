@@ -79,7 +79,7 @@ class MPScrapper(OMPRunner):
             self,
             rw_class=           rw_class,
             devices=            devices,
-            ordered_results=    False,
+            ordered_results=    False,  # newer try to get ordered results, since shuffles URLs to download
             task_timeout=       task_timeout,
             report_delay=       report_delay,
             logger=             self.logger,

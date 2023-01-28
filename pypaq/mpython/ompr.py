@@ -267,7 +267,7 @@ class OMPRunner:
             killed_tasks: Set[int] = set()                  # task_ix of killed tasks
             task_times: Dict[int, float] = {}               # {rww.id: time} here we note time when RWW got current task, it is a "sorted" dict (the oldest first)
 
-            resultsD: Dict[int, Any] = {}                   # results dict {task_ix: result(data)}
+            resultsD: Dict[int, Any] = {}                   # results dict {task_ix: result(data)} for ordered tasks
             while True:
 
                 # TODO: implement sleep based on tasks processing time / num RWW
@@ -335,7 +335,7 @@ class OMPRunner:
                         rww_ntasks[rww_id] = 0
                         task_times.pop(rww_id)
                         resources.append(rww_id)
-                        killed_tasks.add(task_ix)  # note that this task has been killed
+                        killed_tasks.add(task_ix)  # save killed task
 
                         # prepare msg for killed RWW (killed RWW does not return message after kill)
                         nfo = f'exception: timeout killed RWW id {rww_id} while processing task {task_ix}'
@@ -420,7 +420,7 @@ class OMPRunner:
 
         def after_exception_handle_run(self):
             self._kill_allRWW()
-            self.logger.debug(f'> {self.ip_name} killed all RW after exception occurred')
+            self.logger.debug(f'> {self.ip_name} killed all RWW after exception occurred')
 
         def get_num_RWW(self):
             return len(self.rwwD)
