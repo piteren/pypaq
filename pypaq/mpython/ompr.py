@@ -202,6 +202,7 @@ class OMPRunner:
             self.rwwD[id]['rww'].start()
             self.logger.debug(f'> {self.ip_name} built and started RWWrap id: {id}..')
 
+
         def build_and_start_allRWW(self):
             self.logger.info(f'> {self.ip_name} is going to build and start {len(self.rwwD)} RunningWorkers..')
             n_started = 0
@@ -220,6 +221,7 @@ class OMPRunner:
             self.rwwD[id]['rww'].join()
             self.rwwD[id]['rww'] = None
             self.logger.debug(f'> {self.ip_name} killed and joined RWWrap id: {id}..')
+
 
         def _kill_allRWW(self):
             self.logger.info(f'> {self.ip_name} is going to kill and join {len(self.rwwD)} RunningWorkers..')
@@ -278,7 +280,6 @@ class OMPRunner:
 
             tasks_que = deque()                             # que of (task_ix, task) to be processed (received from the self.ique)
             resources = list(self.rwwD.keys())              # list [rww_id] of all available (not busy) resources
-            rww_tasks: Dict[int, Tuple[int,Any]] = {}       # {rww.id: (task_ix,task)} # TODO: do we need task here anymore?
 
             resultsD: Dict[int, Any] = {}                   # results dict {task_ix: result(data)} for ordered tasks
             while True:
@@ -332,7 +333,6 @@ class OMPRunner:
                             'task_timeout': self.task_timeout,
                             'task':         task})
                     self.rwwD[rww_id]['rww'].ique.put(msg)
-                    rww_tasks[rww_id] = (task_ix, task)
 
                     self.logger.debug(f'> put task {task_ix} for RWWrap({rww_id})')
 
@@ -366,9 +366,6 @@ class OMPRunner:
                     msg_rww = self.que_RW.get(block=False)
                     if not msg_rww: break
 
-                if task_result_ix in resultsD:
-                    self.logger.debug(f'task_result_ix: {task_result_ix} resultsD..: {list(resultsD.keys())[:5]}')
-
                 # flush resultsD
                 while task_result_ix in resultsD:
                     self.oque.put(resultsD.pop(task_result_ix))
@@ -398,9 +395,11 @@ class OMPRunner:
                     for rk in sorted(rww_ntasks.keys()):
                         self.logger.debug(f'{rk:2}: {rww_ntasks[rk]}')
 
+
         def after_exception_handle_run(self):
             self._kill_allRWW()
             self.logger.debug(f'> {self.ip_name} killed all RWW after exception occurred')
+
 
         def get_num_RWW(self):
             return len(self.rwwD)

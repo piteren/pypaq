@@ -22,6 +22,7 @@ class TestMPTools(unittest.TestCase):
         qm = que.get(block=False)
         self.assertTrue(not qm)
 
+
     def test_ExSubprocess_exception(self):
 
         class ExS(ExSubprocess):
@@ -37,11 +38,12 @@ class TestMPTools(unittest.TestCase):
                     if random.random() < 0.05: raise Exception
                     time.sleep(1)
 
-        exs = ExS(Que(), Que(), raise_unk_exception=False, verb=1)
+        exs = ExS(Que(), Que(), raise_unk_exception=False)
         exs.start()
         msg = exs.oque.get()
         print(msg.type, msg.data)
         self.assertTrue('ex_' in msg.type)
+
 
     def test_ExSubprocess_after(self):
 
@@ -61,7 +63,7 @@ class TestMPTools(unittest.TestCase):
                 print('dupex')
                 self.oque.put(QMessage(type='info', data='after'))
 
-        exs = ExS(Que(), Que(), raise_unk_exception=False, verb=1)
+        exs = ExS(Que(), Que(), raise_unk_exception=False)
         exs.start()
         msg = exs.oque.get()
         print(msg.type)
@@ -69,6 +71,7 @@ class TestMPTools(unittest.TestCase):
         msg = exs.oque.get()
         print(msg.type, msg.data)
         self.assertTrue(msg.data == 'after')
+
 
     def test_test_ExSubprocess_management(self):
 
@@ -85,10 +88,7 @@ class TestMPTools(unittest.TestCase):
 
         ique = Que()
         oque = Que()
-        exs = ExS(
-            ique=   oque,
-            oque=   ique,
-            verb=   1)
+        exs = ExS(ique=oque, oque=ique)
         self.assertTrue(not exs.alive)
         self.assertTrue(not exs.closed)
 
