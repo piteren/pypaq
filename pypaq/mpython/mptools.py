@@ -24,23 +24,13 @@ class Que:
         assert isinstance(obj, QMessage)
         self.q.put(obj, **kwargs)
 
-    def get(self, **kwargs) -> QMessage:
-        obj = self.q.get(**kwargs)
-        assert isinstance(obj, QMessage)
-        return obj
-
-    # non blocking get
-    def get_if(self) -> Optional[QMessage]:
+    # does not raise Empty exception, but returns None in case no QMessage
+    def get(self,
+            block: bool=                True,
+            timeout: Optional[float]=   None,
+            ) -> Optional[QMessage]:
         try:
-            obj = self.q.get_nowait()
-            assert isinstance(obj, QMessage)
-            return obj
-        except Empty:
-            return None
-
-    def get_timeout(self, timeout:float, **kwargs) -> Optional[QMessage]:
-        try:
-            obj = self.q.get(timeout=timeout, **kwargs)
+            obj = self.q.get(block=block, timeout=timeout)
             assert isinstance(obj, QMessage)
             return obj
         except Empty:

@@ -19,7 +19,7 @@ class TestMPTools(unittest.TestCase):
 
         self.assertTrue(que.empty())
         self.assertTrue(que.qsize()==0)
-        qm = que.get_if()
+        qm = que.get(block=False)
         self.assertTrue(not qm)
 
     def test_ExSubprocess_exception(self):
@@ -77,7 +77,7 @@ class TestMPTools(unittest.TestCase):
             def subprocess_method(self):
                 cnt = 0
                 while True:
-                    msg = self.ique.get_if()
+                    msg = self.ique.get(block=False)
                     if msg: print(f'ExS received message: {msg}')
                     print(f'subprocess_method is running (#{cnt})..')
                     cnt += 1

@@ -28,9 +28,10 @@ class TestOMPR(unittest.TestCase):
         max_time =  1.7
 
         ompr = OMPRunner(
-            rw_class=   BRW,
-            devices=    [None] * workers,
-            loglevel=   10,
+            rw_class=       BRW,
+            devices=        [None] * workers,
+            report_delay=   2,
+            #loglevel=      10,
         )
         tasks = [{
             'id':   id,
@@ -59,9 +60,10 @@ class TestOMPR(unittest.TestCase):
         max_time =  1.7
 
         ompr = OMPRunner(
-            rw_class=   BRW,
-            devices=    [None] * workers,
-            loglevel=   10,
+            rw_class=       BRW,
+            devices=        [None] * workers,
+            report_delay=   2,
+            #loglevel=       10,
         )
         tasks = [{
             'id':   id,
@@ -103,7 +105,8 @@ class TestOMPR(unittest.TestCase):
             rw_class=           BRW,
             devices=            [None] * workers,
             ordered_results=    False,
-            loglevel=           10,
+            report_delay=       2,
+            #loglevel=           10,
         )
         tasks = [{
             'id':   id,
@@ -126,7 +129,7 @@ class TestOMPR(unittest.TestCase):
 
         ompr.exit()
 
-    # OMPRunner example with process lifetime and exceptions
+    # process lifetime
     def test_OMPR_lifetime(self):
 
         n_tasks =           100
@@ -139,7 +142,8 @@ class TestOMPR(unittest.TestCase):
             rw_class=       BRW,
             rw_lifetime=    process_lifetime,
             devices=        [None] * workers,
-            loglevel=       10,
+            report_delay=   2,
+            #loglevel=       10,
         )
 
         tasks = [{
@@ -170,6 +174,8 @@ class TestOMPR(unittest.TestCase):
         ompr.exit()
 
         # OMPRunner example with process lifetime and exceptions
+
+    # exceptions
     def test_OMPR_exceptions(self):
 
         n_tasks =       100
@@ -179,9 +185,10 @@ class TestOMPR(unittest.TestCase):
         exception_prob= 0.3
 
         ompr = OMPRunner(
-            rw_class=   BRW,
-            devices=    [None] * workers,
-            loglevel=   10,
+            rw_class=       BRW,
+            devices=        [None] * workers,
+            report_delay=   2,
+            #loglevel=       10,
         )
 
         tasks = [{
@@ -214,20 +221,21 @@ class TestOMPR(unittest.TestCase):
 
         ompr.exit()
 
-    # OMPRunner with task timeout
+    # task timeout
     def test_OMPR_timeout(self):
 
         n_tasks =       100
         workers =       10
         min_time =      0.5
         max_time =      1.7
-        task_timeout =  1.1
+        task_timeout =  1
 
         ompr = OMPRunner(
             rw_class=       BRW,
             devices=        [None] * workers,
             task_timeout=   task_timeout,
-            loglevel=       10,
+            report_delay=   2,
+            #loglevel=       10,
         )
 
         tasks = [{
@@ -243,15 +251,15 @@ class TestOMPR(unittest.TestCase):
 
         ompr.exit()
 
-    # OMPRunner with task lifetime + exceptions + timeout
-    def test_OMPR_lifetime_exceptions_timeout(self):
+    # lifetime + exceptions + timeout
+    def test_OMPR_all_together(self):
 
         n_tasks =           100
         workers =           10
         min_time =          0.5
         max_time =          1.7
         exception_prob =    0.3
-        task_timeout =      1.1
+        task_timeout =      1
         process_lifetime =  2
 
         ompr = OMPRunner(
@@ -259,7 +267,8 @@ class TestOMPR(unittest.TestCase):
             rw_lifetime=    process_lifetime,
             devices=        [None] * workers,
             task_timeout=   task_timeout,
-            loglevel=       10,
+            report_delay=   2,
+            #loglevel=       10,
         )
 
         tasks = [{
@@ -276,13 +285,13 @@ class TestOMPR(unittest.TestCase):
 
         ompr.exit()
 
-    # OMPRunner with many task timeout
-    def test_OMPR_timeout_many(self):
+    # many timeouts
+    def test_OMPR_many_timeouts(self):
 
-        n_tasks =           55000
-        min_time =          0.001
-        max_time =          0.003
-        timeout =           0.002
+        n_tasks =           10000
+        min_time =          0.9
+        max_time =          1.5
+        timeout =           1
         exception_prob =    0.5
 
         ompr = OMPRunner(
@@ -290,7 +299,7 @@ class TestOMPR(unittest.TestCase):
             devices=            'all',
             task_timeout=       timeout,
             log_RWW_exception=  False,
-            report_delay=       5,
+            report_delay=       2,
             #loglevel=           10,
         )
 
@@ -310,9 +319,11 @@ class TestOMPR(unittest.TestCase):
         ompr.exit()
 
         # OMPRunner with many task timeout
+
+    # many fast tasks
     def test_OMPR_speed(self):
 
-        # Fast RunningWorker with random exception
+        # Fast RunningWorker
         class FRW(RunningWorker):
             def process(self, id: int) -> int:
                 return id
@@ -322,7 +333,7 @@ class TestOMPR(unittest.TestCase):
         ompr = OMPRunner(
             rw_class=           FRW,
             devices=            'all',
-            report_delay=       5,
+            report_delay=       2,
             #loglevel=           10,
         )
 
@@ -332,6 +343,54 @@ class TestOMPR(unittest.TestCase):
         ompr.process(tasks)
         results = ompr.get_all_results()
         print(f'results: ({len(results)})')
+        self.assertEqual(len(tasks), len(results))
+
+        ompr.exit()
+
+    # many timeouts + exceptions
+    def test_OMPR_stress(self):
+
+        n_tasks =           10000
+        min_time =          0.001
+        max_time =          2.2
+        timeout =           2
+        exception_prob =    0.05
+
+        # Stress RunningWorker with random exception
+        class SRW(RunningWorker):
+            def process(
+                    self,
+                    s: list,
+                    max_time: float,
+                    exception_prob: float=  0.0) -> str:
+
+                if random.random() < exception_prob: raise Exception('randomly crashed')
+
+                s_time = time.time()
+                while time.time() - s_time < max_time:
+                    random.shuffle(s)
+                    s = sorted(s)
+                return s
+
+        ompr = OMPRunner(
+            rw_class=           SRW,
+            devices=            0.7,
+            task_timeout=       timeout,
+            log_RWW_exception=  False,
+            report_delay=       2,
+            #loglevel=           10,
+        )
+
+        tasks = [{
+            's':                list('abcdefghijklmnoprstuvwxyz1234567890'),
+            'max_time':         min_time + random.random() * (max_time-min_time),
+            'exception_prob':   exception_prob,
+        } for _ in range(n_tasks)]
+
+        print(f'got {len(tasks)} tasks')
+        ompr.process(tasks)
+        results = ompr.get_all_results()
+        print(f'got {len(results)} results')
         self.assertEqual(len(tasks), len(results))
 
         ompr.exit()
