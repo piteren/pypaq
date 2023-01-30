@@ -94,7 +94,7 @@ class STextCSF_MOTorch(MOTorch):
         self._nwwlog.info(f'{self.name} prepares embeddings for {len(lines)} lines..')
         if show_progress_bar == 'auto':
             show_progress_bar = self._nwwlog.level < 21 and len(lines) > 1000
-        out = self._nngraph_module.encode(
+        out = self.module.encode(
             texts=              lines,
             show_progress_bar=  show_progress_bar,
             device=             self._torch_dev) # need to give device here because of SentenceTransformer bug in encode() #153

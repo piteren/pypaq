@@ -87,7 +87,7 @@ class TextEMB_MOTorch(MOTorch):
 
     def get_tokens(self, lines: List[str]):
         self._nwwlog.info(f'{self.name} prepares tokens for {len(lines)} lines..')
-        return self._nngraph_module.tokenize(lines)
+        return self.module.tokenize(lines)
 
     def get_embeddings(
             self,
@@ -100,7 +100,7 @@ class TextEMB_MOTorch(MOTorch):
                 show_progress_bar = True
 
         self._nwwlog.info(f'{self.name} prepares embeddings for {len(lines)} lines..')
-        return self._nngraph_module.encode(
+        return self.module.encode(
             texts=              lines,
             device=             self._torch_dev, # fixes bug of SentenceTransformers.encode() device placement
             show_progress_bar=  show_progress_bar)
@@ -140,4 +140,4 @@ class TextEMB_MOTorch(MOTorch):
 
     @property
     def width(self) -> int:
-        return self._nngraph_module.width
+        return self.module.width

@@ -13,6 +13,5 @@ sentence-transformers
 scipy
 sklearn
 tensorboard
-tensorflow
 torch
 typing-extensions
