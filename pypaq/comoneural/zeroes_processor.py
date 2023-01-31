@@ -18,7 +18,9 @@ class ZeroesProcessor:
         self.step = 0
 
     # takes next zeroes array and processes
-    def process(self, zs:List[np.ndarray]):
+    def process(self, zs:List[np.ndarray], step:Optional[int]=None):
+
+        if step is None: step = self.step
 
         zs = np.concatenate(zs)
         self.single.append(np.mean(zs))
@@ -42,7 +44,7 @@ class ZeroesProcessor:
                 self.tbwr.add(
                     value=  rd[k],
                     tag=    f'{self.tag_pfx}/nane_{k}',
-                    step=   self.step)
+                    step=   step)
 
         self.step += 1
 

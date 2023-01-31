@@ -20,9 +20,9 @@ class Que:
     def __init__(self):
         self.q = Queue()
 
-    def put(self, obj:QMessage, **kwargs):
-        assert isinstance(obj, QMessage)
-        self.q.put(obj, **kwargs)
+    def put(self, msg:QMessage, **kwargs):
+        assert isinstance(msg, QMessage)
+        self.q.put(msg, **kwargs)
 
     # does not raise Empty exception, but returns None in case no QMessage
     def get(self,
@@ -30,9 +30,9 @@ class Que:
             timeout: Optional[float]=   None,
             ) -> Optional[QMessage]:
         try:
-            obj = self.q.get(block=block, timeout=timeout)
-            assert isinstance(obj, QMessage)
-            return obj
+            msg = self.q.get(block=block, timeout=timeout)
+            assert isinstance(msg, QMessage)
+            return msg
         except Empty:
             return None
 
