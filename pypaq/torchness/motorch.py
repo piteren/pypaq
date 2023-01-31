@@ -144,7 +144,7 @@ class MOTorch(ParaSave, torch.nn.Module):
         'do_clip':          False,
             # other
         'hpmser_mode':      False,              # it will set model to be read_only and quiet when running with hpmser
-        'read_only':        False,              # sets model to be read only - won't save anything (won't even create self.motorch_dir)
+        'read_only':        False,              # sets MOTorch to be read only - won't save anything (won't even create self.motorch_dir)
         'do_TB':            True                # runs TensorBard, saves in self.motorch_dir
     }
 
