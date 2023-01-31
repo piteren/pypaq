@@ -19,14 +19,14 @@ class DQN_PTActor(DQN_Actor):
 
     def __init__(
             self,
-            name: str=                          'DQN_PTActor',
-            nngraph: Optional[type(Module)]=    DQNModel,
+            name: str=                              'DQN_PTActor',
+            module_type: Optional[type(Module)]=    DQNModel,
             **kwargs):
         DQN_Actor.__init__(
             self,
-            name=       name,
-            nnwrap=     MOTorch,
-            nngraph=    nngraph,
+            name=           name,
+            nnwrap=         MOTorch,
+            module_type=    module_type,
             **kwargs)
 
     def _get_QVs(self, observation: object) -> np.ndarray:

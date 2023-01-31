@@ -21,7 +21,7 @@ class DQN_Actor(QLearningActor, ABC):
     def __init__(
             self,
             nnwrap: type(NNWrap),
-            nngraph: Optional[Union[Callable, type]]=   None,
+            module_type: Optional[Union[Callable, type]]=   None,
             **kwargs):
 
         QLearningActor.__init__(self, **kwargs)
@@ -33,7 +33,7 @@ class DQN_Actor(QLearningActor, ABC):
         kwargs['num_actions'] = self._envy.num_actions()
         kwargs['observation_width'] = self._get_observation_vec(self._envy.get_observation()).shape[-1]
 
-        self.nnw: NNWrap = nnwrap(nngraph=nngraph, **kwargs)
+        self.nnw: NNWrap = nnwrap(module_type=module_type, **kwargs)
 
         self._rlog.info('*** DQN_Actor *** initialized')
         self._rlog.info(f'> NNWrap: {nnwrap.__name__}')

@@ -212,7 +212,7 @@ class MOTorch(ParaSave, torch.nn.Module):
             save_topdir=    save_topdir,
             save_fn_pfx=    save_fn_pfx)
 
-        # in case 'nngraph' was not given with init, try to get it from saved
+        # in case 'module_type' was not given with init, try to get it from saved
         if not self.module_type:
             self.module_type = dna_saved.get('module_type', None)
 

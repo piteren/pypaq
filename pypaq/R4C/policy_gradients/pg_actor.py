@@ -24,8 +24,8 @@ class PGActor(TrainableActor, ABC):
             self,
             envy: FiniteActionsRLEnvy,
             nnwrap: type(NNWrap),
-            nngraph: Optional[Union[Callable, type]]=   None,
-            seed: int=                                  123,
+            module_type: Optional[Union[Callable, type]]=   None,
+            seed: int=                                      123,
             **kwargs):
 
         TrainableActor.__init__(
@@ -43,7 +43,7 @@ class PGActor(TrainableActor, ABC):
         kwargs['num_actions'] = self._envy.num_actions()
         kwargs['observation_width'] = self._get_observation_vec(self._envy.get_observation()).shape[-1]
 
-        self.nnw: NNWrap = nnwrap(nngraph=nngraph, seed=seed, **kwargs)
+        self.nnw: NNWrap = nnwrap(module_type=module_type, seed=seed, **kwargs)
 
         self._rlog.info('*** PG_Actor *** (NN based) initialized')
         self._rlog.info(f'> NNWrap: {nnwrap.__name__}')

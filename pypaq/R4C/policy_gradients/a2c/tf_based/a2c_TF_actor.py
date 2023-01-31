@@ -9,13 +9,13 @@ class A2C_TFActor(PG_TFActor):
 
     def __init__(
             self,
-            name: str=                      'A2C_TFActor',
-            nngraph: Optional[Callable]=    a2c_graph,
+            name: str=                          'A2C_TFActor',
+            module_type: Optional[Callable]=    a2c_graph,
             **kwargs):
         PG_TFActor.__init__(
             self,
-            name=       name,
-            nngraph=    nngraph,
+            name=           name,
+            module_type=    module_type,
             **kwargs)
 
     # overrides PG_TFActor with more log_TB

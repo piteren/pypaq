@@ -71,8 +71,8 @@ class TextEMB_MOTorch(MOTorch):
 
     def __init__(
             self,
-            nngraph: type(TextEMB)=     TextEMB,
-            st_name: str=               'all-MiniLM-L6-v2',
+            module_type: type(TextEMB)=     TextEMB,
+            st_name: str=                   'all-MiniLM-L6-v2',
             **kwargs):
 
         if 'name' not in kwargs:
@@ -81,12 +81,12 @@ class TextEMB_MOTorch(MOTorch):
 
         MOTorch.__init__(
             self,
-            nngraph=    nngraph,
-            st_name=    st_name,
+            module_type=    module_type,
+            st_name=        st_name,
             **kwargs)
 
     def get_tokens(self, lines: List[str]):
-        self._nwwlog.info(f'{self.name} prepares tokens for {len(lines)} lines..')
+        self.logger.info(f'{self.name} prepares tokens for {len(lines)} lines..')
         return self.module.tokenize(lines)
 
     def get_embeddings(
@@ -96,10 +96,10 @@ class TextEMB_MOTorch(MOTorch):
 
         if show_progress_bar == 'auto':
             show_progress_bar = False
-            if self._nwwlog.level < 21 and type(lines) is list and len(lines) > 1000:
+            if self.logger.level < 21 and type(lines) is list and len(lines) > 1000:
                 show_progress_bar = True
 
-        self._nwwlog.info(f'{self.name} prepares embeddings for {len(lines)} lines..')
+        self.logger.info(f'{self.name} prepares embeddings for {len(lines)} lines..')
         return self.module.encode(
             texts=              lines,
             device=             self._torch_dev, # fixes bug of SentenceTransformers.encode() device placement
@@ -112,11 +112,11 @@ class TextEMB_MOTorch(MOTorch):
         num_splits = math.ceil(embs.shape[0] / self['fwd_batch_size']) # INFO: gives +- batch_size
         featsL = np.array_split(embs,num_splits)
 
-        self._nwwlog.info(f'TeXClas_MOTorch computes probs for {len(featsL)} batches of embeddings')
-        iter = tqdm(featsL) if self._nwwlog.level < 21 else featsL
+        self.logger.info(f'TeXClas_MOTorch computes probs for {len(featsL)} batches of embeddings')
+        iter = tqdm(featsL) if self.logger.level < 21 else featsL
         probsL = [self(feats)['probs'].cpu().detach().numpy() for feats in iter]
         probs = np.concatenate(probsL)
-        self._nwwlog.info(f'> got probs {probs.shape}')
+        self.logger.info(f'> got probs {probs.shape}')
 
         return probs
 

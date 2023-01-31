@@ -20,14 +20,14 @@ class PG_PTActor(PGActor, ABC):
 
     def __init__(
             self,
-            name: str=                          'PG_PTActor',
-            nngraph: Optional[type(Module)]=    PGModel,
+            name: str=                              'PG_PTActor',
+            module_type: Optional[type(Module)]=    PGModel,
             **kwargs):
         PGActor.__init__(
             self,
-            name=       name,
-            nnwrap=     MOTorch,
-            nngraph=    nngraph,
+            name=           name,
+            nnwrap=         MOTorch,
+            module_type=    module_type,
             **kwargs)
 
     def get_policy_probs(self, observation: object) -> np.ndarray:

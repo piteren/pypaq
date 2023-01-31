@@ -10,11 +10,11 @@ class A2C_PTActor(PG_PTActor):
 
     def __init__(
             self,
-            name: str=                          'A2C_PTActor',
-            nngraph: Optional[type(Module)]=    A2CModel,
+            name: str=                              'A2C_PTActor',
+            module_type: Optional[type(Module)]=    A2CModel,
             **kwargs):
         PG_PTActor.__init__(
             self,
-            name=       name,
-            nngraph=    nngraph,
+            name=           name,
+            module_type=    module_type,
             **kwargs)

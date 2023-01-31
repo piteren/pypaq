@@ -74,14 +74,14 @@ class STextCSF_MOTorch(MOTorch):
 
     def __init__(
             self,
-            nngraph: Optional[type(STextCSF)]=  STextCSF,
-            enc_batch_size=                     128,    # number of lines in batch for embeddings
-            fwd_batch_size=                     256,    # number of embeddings in batch for probs
+            module_type: Optional[type(STextCSF)]=  STextCSF,
+            enc_batch_size=                         128,    # number of lines in batch for embeddings
+            fwd_batch_size=                         256,    # number of embeddings in batch for probs
             **kwargs):
 
         MOTorch.__init__(
             self,
-            nngraph=        nngraph,
+            module_type=    module_type,
             enc_batch_size= enc_batch_size,
             fwd_batch_size= fwd_batch_size,
             **kwargs)
@@ -91,9 +91,9 @@ class STextCSF_MOTorch(MOTorch):
             lines: Union[List[str],str],
             show_progress_bar=      'auto') -> np.ndarray:
         if type(lines) is str: lines = [lines]
-        self._nwwlog.info(f'{self.name} prepares embeddings for {len(lines)} lines..')
+        self.logger.info(f'{self.name} prepares embeddings for {len(lines)} lines..')
         if show_progress_bar == 'auto':
-            show_progress_bar = self._nwwlog.level < 21 and len(lines) > 1000
+            show_progress_bar = self.logger.level < 21 and len(lines) > 1000
         out = self.module.encode(
             texts=              lines,
             show_progress_bar=  show_progress_bar,
@@ -107,11 +107,11 @@ class STextCSF_MOTorch(MOTorch):
         num_splits = math.ceil(embs.shape[0] / self['fwd_batch_size']) # INFO: gives +- batch_size
         featsL = np.array_split(embs,num_splits)
 
-        self._nwwlog.info(f'{self.name} computes probs for {len(featsL)} batches of embeddings')
-        iter = tqdm(featsL) if self._nwwlog.level < 21 else featsL
+        self.logger.info(f'{self.name} computes probs for {len(featsL)} batches of embeddings')
+        iter = tqdm(featsL) if self.logger.level < 21 else featsL
         probsL = [self(feats)['probs'] for feats in iter]
         probs = np.concatenate(probsL)
-        self._nwwlog.info(f'> got probs {probs.shape}')
+        self.logger.info(f'> got probs {probs.shape}')
 
         return probs
 
