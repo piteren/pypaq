@@ -60,7 +60,7 @@ class PGTrainer(FATrainer):
 
         if inspect:
 
-            obs_arr = np.array(observations)
+            obs_arr = np.asarray(observations)
             oL = np.split(obs_arr, obs_arr.shape[-1], axis=-1)
 
             two_dim_multi(
@@ -99,7 +99,7 @@ class PGTrainer(FATrainer):
             for rs in episode_rewards:
                 dreturns += discounted_return(rewards=rs, discount=self.discount)
         if self.do_zscore: dreturns = zscore_norm(dreturns)
-        dreturns = np.array(dreturns, dtype=np.float32)
+        dreturns = np.asarray(dreturns, dtype=np.float32)
 
         out = self.actor.update_with_experience(
             observations=   observations,

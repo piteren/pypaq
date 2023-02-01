@@ -4,7 +4,7 @@
 
     NN Batcher
         takes data and prepares batches
-        data for training, validation or testing is a dict: {key: np.array or torch.tensor}
+        data for training, validation or testing is a dict: {key: np.ndarray or torch.tensor}
         batch is prepared from each key
 
 """

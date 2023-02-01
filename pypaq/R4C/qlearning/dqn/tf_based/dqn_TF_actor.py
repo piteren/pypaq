@@ -38,7 +38,7 @@ class DQN_TFActor(DQN_Actor):
 
     # optimized with single call to session with a batch of observations
     def get_QVs_batch(self, observations: List[object]) -> np.ndarray:
-        obs_vecs = np.array([self._get_observation_vec(o) for o in observations])
+        obs_vecs = np.asarray([self._get_observation_vec(o) for o in observations])
         out = self.nnw(
             feed_dict=  {self.nnw['observations_PH']: obs_vecs},
             fetch=      ['output'])
@@ -55,8 +55,8 @@ class DQN_TFActor(DQN_Actor):
         out = self.nnw.backward(
             feed_dict=  {
                 self.nnw['observations_PH']: obs_vecs,
-                self.nnw['enum_actions_PH']: np.array(list(enumerate(actions))),
-                self.nnw['gold_QV_PH']:      np.array(new_qvs)},
+                self.nnw['enum_actions_PH']: np.asarray(list(enumerate(actions))),
+                self.nnw['gold_QV_PH']:      np.asarray(new_qvs)},
             fetch=      ['optimizer','loss','gg_norm','gg_avt_norm'])
         out.pop('optimizer')
         return out

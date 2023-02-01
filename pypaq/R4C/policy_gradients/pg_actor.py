@@ -50,14 +50,14 @@ class PGActor(TrainableActor, ABC):
 
     # vectorization of observations batch, may be overridden with more optimal custom implementation
     def _get_observation_vec_batch(self, observations: List[object]) -> np.ndarray:
-        return np.array([self._get_observation_vec(v) for v in observations])
+        return np.asarray([self._get_observation_vec(v) for v in observations])
 
     @abstractmethod
     def get_policy_probs(self, observation: object) -> np.ndarray: pass
 
     # baseline, may be overridden with more optimal custom implementation
     def get_policy_probs_batch(self, observations: List[object]) -> np.ndarray:
-        return np.array([self.get_policy_probs(o) for o in observations])
+        return np.asarray([self.get_policy_probs(o) for o in observations])
 
     # gets policy action based on policy (action) probs
     def get_policy_action(self, observation: object, sampled=False) -> int:

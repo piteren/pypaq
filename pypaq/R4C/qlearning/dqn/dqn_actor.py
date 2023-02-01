@@ -40,7 +40,7 @@ class DQN_Actor(QLearningActor, ABC):
 
     # vectorization of observations batch, may be overridden with more optimal custom implementation
     def _get_observation_vec_batch(self, observations: List[object]) -> np.ndarray:
-        return np.array([self._get_observation_vec(v) for v in observations])
+        return np.asarray([self._get_observation_vec(v) for v in observations])
 
     # INFO: wont be used since DQN_Actor updates only with batches
     def _upd_QV(

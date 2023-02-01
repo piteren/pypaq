@@ -12,7 +12,7 @@ from pypaq.lipytools.stats import stats_pd, msmx
 
 
 def histogram(
-        val_list: list or np.array,
+        val_list: list or np.ndarray,
         name=                   'values',
         rem_nstd: float=        0.0,    # removes values out of N*stddev
         msmx_stats=             True,   # prints minimal stats

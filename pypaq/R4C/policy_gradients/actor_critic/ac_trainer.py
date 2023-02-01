@@ -43,7 +43,7 @@ class ACTrainer(PGTrainer):
         self._rlog.info(f'> critic: {critic_class.__name__}')
 
     # converts one dim arr of ints into two dim one-hot array
-    def _actions_OH_encoding(self, actions:np.array) -> np.ndarray:
+    def _actions_OH_encoding(self, actions:np.ndarray) -> np.ndarray:
         hot = np.zeros((len(actions), self.envy.num_actions()))
         hot[np.arange(len(actions)), actions] = 1
         return hot
@@ -64,11 +64,11 @@ class ACTrainer(PGTrainer):
         batch = self.memory.get_all()
         self.memory.clear()
 
-        observations =          np.array(extract_from_batch(batch, 'observation'))
-        actions =               np.array(extract_from_batch(batch, 'action'))
-        rewards =               np.array(extract_from_batch(batch, 'reward'))
+        observations =          np.asarray(extract_from_batch(batch, 'observation'))
+        actions =               np.asarray(extract_from_batch(batch, 'action'))
+        rewards =               np.asarray(extract_from_batch(batch, 'reward'))
         next_observations =              extract_from_batch(batch, 'next_observation')
-        terminals =             np.array(extract_from_batch(batch, 'terminal'))
+        terminals =             np.asarray(extract_from_batch(batch, 'terminal'))
 
         if inspect:
             print(f'\nBatch size: {len(batch)}')

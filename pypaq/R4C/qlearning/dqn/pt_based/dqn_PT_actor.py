@@ -35,7 +35,7 @@ class DQN_PTActor(DQN_Actor):
 
     # optimized with single call with a batch of observations
     def get_QVs_batch(self, observations: List[object]) -> np.ndarray:
-        obs_vecs = np.array([self._get_observation_vec(o) for o in observations])
+        obs_vecs = np.asarray([self._get_observation_vec(o) for o in observations])
         return self.nnw(obs_vecs)['logits'].detach().cpu().numpy()
 
     # optimized with single call to session with a batch of data
