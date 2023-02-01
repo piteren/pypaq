@@ -104,7 +104,7 @@ class Module(torch.nn.Module):
     def loss(self, *args, **kwargs) -> DTNS:
         """
             exemplary implementation:
-        out = self.forward(input)                                                           <- forward DTNS
+        out = self(input)                                                                   <- forward DTNS
         logits = out['logits']
         out['loss'] = torch.nn.functional.cross_entropy(logits, labels, reduction='mean')   <- update with loss
         out['acc'] = self.accuracy(logits, labels)                                          <- update with acc
@@ -395,7 +395,7 @@ class MOTorch(ParaSave, torch.nn.Module):
         conv_kwargs = {'to_torch':to_torch, 'to_devices':to_devices, 'to_dtype':to_dtype}
         args = [self.convert(data=a, **conv_kwargs) for a in args]
         kwargs = {k: self.convert(data=kwargs[k], **conv_kwargs) for k in kwargs}
-        out = self.module.forward(*args, **kwargs)
+        out = self.module(*args, **kwargs)
         if set_training: self.train(False) # eventually roll back to default
         return out
 

@@ -292,7 +292,7 @@ class EncCNN(torch.nn.Module):
             n_layers :int=              6,              # num of layers
             padded=                     True,           # if not padded reduces sequence length
             kernel_size :int=           3,              # layer kernel
-            n_filters :Optional[int]=   None,           # num of filters
+            n_filters :Optional[int]=   None,           # num of filters, for None uses in_features
             activation: ACT=            torch.nn.ReLU,  # global enc activation func
             lay_dropout: float=         0.0,
             res_dropout: float=         0.0,
