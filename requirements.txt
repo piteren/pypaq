@@ -10,8 +10,8 @@ pyyaml
 requests
 requests_html
 sentence-transformers
+scikit-learn
 scipy
-sklearn
 tensorboard
 torch
 typing-extensions
