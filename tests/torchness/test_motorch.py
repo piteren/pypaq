@@ -346,7 +346,7 @@ class TestMOTorch(unittest.TestCase):
     def test_save_load_full(self):
 
         model = MOTorch(
-            module_type=        LinModel,
+            module_type=    LinModel,
             in_shape=       256,
             out_shape=      10,
             name_timestamp= True,

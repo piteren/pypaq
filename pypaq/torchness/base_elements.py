@@ -46,6 +46,7 @@ def mrg_ckpts(
     checkpoint_M = {}
     checkpoint_M.update(checkpoint_A)
     checkpoint_M['model_state_dict'] = cmsd_M
+
     torch.save(checkpoint_M, ckptM)
 
 

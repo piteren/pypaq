@@ -143,6 +143,7 @@ class MOTorch(ParaSave, torch.nn.Module):
         'avt_max_upd':      1.5,
         'do_clip':          False,
             # other
+        'try_load_ckpt':    True,               # tries to load a checkpoint while init
         'hpmser_mode':      False,              # it will set model to be read_only and quiet when running with hpmser
         'read_only':        False,              # sets MOTorch to be read only - won't save anything (won't even create self.motorch_dir)
         'do_TB':            True                # runs TensorBard, saves in self.motorch_dir
@@ -186,23 +187,17 @@ class MOTorch(ParaSave, torch.nn.Module):
         if not save_topdir: save_topdir = self.SAVE_TOPDIR
         if not save_fn_pfx: save_fn_pfx = self.SAVE_FN_PFX
 
-        self.motorch_dir = f'{save_topdir}/{self.name}'
-
         if not logger:
             logger = get_pylogger(
                 name=       self.name,
                 add_stamp=  False,
-                folder=     None if _read_only else self.motorch_dir,
+                folder=     None if _read_only else MOTorch.__get_model_dir(save_topdir, self.name),
                 level=      loglevel)
         self._log = logger
 
         mod_info = self.module_type.__name__ if self.module_type else 'module_type NOT GIVEN (will try to load from saved)'
         self._log.info(f'*** MOTorch *** name: {self.name} initializes for module_type: {mod_info}')
-        self._log.info(f'> NMOTorch dir: {self.motorch_dir}{" <- read only mode!" if _read_only else ""}')
-
-        self._dna = dict(
-            module_type=    self.module_type,
-            model_dir=      self.motorch_dir)
+        self._log.info(f'> MOTorch save_topdir: {save_topdir}{" <- read only mode!" if _read_only else ""}')
 
         #**************************************************************************************************** manage dna
 
@@ -234,6 +229,7 @@ class MOTorch(ParaSave, torch.nn.Module):
         if 'logger' in _init_method_params_defaults: _init_method_params_defaults.pop('logger')
 
         # update in proper order
+        self._dna = {}
         self._dna.update(self.INIT_DEFAULTS)
         self._dna.update(_init_method_params_defaults)
         self._dna.update(dna_saved)
@@ -310,11 +306,14 @@ class MOTorch(ParaSave, torch.nn.Module):
         self.to(self['dtype'])
         self._log.debug(f'{self.name} (MOTorch) Module initialized!')
 
-        try:
-            self.load_ckpt()
-            self._log.info(f'> {self.name} checkpoint loaded from {self.__get_ckpt_path()}')
-        except Exception as e:
-            self._log.info(f'> {self.name} checkpoint NOT loaded ({e})..')
+        if self.try_load_ckpt:
+            try:
+                self.load_ckpt()
+                self._log.info(f'> {self.name} checkpoint loaded from {MOTorch.__get_ckpt_path(self.save_topdir, self.name)}')
+            except Exception as e:
+                self._log.info(f'> {self.name} checkpoint NOT loaded because of exception: {e}')
+        else:
+            self._log.info(f'> {self.name} checkpoint not loaded, even not tried')
 
         # optimizer params may be given with 'opt_' prefix
         opt_params = {k[4:]: self[k] for k in self.get_managed_params() if k.startswith('opt_')}
@@ -351,7 +350,7 @@ class MOTorch(ParaSave, torch.nn.Module):
 
         #************************************************************************************************ other & finish
 
-        self._TBwr = TBwr(logdir=self.motorch_dir)  # TensorBoard writer
+        self._TBwr = TBwr(logdir=MOTorch.__get_model_dir(self.save_topdir, self.name))  # TensorBoard writer
 
         self._batcher = None
 
@@ -381,8 +380,8 @@ class MOTorch(ParaSave, torch.nn.Module):
                 data = data.to(self['dtype'])
         return data
 
-    # runs forward on nn.Module (with current nn.Module.training.mode - by default not training)
     # INFO: since MOTorch is a torch.nn.Module, call forward() call should be avoided, instead use just MOTorch.__call__() /self()
+    # runs forward on nn.Module (with current nn.Module.training.mode - by default not training)
     def forward(
             self,
             *args,
@@ -399,14 +398,13 @@ class MOTorch(ParaSave, torch.nn.Module):
         if set_training: self.train(False) # eventually roll back to default
         return out
 
-    # forward + loss call on NN
-    # runs loss calculation on nn.Module (with current nn.Module.training.mode - by default not training)
+    # forward + loss call on NN (with current nn.Module.training.mode - by default not training)
     def loss(
             self,
             *args,
-            to_torch=                       False,
-            to_devices=                     False,
-            to_dtype=                       False,
+            to_torch=                       True,
+            to_devices=                     True,
+            to_dtype=                       True,
             set_training: Optional[bool]=   None,   # for not None forces given training mode for torch.nn.Module
             **kwargs) -> DTNS:
         if set_training is not None: self.train(set_training)
@@ -417,15 +415,24 @@ class MOTorch(ParaSave, torch.nn.Module):
         if set_training: self.train(False) # eventually roll back to default
         return out
 
-    # backward call on NN
-    # runs loss calculation + update of nn.Module (by default with training.mode = True)
+    # backward call on NN, runs loss calculation + update of nn.Module (by default with training.mode = True)
     def backward(
             self,
             *args,
+            to_torch=                       True,
+            to_devices=                     True,
+            to_dtype=                       True,
             set_training: bool= True, # for backward training mode is set to True by default
             **kwargs) -> DTNS:
 
-        out = self.loss(*args, set_training=set_training, **kwargs) # compute loss
+        out = self.loss(
+            *args,
+            to_torch=       to_torch,
+            to_devices=     to_devices,
+            to_dtype=       to_dtype,
+            set_training=   set_training,
+            **kwargs)
+
         out['loss'].backward()                                      # update gradients
         gnD = self._grad_clipper.clip()                             # clip gradients, adds: 'gg_norm' & 'gg_avt_norm' to out
         self._opt.step()                                            # apply optimizer
@@ -439,34 +446,53 @@ class MOTorch(ParaSave, torch.nn.Module):
 
     # *********************************************************************************************** load / save / copy
 
+    @staticmethod
+    def __get_model_dir(save_topdir:str, model_name:str) -> str:
+        return f'{save_topdir}/{model_name}'
+
     # returns path of checkpoint pickle file
     @staticmethod
-    def __get_ckpt_path_static(model_dir:str, model_name:str) -> str:
-        return f'{model_dir}/{model_name}.pt'
+    def __get_ckpt_path(save_topdir:str, model_name:str) -> str:
+        return f'{MOTorch.__get_model_dir(save_topdir, model_name)}/{model_name}.pt'
 
-    # returns path of checkpoint pickle file
-    def __get_ckpt_path(self) -> str:
-        return self.__get_ckpt_path_static(self.motorch_dir, self.name)
+    # loads checkpoint and returns additional data
+    def load_ckpt(
+            self,
+            save_topdir: Optional[str]= None,  # allows to load from custom save_topdir
+            name: Optional[str]=        None,  # allows to load custom name (model_name)
+    ) -> dict:
 
-    def load_ckpt(self) -> None:
-        checkpoint = torch.load(
-            self.__get_ckpt_path(),
-            map_location=   self._torch_dev, # INFO: to immediately place all tensors to current device (not previously saved one)
-        )
-        self.load_state_dict(checkpoint['model_state_dict'])
+        ckpt_path = MOTorch.__get_ckpt_path(
+            save_topdir=    save_topdir or self.save_topdir,
+            model_name=     name or self.name)
 
-    # saves model checkpoint
-    def save_ckpt(self) -> None:
-        torch.save({
-            #'epoch': 5,
-            'model_state_dict': self.state_dict(),
-            # 'optimizer_state_dict': optimizer.state_dict(),
-            #'loss': 0.4
-        }, self.__get_ckpt_path())
+        save_obj = torch.load(
+            f=              ckpt_path,
+            map_location=   self._torch_dev) # INFO: to immediately place all tensors to current device (not previously saved one)
+
+        self.load_state_dict(save_obj.pop('model_state_dict'))
+        return save_obj
+
+    # saves model checkpoint & optionally additional data
+    def save_ckpt(
+            self,
+            save_topdir: Optional[str]=         None,   # allows to save in custom save_topdir
+            name: Optional[str]=                None,   # allows to save under custom name (model_name)
+            additional_data: Optional[Dict]=    None,   # allows to save additional
+    ) -> None:
+
+        ckpt_path = MOTorch.__get_ckpt_path(
+            save_topdir=    save_topdir or self.save_topdir,
+            model_name=     name or self.name)
+
+        save_obj = {'model_state_dict': self.state_dict()}
+        if additional_data: save_obj.update(additional_data)
+
+        torch.save(obj=save_obj, f=ckpt_path)
 
     # saves MOTorch (ParaSave DNA and model checkpoint)
     def save(self):
-        if self['read_only']: raise MOTorchException('read only MOTorch cannot be saved!')
+        if self['read_only']: raise MOTorchException('read_only MOTorch cannot be saved!')
         self.save_dna()
         self.save_ckpt()
         self._log.info(f'MOTorch {self.name} saved')
@@ -481,8 +507,8 @@ class MOTorch(ParaSave, torch.nn.Module):
         if not save_topdir_src: save_topdir_src = cls.SAVE_TOPDIR
         if not save_topdir_trg: save_topdir_trg = save_topdir_src
         shutil.copyfile(
-            src=    MOTorch.__get_ckpt_path_static(f'{save_topdir_src}/{name_src}', name_src),
-            dst=    MOTorch.__get_ckpt_path_static(f'{save_topdir_trg}/{name_trg}', name_trg))
+            src=    MOTorch.__get_ckpt_path(save_topdir_src, name_src),
+            dst=    MOTorch.__get_ckpt_path(save_topdir_trg, name_trg))
 
     # copies full MOTorch folder (DNA & checkpoints)
     @classmethod
@@ -530,13 +556,12 @@ class MOTorch(ParaSave, torch.nn.Module):
         if not save_topdir_B: save_topdir_B = save_topdir_A
         if not save_topdir_child: save_topdir_child = save_topdir_A
 
-        model_dir_child = f'{save_topdir_child}/{name_child}'
-        prep_folder(model_dir_child)
+        prep_folder(f'{save_topdir_child}/{name_child}')
 
         mrg_ckpts(
-            ckptA=          MOTorch.__get_ckpt_path_static(f'{save_topdir_A}/{name_A}', name_A),
-            ckptB=          MOTorch.__get_ckpt_path_static(f'{save_topdir_B}/{name_B}', name_B),
-            ckptM=          MOTorch.__get_ckpt_path_static(model_dir_child, name_child),
+            ckptA=          MOTorch.__get_ckpt_path(save_topdir_A, name_A),
+            ckptB=          MOTorch.__get_ckpt_path(save_topdir_B, name_B),
+            ckptM=          MOTorch.__get_ckpt_path(save_topdir_child, name_child),
             ratio=          ratio,
             noise=          noise)
 
@@ -658,7 +683,7 @@ class MOTorch(ParaSave, torch.nn.Module):
 
         while batch_IX < n_batches:
 
-            out = self.backward(**self._batcher.get_batch())
+            out = self.backward(**self._batcher.get_batch(), to_torch=False, to_devices=False, to_dtype=False)
 
             loss = out['loss']
             acc = out['acc'] if 'acc' in out else None
@@ -756,7 +781,7 @@ class MOTorch(ParaSave, torch.nn.Module):
         accL = []
         f1L = []
         for batch in batches:
-            out = self.loss(**batch)
+            out = self.loss(**batch, to_torch=False, to_devices=False, to_dtype=False)
             lossL.append(out['loss'])
             if 'acc' in out: accL.append(out['acc'])
             if 'f1' in out:  f1L.append(out['f1'])
