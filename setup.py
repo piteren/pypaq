@@ -9,11 +9,11 @@ def get_requirements():
 
 setup(
     name=               'pypaq',
+    version=            'v0.3.0',
     url=                'https://github.com/piteren/pypaq.git',
     author=             'Piotr Niewinski',
     author_email=       'pioniewinski@gmail.com',
+    description=        'python tools package (ML, NN, NLP, RL, MP)',
     packages=           find_packages(),
-    version=            'v0.3.0',
     install_requires=   get_requirements(),
-    license=            'MIT',
-    description=        'python tools')
+    license=            'MIT')
