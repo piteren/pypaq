@@ -59,6 +59,20 @@ class TestMOTorch(unittest.TestCase):
         self.assertRaises(Exception, MOTorch, **kwargs)
 
 
+    def test_device(self):
+        model = MOTorch(
+            module_type=    LinModel,
+            device=         0,
+            in_drop=        0.0)
+        dev = model.device
+        print(dev)
+        self.assertTrue(dev == 0)
+        torch_dev = model.get_torch_device()
+        print(torch_dev)
+        should_be = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+        self.assertTrue(torch_dev == should_be)
+
+
     def test_save_load(self):
         model = MOTorch(
             module_type=    LinModel,

@@ -18,7 +18,7 @@
     - May be called BWD with backward() <- runs gradient backprop for given data
     - Supports hpmser mode.
     - Manages seed and guarantees reproducibility.
-    - Manages GPU / CPU devices used by NN.
+    - Manages GPU / CPU device used by NN.
     - Adds TensorBoard support.
     - Defines / implements save / load / copy of whole MOTorch (ParaSave + NN checkpoint).
     - Defines interface of baseline training & testing with data loaded to Batcher.
@@ -27,12 +27,8 @@
 
     Module:
         - should implement forward() and loss() methods
-            - arguments for parameters of forward() of np.ndarray type will be cast to TNS (by default) by MOTorch,
-              if not ALL are to be casted:
-                - default cast should be turned off when calling MOTorch forward() or loss_acc()
-                    (to_torch, to_devices, to_dtype <- False)
-                - custom MOTorch forward() should override this behaviour
-        - device/s are managed by MOTorch
+            - arguments for parameters of forward() will be cast to TNS (by default) by MOTorch,
+        - device is managed by MOTorch
 
     MOTorch extends Module. By default, after init, MOTorch is set to train.mode=False.
     MOTorch manages its train.mode by itself.
@@ -42,7 +38,7 @@ import numpy as np
 import shutil
 from sklearn.metrics import f1_score
 import torch
-from typing import Optional, Dict, Tuple
+from typing import Optional, Dict, Tuple, Any
 
 from pypaq.lipytools.little_methods import stamp, get_params, get_func_dna
 from pypaq.lipytools.files import prep_folder
@@ -123,8 +119,9 @@ class MOTorch(ParaSave, torch.nn.Module):
 
     INIT_DEFAULTS = {
         'seed':             123,                # seed for torch and numpy
-        'devices':          -1,                 # :DevicesParam (check pypaq.mpython.devices)
+        'device':           -1,                 # :DevicesParam (check pypaq.mpython.devices)
         'dtype':            torch.float32,      # dtype of floats in MOTorch (16/32/64 etc)
+        'bypass_data_conv': False,              # to bypass input data conversion with forward(), loss(), backward()
             # training
         'batch_size':       64,                 # training batch size
         'n_batches':        1000,               # default length of training
@@ -164,7 +161,7 @@ class MOTorch(ParaSave, torch.nn.Module):
             **kwargs):
 
         if not name and not module_type:
-            raise MOTorchException('MOTorch ERROR: name OR module_type must be given!')
+            raise MOTorchException('name OR module_type must be given!')
 
         self.module_type = module_type # INFO: here we save TYPE
 
@@ -195,9 +192,15 @@ class MOTorch(ParaSave, torch.nn.Module):
                 level=      loglevel)
         self._log = logger
 
+        # TODO: temporary, delete later
+        if 'devices' in kwargs:
+            msg = 'MOTorch does not use \'devices\' parameter anymore, please change to \'device\''
+            self._log.error(msg)
+            raise MOTorchException(msg)
+
         mod_info = self.module_type.__name__ if self.module_type else 'module_type NOT GIVEN (will try to load from saved)'
         self._log.info(f'*** MOTorch *** name: {self.name} initializes for module_type: {mod_info}')
-        self._log.info(f'> MOTorch save_topdir: {save_topdir}{" <- read only mode!" if _read_only else ""}')
+        self._log.info(f'> {self.name} save_topdir: {save_topdir}{" <- read only mode!" if _read_only else ""}')
 
         #**************************************************************************************************** manage dna
 
@@ -276,24 +279,18 @@ class MOTorch(ParaSave, torch.nn.Module):
 
         #************************************************************************************************ manage devices
 
-        if 'device' in kwargs:
-            msg = 'MOTorch uses \'devices\' param to set devices, not \'device\'!'
-            self._log.error(msg)
-            raise MOTorchException(msg)
-        self._log.debug(f'> {self.name} resolves devices, given: {self["devices"]}')
+        self._log.debug(f'> {self.name} resolves devices, given: {self.device}')
         self._log.debug(f'>> torch.cuda.is_available(): {torch.cuda.is_available()}')
-        dev = get_devices(
-            devices=    self['devices'],
+        self._torch_device = get_devices(
+            devices=    self.device,
             namespace=  'torch',
-            logger=     get_hi_child(self._log, 'get_devices'))
-        self._log.info(f'> {self.name} given devices: {self["devices"]}, will use {dev}')
-        # TODO: by now supported is only the first given device
-        self._torch_dev = torch.device(dev[0])
+            logger=     get_hi_child(self._log, 'get_devices'))[0]
+        self._log.info(f'> {self.name} given devices: {self.device}, will use {self._torch_device}')
 
         #*************************set seed in all possible areas (https://pytorch.org/docs/stable/notes/randomness.html)
 
-        torch.manual_seed(self['seed'])
-        torch.cuda.manual_seed(self['seed'])
+        torch.manual_seed(self.seed)
+        torch.cuda.manual_seed(self.seed)
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
@@ -302,25 +299,28 @@ class MOTorch(ParaSave, torch.nn.Module):
         self._log.info(f'{self.name} builds graph')
         torch.nn.Module.__init__(self) # init self as a torch.nn.Module
         self._module = self.module_type(**self._dna_module) # private not to be saved with dna
-        self.to(self._torch_dev)
-        self.to(self['dtype'])
-        self._log.debug(f'{self.name} (MOTorch) Module initialized!')
 
         if self.try_load_ckpt:
             try:
-                self.load_ckpt()
+                self.load_ckpt() # TODO do we want to do sth with returned additional data?
                 self._log.info(f'> {self.name} checkpoint loaded from {MOTorch.__get_ckpt_path(self.save_topdir, self.name)}')
             except Exception as e:
                 self._log.info(f'> {self.name} checkpoint NOT loaded because of exception: {e}')
         else:
             self._log.info(f'> {self.name} checkpoint not loaded, even not tried')
 
+        self._log.debug(f'> moving {self.name} to device: {self._torch_device}, dtype: {self.dtype}')
+        self.to(self._torch_device)
+        self.to(self.dtype)
+
+        self._log.debug(f'{self.name} module initialized!')
+
         # optimizer params may be given with 'opt_' prefix
         opt_params = {k[4:]: self[k] for k in self.get_managed_params() if k.startswith('opt_')}
         opt_params.pop('class')
-        self._opt = self['opt_class'](
+        self._opt = self.opt_class(
             params= self.parameters(),
-            lr=     self['baseLR'],
+            lr=     self.baseLR,
             **opt_params)
         #print(len(self._opt.param_groups))
         #print(self._opt.param_groups[0].keys())
@@ -328,20 +328,20 @@ class MOTorch(ParaSave, torch.nn.Module):
         # from now LR is managed by scheduler
         self._scheduler = ScaledLR(
             optimizer=      self._opt,
-            starting_step=  self['train_batch_IX'],
-            warm_up=        self['warm_up'],
-            ann_base=       self['ann_base'],
-            ann_step=       self['ann_step'],
-            n_wup_off=      self['n_wup_off'],
+            starting_step=  self.train_batch_IX,
+            warm_up=        self.warm_up,
+            ann_base=       self.ann_base,
+            ann_step=       self.ann_step,
+            n_wup_off=      self.n_wup_off,
             logger=         get_hi_child(self._log, 'ScaledLR'))
 
         self._grad_clipper = GradClipperAVT(
             module=         self,
-            clip_value=     self['clip_value'],
-            avt_SVal=       self['avt_SVal'],
-            avt_window=     self['avt_window'],
-            avt_max_upd=    self['avt_max_upd'],
-            do_clip=        self['do_clip'],
+            clip_value=     self.clip_value,
+            avt_SVal=       self.avt_SVal,
+            avt_window=     self.avt_window,
+            avt_max_upd=    self.avt_max_upd,
+            do_clip=        self.do_clip,
             logger=         get_hi_child(self._log, 'GradClipperAVT'))
 
         # MOTorch by default is not in training mode
@@ -364,37 +364,43 @@ class MOTorch(ParaSave, torch.nn.Module):
         return torch.nn.Module.__call__(self, *args, **kwargs)
 
     # converts given data to torch.Tensor compatible with self (type,device,dtype)
-    def convert(
-            self,
-            data,               # data to be converted
-            to_torch=   True,   # converts given data to torch.Tensors
-            to_devices= True,   # moves tensors to devices
-            to_dtype=   True,   # converts given data to dtype
-    ):
-        if to_torch:
-            data = torch.tensor(data)
-        if to_devices:
-            data = data.to(self._torch_dev)
-        if to_dtype:
-            if data.dtype not in [torch.int8, torch.int16, torch.int32, torch.int64]: # do not convert int types
-                data = data.to(self['dtype'])
+    def convert(self, data:Any) -> TNS:
+
+        # do not convert None
+        if type(data) is not None:
+
+            if type(data) is not torch.Tensor:
+                if type(data) is np.ndarray: data = torch.from_numpy(data)
+                else:                        data = torch.tensor(data)
+
+            data = data.to(self._torch_device)
+
+            # convert only float types
+            if data.dtype in [torch.float, torch.float16, torch.float32, torch.float64]:
+                data = data.to(self.dtype)
+
         return data
 
-    # INFO: since MOTorch is a torch.nn.Module, call forward() call should be avoided, instead use just MOTorch.__call__() /self()
     # runs forward on nn.Module (with current nn.Module.training.mode - by default not training)
     def forward(
             self,
             *args,
-            to_torch=                       True,
-            to_devices=                     True,
-            to_dtype=                       True,
+            bypass_data_conv=               False,
             set_training: Optional[bool]=   None,
             **kwargs) -> DTNS:
+        """
+        INFO: since MOTorch is a torch.nn.Module, call forward() call should be avoided,
+        INFO: instead use just MOTorch.__call__() /self()
+        """
+
         if set_training is not None: self.train(set_training)
-        conv_kwargs = {'to_torch':to_torch, 'to_devices':to_devices, 'to_dtype':to_dtype}
-        args = [self.convert(data=a, **conv_kwargs) for a in args]
-        kwargs = {k: self.convert(data=kwargs[k], **conv_kwargs) for k in kwargs}
+
+        if not (bypass_data_conv or self.bypass_data_conv):
+            args = [self.convert(data=a) for a in args]
+            kwargs = {k: self.convert(data=kwargs[k]) for k in kwargs}
+
         out = self.module(*args, **kwargs)
+
         if set_training: self.train(False) # eventually roll back to default
         return out
 
@@ -402,16 +408,18 @@ class MOTorch(ParaSave, torch.nn.Module):
     def loss(
             self,
             *args,
-            to_torch=                       True,
-            to_devices=                     True,
-            to_dtype=                       True,
+            bypass_data_conv=               False,
             set_training: Optional[bool]=   None,   # for not None forces given training mode for torch.nn.Module
             **kwargs) -> DTNS:
+
         if set_training is not None: self.train(set_training)
-        conv_kwargs = {'to_torch':to_torch, 'to_devices':to_devices, 'to_dtype':to_dtype}
-        args = [self.convert(data=a, **conv_kwargs) for a in args]
-        kwargs = {k: self.convert(data=kwargs[k], **conv_kwargs) for k in kwargs}
+
+        if not (bypass_data_conv or self.bypass_data_conv):
+            args = [self.convert(data=a) for a in args]
+            kwargs = {k: self.convert(data=kwargs[k]) for k in kwargs}
+
         out = self.module.loss(*args, **kwargs)
+
         if set_training: self.train(False) # eventually roll back to default
         return out
 
@@ -419,18 +427,14 @@ class MOTorch(ParaSave, torch.nn.Module):
     def backward(
             self,
             *args,
-            to_torch=                       True,
-            to_devices=                     True,
-            to_dtype=                       True,
+            bypass_data_conv=   False,
             set_training: bool= True, # for backward training mode is set to True by default
             **kwargs) -> DTNS:
 
         out = self.loss(
             *args,
-            to_torch=       to_torch,
-            to_devices=     to_devices,
-            to_dtype=       to_dtype,
-            set_training=   set_training,
+            bypass_data_conv=   bypass_data_conv,
+            set_training=       set_training,
             **kwargs)
 
         out['loss'].backward()                                      # update gradients
@@ -468,7 +472,7 @@ class MOTorch(ParaSave, torch.nn.Module):
 
         save_obj = torch.load(
             f=              ckpt_path,
-            map_location=   self._torch_dev) # INFO: to immediately place all tensors to current device (not previously saved one)
+            map_location=   self._torch_device) # INFO: to immediately place all tensors to current device (not previously saved one)
 
         self.load_state_dict(save_obj.pop('model_state_dict'))
         return save_obj
@@ -492,7 +496,7 @@ class MOTorch(ParaSave, torch.nn.Module):
 
     # saves MOTorch (ParaSave DNA and model checkpoint)
     def save(self):
-        if self['read_only']: raise MOTorchException('read_only MOTorch cannot be saved!')
+        if self.read_only: raise MOTorchException('read_only MOTorch cannot be saved!')
         self.save_dna()
         self.save_ckpt()
         self._log.info(f'MOTorch {self.name} saved')
@@ -627,13 +631,13 @@ class MOTorch(ParaSave, torch.nn.Module):
             data=       data,
             split_VL=   split_VL,
             split_TS=   split_TS,
-            seed=       self['seed'])
+            seed=       self.seed)
 
         self._batcher = Batcher(
             data_TR=        data_TR,
             data_VL=        data_VL,
             data_TS=        data_TS,
-            batch_size=     self['batch_size'],
+            batch_size=     self.batch_size,
             batching_type=  'random_cov',
             logger=         get_hi_child(self._log, 'Batcher'))
 
@@ -661,7 +665,7 @@ class MOTorch(ParaSave, torch.nn.Module):
         self._log.info(f'{self.name} - training starts [acc / F1 / loss]')
         self._log.info(f'data sizes (TR,VL,TS) samples: {self._batcher.get_data_size()}')
 
-        if n_batches is None: n_batches = self['n_batches']  # take default
+        if n_batches is None: n_batches = self.n_batches  # take default
         self._log.info(f'batch size:             {self["batch_size"]}')
         self._log.info(f'train for num_batches:  {n_batches}')
 
@@ -679,28 +683,28 @@ class MOTorch(ParaSave, torch.nn.Module):
         assert ts_bIX, 'ERR: model SHOULD BE tested while training!'
         ten_factor = int(0.1*len(ts_bIX)) # number of tests for last 10% of training
         if ten_factor < 1: ten_factor = 1 # we need at least one result
-        if self['hpmser_mode']: ts_bIX = ts_bIX[-ten_factor:]
+        if self.hpmser_mode: ts_bIX = ts_bIX[-ten_factor:]
 
         while batch_IX < n_batches:
 
-            out = self.backward(**self._batcher.get_batch(), to_torch=False, to_devices=False, to_dtype=False)
+            out = self.backward(**self._batcher.get_batch(), bypass_data_conv=True)
 
             loss = out['loss']
             acc = out['acc'] if 'acc' in out else None
             f1 = out['f1'] if 'f1' in out else None
 
             batch_IX += 1
-            self['train_batch_IX'] += 1
+            self.train_batch_IX += 1
 
-            if self['do_TB']:
-                self.log_TB(value=loss,                 tag='tr/loss',      step=self['train_batch_IX'])
-                self.log_TB(value=out['gg_norm'],       tag='tr/gn',        step=self['train_batch_IX'])
-                self.log_TB(value=out['gg_avt_norm'],   tag='tr/gn_avt',    step=self['train_batch_IX'])
-                self.log_TB(value=out['currentLR'],     tag='tr/cLR',       step=self['train_batch_IX'])
+            if self.do_TB:
+                self.log_TB(value=loss,                 tag='tr/loss',      step=self.train_batch_IX)
+                self.log_TB(value=out['gg_norm'],       tag='tr/gn',        step=self.train_batch_IX)
+                self.log_TB(value=out['gg_avt_norm'],   tag='tr/gn_avt',    step=self.train_batch_IX)
+                self.log_TB(value=out['currentLR'],     tag='tr/cLR',       step=self.train_batch_IX)
                 if acc is not None:
-                    self.log_TB(value=acc,              tag='tr/acc',       step=self['train_batch_IX'])
+                    self.log_TB(value=acc,              tag='tr/acc',       step=self.train_batch_IX)
                 if f1 is not None:
-                    self.log_TB(value=f1,               tag='tr/F1',       step=self['train_batch_IX'])
+                    self.log_TB(value=f1,               tag='tr/F1',       step=self.train_batch_IX)
 
             if acc is not None: tr_accL.append(acc)
             if f1 is not None: tr_f1L.append(f1)
@@ -713,15 +717,15 @@ class MOTorch(ParaSave, torch.nn.Module):
                 ts_score = ts_f1 if use_F1 else ts_acc
                 if ts_score is not None:
                     ts_score_all_results.append(ts_score)
-                if self['do_TB']:
+                if self.do_TB:
                     if ts_loss is not None:
-                        self.log_TB(value=ts_loss,                      tag='ts/loss',              step=self['train_batch_IX'])
+                        self.log_TB(value=ts_loss,                      tag='ts/loss',              step=self.train_batch_IX)
                     if ts_acc is not None:
-                        self.log_TB(value=ts_acc,                       tag='ts/acc',               step=self['train_batch_IX'])
+                        self.log_TB(value=ts_acc,                       tag='ts/acc',               step=self.train_batch_IX)
                     if ts_f1 is not None:
-                        self.log_TB(value=ts_f1,                        tag='ts/F1',                step=self['train_batch_IX'])
+                        self.log_TB(value=ts_f1,                        tag='ts/F1',                step=self.train_batch_IX)
                     if ts_score is not None:
-                        self.log_TB(value=ts_score_mav.upd(ts_score),   tag=f'ts/{score_name}_mav', step=self['train_batch_IX'])
+                        self.log_TB(value=ts_score_mav.upd(ts_score),   tag=f'ts/{score_name}_mav', step=self.train_batch_IX)
 
                 tr_acc_nfo = f'{100*sum(tr_accL)/test_freq:.1f}' if acc is not None else '--'
                 tr_f1_nfo =  f'{100*sum(tr_f1L)/test_freq:.1f}' if f1 is not None else '--'
@@ -736,7 +740,7 @@ class MOTorch(ParaSave, torch.nn.Module):
 
                 if ts_score is not None and ts_score > ts_score_max:
                     ts_score_max = ts_score
-                    if not self['read_only'] and save_max: self.save_ckpt() # model is saved for max ts_score
+                    if not self.read_only and save_max: self.save_ckpt() # model is saved for max ts_score
 
         # weighted (linear ascending weight) test score for last 10% test results
         ts_score_wval = None
@@ -750,7 +754,7 @@ class MOTorch(ParaSave, torch.nn.Module):
                 weight += 1
             ts_score_wval /= sum_weight
 
-            if self['do_TB']: self.log_TB(value=ts_score_wval, tag=f'ts/ts_{score_name}_wval', step=self['train_batch_IX'])
+            if self.do_TB: self.log_TB(value=ts_score_wval, tag=f'ts/ts_{score_name}_wval', step=self.train_batch_IX)
 
         self._log.info(f'### model {self.name} finished training')
         if ts_score_wval is not None:
@@ -781,7 +785,7 @@ class MOTorch(ParaSave, torch.nn.Module):
         accL = []
         f1L = []
         for batch in batches:
-            out = self.loss(**batch, to_torch=False, to_devices=False, to_dtype=False)
+            out = self.loss(**batch, bypass_data_conv=True)
             lossL.append(out['loss'])
             if 'acc' in out: accL.append(out['acc'])
             if 'f1' in out:  f1L.append(out['f1'])
@@ -796,7 +800,7 @@ class MOTorch(ParaSave, torch.nn.Module):
 
     # updates scheduler baseLR of 0 group
     def update_baseLR(self, lr: float):
-        self['baseLR'] = lr # in case model will be saved >> loaded
+        self.baseLR = lr # in case model will be saved >> loaded
         self._scheduler.update_base_lr0(lr)
 
     @property
@@ -813,7 +817,7 @@ class MOTorch(ParaSave, torch.nn.Module):
             value,
             tag: str,
             step: int) -> None:
-        if self['do_TB']: self._TBwr.add(value=value, tag=tag, step=step)
+        if self.do_TB: self._TBwr.add(value=value, tag=tag, step=step)
         else: self._log.warning(f'{self.name} cannot log TensorBoard since do_TB flag is False!')
 
     @property
@@ -830,8 +834,8 @@ class MOTorch(ParaSave, torch.nn.Module):
             pp += nn
         return pp
 
-    def get_devices(self):
-        return self._torch_dev
+    def get_torch_device(self):
+        return self._torch_device
 
     def __str__(self):
         s = f'MOTorch: {ParaSave.__str__(self)}\n'

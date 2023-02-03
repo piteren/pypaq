@@ -102,7 +102,7 @@ class TextEMB_MOTorch(MOTorch):
         self.logger.info(f'{self.name} prepares embeddings for {len(lines)} lines..')
         return self.module.encode(
             texts=              lines,
-            device=             self._torch_dev, # fixes bug of SentenceTransformers.encode() device placement
+            device=             self.get_torch_device(), # fixes bug of SentenceTransformers.encode() device placement
             show_progress_bar=  show_progress_bar)
 
     def get_probs(self, lines:List[str]) -> np.ndarray:
