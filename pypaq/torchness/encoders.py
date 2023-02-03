@@ -523,12 +523,14 @@ class EncTNS(torch.nn.Module):
 
         super(EncTNS, self).__init__()
 
+        self.d_model = d_model
+
         # positional embeddings (trainable)
         self.pos_emb = None
         if max_seq_len:
             self.pos_emb = torch.nn.Parameter(
                 data=   torch.empty(
-                    size=   (max_seq_len, d_model),
+                    size=   (max_seq_len, self.d_model),
                     device= device,
                     dtype=  dtype))
             bert_initializer(self.pos_emb)
@@ -536,7 +538,7 @@ class EncTNS(torch.nn.Module):
         self.initial_task_query = None
         if not initial_TAT_avg:
             self.initial_task_query = torch.nn.Parameter(
-                data=           torch.empty(d_model, device=device, dtype=dtype),
+                data=           torch.empty(self.d_model, device=device, dtype=dtype),
                 requires_grad=  False) # TODO: check with experiments
             bert_initializer(self.initial_task_query)
 
@@ -550,7 +552,7 @@ class EncTNS(torch.nn.Module):
             num_layers_to_build = len(shared_lays)
 
         layers = [LayBlockTNS(
-            d_model=        d_model,
+            d_model=        self.d_model,
             nhead=          nhead,
             dns_scale=      dns_scale,
             dropout=        dropout,
@@ -572,7 +574,7 @@ class EncTNS(torch.nn.Module):
         self.layers_TAT = layers[num_layers:]
 
         self.norm = torch.nn.LayerNorm(
-            normalized_shape=   d_model,
+            normalized_shape=   self.d_model,
             device=             device,
             dtype=              dtype)
 

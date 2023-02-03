@@ -301,13 +301,9 @@ class MOTorch(ParaSave, torch.nn.Module):
         self._module = self.module_type(**self._dna_module) # private not to be saved with dna
 
         if self.try_load_ckpt:
-            try:
-                self.load_ckpt() # TODO do we want to do sth with returned additional data?
-                self._log.info(f'> {self.name} checkpoint loaded from {MOTorch.__get_ckpt_path(self.save_topdir, self.name)}')
-            except Exception as e:
-                self._log.info(f'> {self.name} checkpoint NOT loaded because of exception: {e}')
+            self.load_ckpt() # TODO do we want to do sth with returned additional data?
         else:
-            self._log.info(f'> {self.name} checkpoint not loaded, even not tried')
+            self._log.info(f'> {self.name} checkpoint not loaded, not even tried because self.try_load_ckpt=={self.try_load_ckpt}')
 
         self._log.debug(f'> moving {self.name} to device: {self._torch_device}, dtype: {self.dtype}')
         self.to(self._torch_device)
@@ -459,22 +455,27 @@ class MOTorch(ParaSave, torch.nn.Module):
     def __get_ckpt_path(save_topdir:str, model_name:str) -> str:
         return f'{MOTorch.__get_model_dir(save_topdir, model_name)}/{model_name}.pt'
 
-    # loads checkpoint and returns additional data
+    # tries to load checkpoint and return additional data
     def load_ckpt(
             self,
             save_topdir: Optional[str]= None,  # allows to load from custom save_topdir
             name: Optional[str]=        None,  # allows to load custom name (model_name)
-    ) -> dict:
+    ) -> Optional[dict]:
 
         ckpt_path = MOTorch.__get_ckpt_path(
             save_topdir=    save_topdir or self.save_topdir,
             model_name=     name or self.name)
 
-        save_obj = torch.load(
-            f=              ckpt_path,
-            map_location=   self._torch_device) # INFO: to immediately place all tensors to current device (not previously saved one)
+        save_obj = None
 
-        self.load_state_dict(save_obj.pop('model_state_dict'))
+        try:
+            # INFO: immediately place all tensors to current device (not previously saved one)
+            save_obj = torch.load(f=ckpt_path, map_location=self._torch_device)
+            self.load_state_dict(save_obj.pop('model_state_dict'))
+            self._log.info(f'> {self.name} checkpoint loaded from {ckpt_path}')
+        except Exception as e:
+            self._log.info(f'> {self.name} checkpoint NOT loaded because of exception: {e}')
+
         return save_obj
 
     # saves model checkpoint & optionally additional data
