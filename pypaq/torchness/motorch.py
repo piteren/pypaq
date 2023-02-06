@@ -304,7 +304,7 @@ class MOTorch(ParaSave, torch.nn.Module):
         if self.try_load_ckpt:
             self.load_ckpt() # TODO do we want to do sth with returned additional data?
         else:
-            self._log.info(f'> {self.name} checkpoint not loaded, not even tried because self.try_load_ckpt=={self.try_load_ckpt}')
+            self._log.info(f'> {self.name} checkpoint not loaded, not even tried because \'try_load_ckpt\' was set to {self.try_load_ckpt}')
 
         self._log.debug(f'> moving {self.name} to device: {self.device}, dtype: {self.dtype}')
         self.to(self.device)
