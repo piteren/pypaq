@@ -119,7 +119,7 @@ def print_nested_dict(dc: dict, ind_scale=2, line_limit=200):
 
 # prints line over line
 def printover(sth):
-    print(f'\r{sth}', end='')
+    print(f'\r{sth}', end='', flush=True)
 
 # gets folder path from folder or file path
 
@@ -127,13 +127,13 @@ def printover(sth):
 
 # terminal progress bar
 def progress_ (
-        iteration: float or int,    # current iteration
-        total: float or int,        # total iterations
-        prefix: str=    '',         # prefix string
-        suffix: str=    '',         # suffix string
+        current,                # current progress
+        total,                  # total
+        prefix: str=    '',     # prefix string
+        suffix: str=    '',     # suffix string
         length: int=    20,
         fill: str=      '█'):
-    prog = iteration / total
+    prog = current / total
     if prog > 1: prog = 1
     filled_length = int(length * prog)
     bar = fill * filled_length + '-' * (length - filled_length)
