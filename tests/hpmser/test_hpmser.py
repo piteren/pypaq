@@ -3,13 +3,13 @@ import random
 import time
 import unittest
 
-from tests.envy import get_tmp_dir
+from tests.envy import flush_tmp_dir
 
 from pypaq.lipytools.files import prep_folder
-from pypaq.mpython.devices import DevicesParam
+from pypaq.mpython.devices import DevicesPypaq
 from pypaq.hpmser.search_function import hpmser
 
-HPMSER_FD = f'{get_tmp_dir()}/hpmser'
+HPMSER_FD = f'{flush_tmp_dir()}/hpmser'
 
 
 class TestHpmser(unittest.TestCase):
@@ -26,7 +26,7 @@ class TestHpmser(unittest.TestCase):
 
         def some_func(
                 name :str,
-                device :DevicesParam,
+                device :DevicesPypaq,
                 a :int,
                 b :float,
                 c :float,

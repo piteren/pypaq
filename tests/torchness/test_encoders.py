@@ -20,6 +20,7 @@ class TestEncoders(unittest.TestCase):
         self.assertTrue(out['out'].shape[-1] == in_width)
         self.assertTrue(out['zsL'][0].shape[-1] == in_width)
 
+
     def test_LayBlockDRT_kwargs(self):
 
         in_width = 10
@@ -36,6 +37,7 @@ class TestEncoders(unittest.TestCase):
         print(out)
         self.assertTrue(out['out'].shape[-1] == in_width)
         self.assertTrue(out['zsL'][0].shape[-1] == in_width * 4)
+
 
     def test_LayBlockDRT_device(self):
 
@@ -54,6 +56,7 @@ class TestEncoders(unittest.TestCase):
         lay_drt = LayBlockDRT(in_width)
         self.assertRaises(RuntimeError, lay_drt, inp)  # devices mismatch
 
+
     def test_LayBlockDRT_double(self):
 
         in_width = 10
@@ -70,6 +73,7 @@ class TestEncoders(unittest.TestCase):
         out = lay_drt(inp)
         print(out['out'].dtype)
         print(out)
+
 
     def test_EncDRT(self):
 
@@ -112,19 +116,47 @@ class TestEncoders(unittest.TestCase):
         enc_drt.to(torch.float)
         self.assertRaises(RuntimeError, enc_drt, inp) # expected scalar type Double but found Float
 
-    def test_LayBlockCNN_base(self):
 
+    def test_LayBlockCNN_base_encoder(self):
+
+        n_time = 6
         n_filters = 4
-        inp = torch.rand(6, n_filters)
-        print(inp)
+        inp = torch.rand(n_time, n_filters)
+        print(f'inp shape {inp.shape}')
 
-        lay_cnn = LayBlockCNN(n_filters)
-        print(lay_cnn)
-        out = lay_cnn(inp)
-        print(out)
+        for kernel_size in [3,5,7,9]:
+            lay_cnn = LayBlockCNN(n_filters, kernel_size=kernel_size)
+            print(lay_cnn)
 
-        out = lay_cnn(inp, history=out['state'])
-        print(out)
+            out = lay_cnn(inp)
+            print(f'out shape {out["out"].shape}')
+            print(f'state: {out["state"]}')
+            self.assertTrue(inp.shape == out['out'].shape)
+            self.assertTrue(out['state'] is None)
+
+
+    def test_LayBlockCNN_base_casual(self):
+
+        n_time = 6
+        n_filters = 4
+        inp = torch.rand(n_time, n_filters)
+        print(f'inp shape {inp.shape}')
+
+        for kernel_size in [3,5,7,9]:
+            lay_cnn = LayBlockCNN(n_filters, kernel_size=kernel_size)
+            print(lay_cnn)
+
+            zero_history_def = lay_cnn.get_zero_history()
+            zero_history = lay_cnn.get_zero_history(inp)
+            self.assertTrue(zero_history_def.shape == zero_history.shape)
+            print(f'zero_history shape {zero_history.shape}')
+
+            out = lay_cnn(inp, history=zero_history)
+            print(f'out shape {out["out"].shape}')
+            print(f'state shape: {out["state"].shape}')
+            self.assertTrue(out['out'].shape == inp.shape)
+            self.assertTrue(out['state'].shape == zero_history.shape)
+
 
     def test_LayBlockCNN_kwargs(self):
 
@@ -141,6 +173,30 @@ class TestEncoders(unittest.TestCase):
         out = lay_cnn(inp)
         print(out)
 
+
+    def test_LayBlockCNN_more(self):
+
+        n_time = 32
+        n_filters = 64
+        inp = torch.rand(16, n_time, n_filters)
+        print(f'inp shape {inp.shape}')
+
+        kernel_size = 3
+        lay_cnn = LayBlockCNN(n_filters, kernel_size=kernel_size)
+        print(lay_cnn)
+
+        zero_history_def = lay_cnn.get_zero_history()
+        zero_history = lay_cnn.get_zero_history(inp)
+        print(f'zero_history_def shape {zero_history_def.shape}')
+        print(f'zero_history shape {zero_history.shape}')
+
+        out = lay_cnn(inp, history=zero_history)
+        print(f'out shape {out["out"].shape}')
+        print(f'state shape: {out["state"].shape}')
+        self.assertTrue(out['out'].shape == inp.shape)
+        self.assertTrue(out['state'].shape == zero_history.shape)
+
+
     def test_EncCNN_base(self):
 
         self.assertRaises(TorchnessException, EncCNN, in_features=6, kernel_size=4) # even number for kernel
@@ -154,12 +210,31 @@ class TestEncoders(unittest.TestCase):
         enc_out = enc(inp)
 
         print(enc_out['out'].shape)
-        self.assertTrue(list(enc_out['out'].shape) == list(inp.shape))
+        self.assertTrue(enc_out['out'].shape == inp.shape)
+
+        self.assertTrue(enc_out['state'] is None)
+
+
+    def test_EncCNN_casual(self):
+
+        in_features = 128
+        inp = torch.rand(256,512,in_features)
+        print(inp.shape)
+
+        enc = EncCNN(in_features)
+        print(enc)
+
+        zero_history_base = enc.get_zero_history()
+        print(zero_history_base.shape)
+        zero_history = enc.get_zero_history(inp)
+        enc_out = enc(inp, history=zero_history)
+
+        print(enc_out['out'].shape)
+        self.assertTrue(enc_out['out'].shape == inp.shape)
 
         print(enc_out['state'].shape)
-        zero_history = enc.get_zero_history(inp)
-        print(zero_history.shape)
-        self.assertTrue(list(enc_out['state'].shape) == list(zero_history.shape))
+        self.assertTrue(enc_out['state'].shape == zero_history.shape)
+
 
     def test_EncCNN_kwargs(self):
 
@@ -190,10 +265,10 @@ class TestEncoders(unittest.TestCase):
         in_sh[-1] = n_filters
         self.assertTrue(list(enc_out['out'].shape) == in_sh)
 
-        print(enc_out['state'].shape)
         zero_history = enc.get_zero_history(inp)
         print(zero_history.shape)
-        self.assertTrue(list(enc_out['state'].shape) == list(zero_history.shape))
+        self.assertTrue(list(zero_history.shape) == [18,5,6,48])
+
 
     def test_EncCNN_shared(self):
 
@@ -210,31 +285,10 @@ class TestEncoders(unittest.TestCase):
         print(enc_out['out'].shape)
         self.assertTrue(list(enc_out['out'].shape) == list(inp.shape))
 
-        print(enc_out['state'].shape)
         zero_history = enc.get_zero_history(inp)
         print(zero_history.shape)
-        self.assertTrue(list(enc_out['state'].shape) == list(zero_history.shape))
+        self.assertTrue(list(zero_history.shape) == [256,6,2,128])
 
-    def test_EncCNN_history(self):
-
-        in_features = 3
-        inp = torch.rand(6,in_features)
-        print(inp)
-
-        enc = EncCNN(
-            in_features=    in_features,
-            n_layers=       2,
-            n_filters=      4)
-        print(enc)
-        enc_out = enc(inp)
-        print(enc_out)
-
-        print(enc_out['state'].shape)
-        print(enc.get_zero_history(inp).shape)
-        self.assertTrue(list(enc_out['state'].shape) == list(enc.get_zero_history(inp).shape))
-
-        enc_out = enc(inp, history=enc_out['state'])
-        print(enc_out)
 
     def test_LayBlockTNS_base(self):
 
@@ -255,6 +309,7 @@ class TestEncoders(unittest.TestCase):
         print(out['out'].shape)
         print(out['zsL'][0].shape)
 
+
     def test_EncTNS_base(self):
 
         in_features = 64
@@ -266,6 +321,7 @@ class TestEncoders(unittest.TestCase):
         print(enc)
         out = enc(inp)
         print(out['out'].shape, len(out['zsL']))
+
 
     def test_EncTNS_PE(self):
 
@@ -281,6 +337,7 @@ class TestEncoders(unittest.TestCase):
         out = enc(inp)
         print(out['out'].shape)
 
+
     def test_EncRNS_TAT(self):
 
         in_features = 64
@@ -295,6 +352,7 @@ class TestEncoders(unittest.TestCase):
         print(enc)
         out = enc(inp)
         print(out['out'].shape)
+
 
     def test_EncRNS_TAT_shared(self):
 

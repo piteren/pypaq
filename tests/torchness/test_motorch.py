@@ -19,12 +19,16 @@ class LinModel(Module):
             in_drop: float,
             in_shape=   784,
             out_shape=  10,
-            seed=       121,
-            loss_func=  torch.nn.functional.cross_entropy):
+            loss_func=  torch.nn.functional.cross_entropy,
+            device=     None,
+            dtype=      None,
+            logger=     None,
+            seed=       121):
         nn.Module.__init__(self)
         self.in_drop_lay = torch.nn.Dropout(p=in_drop) if in_drop>0 else None
         self.lin = LayDense(in_features=in_shape, out_features=out_shape)
         self.loss_func = loss_func
+        if logger: logger.debug('LinModel initialized!')
 
     def forward(self, inp) -> dict:
         if self.in_drop_lay is not None: inp = self.in_drop_lay(inp)
@@ -47,8 +51,8 @@ class TestMOTorch(unittest.TestCase):
     def test_base_init(self):
         MOTorch(
             module_type=    LinModel,
-            loglevel=       10,
-            in_drop=        0.0)
+            in_drop=        0.0,
+            loglevel=       10)
 
 
     def test_init_raises(self):
@@ -66,11 +70,7 @@ class TestMOTorch(unittest.TestCase):
             in_drop=        0.0)
         dev = model.device
         print(dev)
-        self.assertTrue(dev == 0)
-        torch_dev = model.get_torch_device()
-        print(torch_dev)
-        should_be = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-        self.assertTrue(torch_dev == should_be)
+        self.assertTrue(dev == 'cuda:0' if torch.cuda.is_available() else 'cpu')
 
 
     def test_save_load(self):

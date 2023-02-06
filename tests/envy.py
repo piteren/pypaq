@@ -11,7 +11,3 @@ def flush_tmp_dir() -> str:
     tmp_dir = __get_tmp_dir()
     prep_folder(tmp_dir, flush_non_empty=True)
     return tmp_dir
-
-
-if __name__ == "__main__":
-    print(flush_tmp_dir())
