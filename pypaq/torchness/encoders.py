@@ -202,22 +202,26 @@ class LayBlockCNN(torch.nn.Module):
 
         super(LayBlockCNN, self).__init__()
 
-        if kernel_size % 2 != 1: raise TorchnessException('LayBlockCNN kernel_size cannot be even number')
+        self.n_filters = n_filters
         self.padded = padded
+        if kernel_size % 2 == 0: raise TorchnessException('LayBlockCNN kernel_size cannot be even number')
         self.kernel_size = kernel_size
 
+        self.device = device
+        self.dtype = dtype
+
         self.lay_ln = torch.nn.LayerNorm(
-            normalized_shape=   n_filters,
-            device=             device,
-            dtype=              dtype)
+            normalized_shape=   self.n_filters,
+            device=             self.device,
+            dtype=              self.dtype)
 
         self.lay_conv1D = LayConv1D(
-            in_features=    n_filters,
-            n_filters=      n_filters,
+            in_features=    self.n_filters,
+            n_filters=      self.n_filters,
             kernel_size=    self.kernel_size,
             padding=        'valid',
-            device=         device,
-            dtype=          dtype,
+            device=         self.device,
+            dtype=          self.dtype,
             activation=     None,
             initializer=    initializer)
 
@@ -225,35 +229,77 @@ class LayBlockCNN(torch.nn.Module):
 
         self.lay_drop = torch.nn.Dropout(p=lay_dropout) if lay_dropout else None
 
-        self.res = LayRES(in_features=n_filters, dropout=res_dropout)
+        self.res = LayRES(in_features=self.n_filters, dropout=res_dropout)
 
         self.lay_DRT = LayBlockDRT(
-            in_width=       n_filters,
+            in_width=       self.n_filters,
             do_scaled_dns=  ldrt_do_scaled_dns,
             dns_scale=      ldrt_dns_scale,
             activation=     activation,
             lay_dropout=    ldrt_drop,
             residual=       ldrt_residual,
             res_dropout=    ldrt_res_dropout,
-            device=         device,
-            dtype=          dtype,
+            device=         self.device,
+            dtype=          self.dtype,
             initializer=    initializer) if do_ldrt else None
 
-    def forward(self, inp:TNS, history:Optional[TNS]=None) -> DTNS:
+    # prepares baseline 2-dim zero_history
+    def _get_zero_history_base(self) -> TNS:
+        in_sh = [self.kernel_size-1, self.n_filters]
+        return torch.zeros(in_sh).to(self.device, self.dtype)
+
+    # prepares initial history for casual mode, history has shape [.., kernel_size-1, n_filters]
+    def get_zero_history(self, inp:Optional[TNS]=None) -> TNS:
+        zhb = self._get_zero_history_base()
+        if inp is None: return zhb
+        else:           return zhb.expand(list(inp.shape)[:-2] + list(zhb.shape))
+
+
+    def forward(
+            self,
+            inp: TNS, # INFO: at least 2-dim tensor: [..., seq, feats]
+            history: Optional[TNS]= None # INFO: history must be given (even zero_history) for casual mode
+    ) -> DTNS:
 
         zsL = []
         out = self.lay_ln(inp)
 
+        ### pad out and prepare state for return
+
+        state = None
         if self.padded:
+
+            proper_history_shape = list(inp.shape)[:-2] + [self.kernel_size-1, self.n_filters]
+
+            # pad with zeroes on both sides (encoder), ..but no state to return
             if history is None:
-                in_sh = list(inp.shape)
-                pad_width = int((self.kernel_size-1)/2)
-                in_sh[-2] = pad_width
-                pad = torch.zeros(in_sh).to(out.device)
-                conc = [pad, out, pad] # pad both sides (encoder)
+                pad_shape = proper_history_shape
+                pad_shape[-2] = pad_shape[-2] // 2
+                pad = torch.zeros(pad_shape).to(self.device, self.dtype)
+                conc = [pad, out, pad]
+                out = torch.concat(conc, dim=-2)
+
+            # concatenate with history on the left (casual block)
             else:
-                conc = [history, out] # concatenate with history (casual encoder)
-            out = torch.concat(conc, dim=-2)
+
+                if not list(history.shape) == proper_history_shape:
+                    raise TorchnessException(f'wrong histy shape, given {history.shape}, should be {proper_history_shape}')
+                conc = [history, out]
+                out = torch.concat(conc, dim=-2)
+
+                # prepare state
+                inp_for_state = inp
+                if inp_for_state.size(-2) < proper_history_shape[-2]: # inp is shorter than history
+                    pad_shape = list(inp_for_state.shape)
+                    pad_shape[-2] = proper_history_shape[-2] - inp_for_state.size(-2)
+                    pad = torch.zeros(pad_shape).to(inp)
+                    inp_for_state = torch.concat([pad,inp_for_state], dim=-2)
+                sections = [inp_for_state.size(-2)-proper_history_shape[-2], proper_history_shape[-2]]
+                state_spl = torch.split(
+                    tensor=                 inp_for_state,
+                    split_size_or_sections= sections,
+                    dim=                    -2)
+                state = state_spl[-1]
 
         out = self.lay_conv1D(out)
 
@@ -275,7 +321,7 @@ class LayBlockCNN(torch.nn.Module):
 
         return {
             'out':      out,
-            'state':    torch.split(inp, split_size_or_sections=self.kernel_size-1, dim=-2)[-1],
+            'state':    state,
             'zsL':      zsL}
 
 
@@ -288,7 +334,7 @@ class EncCNN(torch.nn.Module):
             time_drop: float=           0.0,
             feat_drop: float=           0.0,
             # layer
-            shared_lays: bool=          False,          # shared variables in enc_layers
+            shared_lays: bool=          False,          # shared variables between LayBlockCNN
             n_layers :int=              6,              # num of layers
             padded=                     True,           # if not padded reduces sequence length
             kernel_size :int=           3,              # layer kernel
@@ -315,6 +361,9 @@ class EncCNN(torch.nn.Module):
         self.kernel_size = kernel_size
         self.n_filters = n_filters or self.in_features
 
+        self.device = device
+        self.dtype = dtype
+
         self.in_TFdrop_lay = TF_Dropout(
             time_drop=  time_drop,
             feat_drop=  feat_drop) if time_drop or feat_drop else None
@@ -324,8 +373,8 @@ class EncCNN(torch.nn.Module):
             out_features=   self.n_filters,
             activation=     None,
             bias=           False,
-            device=         device,
-            dtype=          dtype,
+            device=         self.device,
+            dtype=          self.dtype,
             initializer=    initializer) if self.in_features != self.n_filters else None
 
         num_blocks_to_build = 1 if shared_lays else self.n_layers
@@ -343,8 +392,8 @@ class EncCNN(torch.nn.Module):
             ldrt_drop=          ldrt_drop,
             ldrt_residual=      ldrt_residual,
             ldrt_res_dropout=   ldrt_res_dropout,
-            device=             device,
-            dtype=              dtype,
+            device=             self.device,
+            dtype=              self.dtype,
             initializer=        initializer) for _ in range(num_blocks_to_build)]
 
         for bix,block in enumerate(self.blocks): self.add_module(f'block_{bix}',block)
@@ -353,16 +402,15 @@ class EncCNN(torch.nn.Module):
 
         self.out_ln = torch.nn.LayerNorm(
             normalized_shape=   self.n_filters,
-            device=             device,
-            dtype=              dtype)
+            device=             self.device,
+            dtype=              self.dtype)
 
     # prepares initial history for casual mode, history has shape [.., n_layers, kernel_size-1, n_filters]
-    def get_zero_history(self, inp:TNS) -> TNS:
-        in_sh = list(inp.shape)
-        in_sh.insert(-2, self.n_layers)
-        in_sh[-2] = self.kernel_size - 1
-        in_sh[-1] = self.n_filters
-        return torch.zeros(in_sh).to(inp.device)
+    def get_zero_history(self, inp:Optional[TNS]=None) -> TNS:
+        block_zero_history = self.blocks[0].get_zero_history(inp)
+        bzhs = list(block_zero_history.shape)
+        block_zero_history = block_zero_history.view(bzhs[:-2] + [1] + bzhs[-2:]) # add dim
+        return block_zero_history.expand(bzhs[:-2] + [self.n_layers] + bzhs[-2:]) # expand
 
     def forward(
             self,
@@ -384,14 +432,15 @@ class EncCNN(torch.nn.Module):
             if hist is not None: hist = torch.squeeze(hist, dim=-3)
             block_out = block(output, history=hist)
             output = block_out['out']
-            states.append(torch.unsqueeze(block_out['state'], dim=-3))
+            if block_out['state'] is not None:
+                states.append(torch.unsqueeze(block_out['state'], dim=-3))
             zsL += block_out['zsL']
 
         output = self.out_ln(output)
 
         return {
             'out':      output,
-            'state':    torch.concat(states,dim=-3),
+            'state':    torch.concat(states,dim=-3) if states else None,
             'zsL':      zsL}
 
 
@@ -578,10 +627,19 @@ class EncTNS(torch.nn.Module):
             device=             device,
             dtype=              dtype)
 
-    # casual Transformer encoding
+    # base Transformer encoding
     def _encode(self, inp:TNS, mask:Optional[TNS]=None) -> DTNS:
 
         output = inp
+
+        """
+            it is possible to receive higher than 3-dim input [batch,seq,feats]
+            we need to flatten such dim since it is not supported by native torch Transformer:
+            "query should be unbatched 2D or batched 3D tensor but received 4-D query tensor <- MultiheadAttention(Module)"
+        """
+        orig_shape = output.shape
+        if len(orig_shape) > 3:
+            output = output.view([-1] + list(orig_shape)[-2:])
 
         # add positional embeddings if needed
         if self.pos_emb is not None:
@@ -616,6 +674,10 @@ class EncTNS(torch.nn.Module):
 
         output = self.norm(output)
 
+        # eventually roll back to original shape
+        if len(orig_shape) > 3:
+            output = output.view(orig_shape)
+
         return {
             'out':  output,
             'zsL':  zsL}
@@ -641,7 +703,7 @@ class EncTNS(torch.nn.Module):
     def forward(
             self,
             inp: TNS,
-            mask: Optional[TNS]=                    None,
+            mask: Optional[TNS]=                        None,
             pyramide: Optional[Union[Tuple[int],int]]=  None) -> DTNS:
 
         if pyramide:

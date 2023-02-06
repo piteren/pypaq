@@ -28,7 +28,7 @@
     Module:
         - should implement forward() and loss() methods
             - arguments for parameters of forward() will be cast to TNS (by default) by MOTorch,
-        - device is managed by MOTorch
+        - device is managed by MOTorch with dev_pypaq: DevicesPypaq parameter
 
     MOTorch extends Module. By default, after init, MOTorch is set to train.mode=False.
     MOTorch manages its train.mode by itself.
@@ -119,7 +119,7 @@ class MOTorch(ParaSave, torch.nn.Module):
 
     INIT_DEFAULTS = {
         'seed':             123,                # seed for torch and numpy
-        'device':           -1,                 # :DevicesParam (check pypaq.mpython.devices)
+        'device':           -1,                 # :DevicesPypaq (check pypaq.mpython.devices)
         'dtype':            torch.float32,      # dtype of floats in MOTorch (16/32/64 etc)
         'bypass_data_conv': False,              # to bypass input data conversion with forward(), loss(), backward()
             # training
@@ -163,6 +163,10 @@ class MOTorch(ParaSave, torch.nn.Module):
         if not name and not module_type:
             raise MOTorchException('name OR module_type must be given!')
 
+        # TODO: temporary, delete later
+        if 'devices' in kwargs:
+            raise MOTorchException('\'devices\' param is no more supported by MOTorch, please use device')
+
         self.module_type = module_type # INFO: here we save TYPE
 
         # generate name
@@ -192,17 +196,11 @@ class MOTorch(ParaSave, torch.nn.Module):
                 level=      loglevel)
         self._log = logger
 
-        # TODO: temporary, delete later
-        if 'devices' in kwargs:
-            msg = 'MOTorch does not use \'devices\' parameter anymore, please change to \'device\''
-            self._log.error(msg)
-            raise MOTorchException(msg)
-
         mod_info = self.module_type.__name__ if self.module_type else 'module_type NOT GIVEN (will try to load from saved)'
         self._log.info(f'*** MOTorch *** name: {self.name} initializes for module_type: {mod_info}')
         self._log.info(f'> {self.name} save_topdir: {save_topdir}{" <- read only mode!" if _read_only else ""}')
 
-        #**************************************************************************************************** manage dna
+        # *************************************************************************************************** manage dna
 
         # load dna from folder
         dna_saved = self.load_dna(
@@ -220,32 +218,45 @@ class MOTorch(ParaSave, torch.nn.Module):
             raise MOTorchException(msg)
 
         # get defaults of Module.__init__ method
-        _init_method = self.module_type.__init__ if type(self.module_type) is object else self.module_type
-        _init_method_params = get_params(_init_method)
-        # TODO: better mange device / devices / dtype given with Module
-        for pn in ['device','devices']:
-            if pn in _init_method_params['without_defaults'] or pn in _init_method_params['with_defaults']:
-                self._log.warning(f'MOTorch Module \'{pn}\' parameter wont be used, since devices are managed by MOTorch')
-        if 'dtype' in _init_method_params['with_defaults']:
-            self._log.warning(f'MOTorch Module \'dtype\' should be set carefully since it may override MOTorch dtype management')
+        _init_method_params = get_params(self.module_type.__init__)
         _init_method_params_defaults = _init_method_params['with_defaults']   # get init params defaults
-        if 'logger' in _init_method_params_defaults: _init_method_params_defaults.pop('logger')
+
+        _init_method_params_defaults_for_update = {}
+        _init_method_params_defaults_for_update.update(_init_method_params_defaults)
+
+        # we do not want params below with None to set MOTorch
+        for param in ['device','dtype','logger']:
+            if param in _init_method_params_defaults_for_update:
+                if _init_method_params_defaults_for_update[param] is None:
+                    _init_method_params_defaults_for_update.pop(param)
 
         # update in proper order
         self._dna = {}
         self._dna.update(self.INIT_DEFAULTS)
-        self._dna.update(_init_method_params_defaults)
+        self._dna.update(_init_method_params_defaults_for_update)
         self._dna.update(dna_saved)
         self._dna.update(kwargs)  # update with kwargs given NOW by user
+
+        # resolve device (do it here to update 'device' param)
+        # INFO: device is a special parameter, MOTorch allows it to be in DevicesPypaq type - it needs to be casted to torch namespace
+        self._log.debug(f'> {self.name} resolves devices, given: {self._dna["device"]}')
+        self._log.debug(f'>> torch.cuda.is_available(): {torch.cuda.is_available()}')
+        device = get_devices(
+            devices=            self._dna["device"],
+            torch_namespace=    True,
+            logger=             get_hi_child(self._log, 'get_devices'))[0]
+        self._log.info(f'> {self.name} given devices: {self._dna["device"]}, will use: {device}')
+
         self._dna.update({
             'name':         self.name,
             'save_topdir':  save_topdir,
-            'save_fn_pfx':  save_fn_pfx})
+            'save_fn_pfx':  save_fn_pfx,
+            'device':       device})
 
-        dna_with_log = {}
-        dna_with_log.update(self._dna)
-        dna_with_log['logger'] = self._log
-        self._dna_module = get_func_dna(_init_method, dna_with_log)
+        _dna_module = {}
+        _dna_module.update(self._dna)
+        _dna_module['logger'] = self._log # INFO: we need to set logger like this, since _log is not in managed_params
+        self._dna_module = get_func_dna(self.module_type.__init__, _dna_module)
 
         not_used_kwargs = {}
         for k in kwargs:
@@ -262,7 +273,7 @@ class MOTorch(ParaSave, torch.nn.Module):
         self._log.debug(f'>> kwargs not used by Module: {not_used_kwargs}')
         self._log.debug(f'{self.name} complete DNA:     {self._dna}')
 
-        #************************************************************************************************* init ParaSave
+        # ************************************************************************************************ init ParaSave
 
         ParaSave.__init__(
             self,
@@ -277,24 +288,14 @@ class MOTorch(ParaSave, torch.nn.Module):
             self._log.warning('MOTorch was asked to check for params similarity and found:')
             for pa, pb in found: self._log.warning(f'> params \'{pa}\' and \'{pb}\' are close !!!')
 
-        #************************************************************************************************ manage devices
-
-        self._log.debug(f'> {self.name} resolves devices, given: {self.device}')
-        self._log.debug(f'>> torch.cuda.is_available(): {torch.cuda.is_available()}')
-        self._torch_device = get_devices(
-            devices=    self.device,
-            namespace=  'torch',
-            logger=     get_hi_child(self._log, 'get_devices'))[0]
-        self._log.info(f'> {self.name} given devices: {self.device}, will use {self._torch_device}')
-
-        #*************************set seed in all possible areas (https://pytorch.org/docs/stable/notes/randomness.html)
+        # ************************set seed in all possible areas (https://pytorch.org/docs/stable/notes/randomness.html)
 
         torch.manual_seed(self.seed)
         torch.cuda.manual_seed(self.seed)
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
-        #****************************************************************************************** build MOTorch Module
+        # ***************************************************************************************** build MOTorch Module
 
         self._log.info(f'{self.name} builds graph')
         torch.nn.Module.__init__(self) # init self as a torch.nn.Module
@@ -305,8 +306,8 @@ class MOTorch(ParaSave, torch.nn.Module):
         else:
             self._log.info(f'> {self.name} checkpoint not loaded, not even tried because self.try_load_ckpt=={self.try_load_ckpt}')
 
-        self._log.debug(f'> moving {self.name} to device: {self._torch_device}, dtype: {self.dtype}')
-        self.to(self._torch_device)
+        self._log.debug(f'> moving {self.name} to device: {self.device}, dtype: {self.dtype}')
+        self.to(self.device)
         self.to(self.dtype)
 
         self._log.debug(f'{self.name} module initialized!')
@@ -344,7 +345,7 @@ class MOTorch(ParaSave, torch.nn.Module):
         self.train(False)
         self._log.debug(f'> set {self.name} train.mode to False..')
 
-        #************************************************************************************************ other & finish
+        # *********************************************************************************************** other & finish
 
         self._TBwr = TBwr(logdir=MOTorch.__get_model_dir(self.save_topdir, self.name))  # TensorBoard writer
 
@@ -369,11 +370,8 @@ class MOTorch(ParaSave, torch.nn.Module):
                 if type(data) is np.ndarray: data = torch.from_numpy(data)
                 else:                        data = torch.tensor(data)
 
-            data = data.to(self._torch_device)
-
-            # convert only float types
-            if data.dtype in [torch.float, torch.float16, torch.float32, torch.float64]:
-                data = data.to(self.dtype)
+            # convert device + float types
+            data = data.to(self.device, self.dtype if data.is_floating_point() or data.is_complex() else None)
 
         return data
 
@@ -470,7 +468,7 @@ class MOTorch(ParaSave, torch.nn.Module):
 
         try:
             # INFO: immediately place all tensors to current device (not previously saved one)
-            save_obj = torch.load(f=ckpt_path, map_location=self._torch_device)
+            save_obj = torch.load(f=ckpt_path, map_location=self.device)
             self.load_state_dict(save_obj.pop('model_state_dict'))
             self._log.info(f'> {self.name} checkpoint loaded from {ckpt_path}')
         except Exception as e:
@@ -834,9 +832,6 @@ class MOTorch(ParaSave, torch.nn.Module):
                 nn = nn * s
             pp += nn
         return pp
-
-    def get_torch_device(self):
-        return self._torch_device
 
     def __str__(self):
         s = f'MOTorch: {ParaSave.__str__(self)}\n'
