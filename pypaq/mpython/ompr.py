@@ -31,12 +31,12 @@ import os
 import psutil
 import signal
 import time
-from typing import Any, List, Dict, Optional, Union, Tuple, Set, Callable
+from typing import Any, List, Dict, Optional, Union, Callable
 
 from pypaq.lipytools.moving_average import MovAvg
 from pypaq.lipytools.pylogger import get_pylogger, get_hi_child
 from pypaq.lipytools.little_methods import get_params
-from pypaq.mpython.devices import DevicesParam, get_devices
+from pypaq.mpython.devices import DevicesPypaq, get_devices
 from pypaq.mpython.mptools import QMessage, Que, ExSubprocess
 
 
@@ -138,7 +138,7 @@ class OMPRunner:
                 rw_class: type(RunningWorker),
                 rw_init_kwargs: Optional[Dict],
                 rw_lifetime: Optional[int],
-                devices: DevicesParam,
+                devices: DevicesPypaq,
                 ordered_results: bool,
                 task_timeout: Optional[int],
                 log_RWW_exception: bool,
@@ -165,7 +165,7 @@ class OMPRunner:
             if not rw_init_kwargs: rw_init_kwargs = {}
             self.rw_lifetime = rw_lifetime
 
-            devices = get_devices(devices=devices, namespace=None)
+            devices = get_devices(devices=devices, torch_namespace=False)
 
             dev_param_name = None
             pms = getfullargspec(self.rw_class).args
@@ -423,7 +423,7 @@ class OMPRunner:
             rw_class: type(RunningWorker),              # RunningWorker class that will run() given tasks
             rw_init_kwargs: Optional[Dict]= None,       # RunningWorker __init__ kwargs, logger is managed by OMPRunner
             rw_lifetime: Optional[int]=     None,       # RunningWorker lifetime, for None or 0 is unlimited, for N <1,n> each RW will be restarted after processing N tasks
-            devices: DevicesParam=          'all',
+            devices: DevicesPypaq=          'all',
             name: str=                      'OMPRunner',
             ordered_results: bool=          True,       # returns results in the order of tasks
             task_timeout: Optional[int]=    None,       # (sec)  RW process will be killed after that time of processing, OMPRException will be returned as a task result

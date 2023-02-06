@@ -3,7 +3,7 @@ import time
 from typing import Optional, List, Dict
 
 from pypaq.lipytools.pylogger import get_pylogger
-from pypaq.mpython.devices import DevicesParam
+from pypaq.mpython.devices import DevicesPypaq
 from pypaq.mpython.ompr import RunningWorker, OMPRunner
 from pypaq.scrap.scrap_base import URL, download_response
 
@@ -58,7 +58,7 @@ class MPScrapper(OMPRunner):
     def __init__(
             self,
             rw_class=                                   ResponseRetriever,
-            devices: DevicesParam=                      [None]*4,
+            devices: DevicesPypaq=                      [None] * 4,
             task_timeout=                               30,
             report_delay=                               5,
             headers: Optional[List[Optional[Dict]]]=    None,

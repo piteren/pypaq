@@ -18,11 +18,11 @@
     1. having some FUNCTION:
         - some parameters need to be optimized
         - some parameters may be fixed / constant
-        - if function accepts 'device' or 'devices' it should be type of DevicesParam (check pypaq.mpython.devices),
+        - if function accepts 'device' or 'devices' it should be type of DevicesPypaq (check pypaq.mpython.devices),
           it will be used by hpmser to put proper device for each function call
         - returns a dict with 'score' or just a value (score)
         There are two parameters of FUNCTION that may be used by hpmser:
-            - 'devices' (type of DevicesParam - check pypaq.mpython.devices) -> hpmser will send devices to FUNCTION
+            - 'devices' (type of DevicesPypaq - check pypaq.mpython.devices) -> hpmser will send devices to FUNCTION
             - 'hpmser_mode' -> will be set to True by hpmser
     2. define PSDD - dictionary with parameters to be optimized and the space to search in (check pypaq.pms.pasap.PaSpa)
     3. import hpmser function into your script, and run it with:
@@ -50,9 +50,9 @@ from pypaq.lipytools.little_methods import stamp, get_params
 from pypaq.lipytools.files import prep_folder
 from pypaq.lipytools.logger import set_logger
 from pypaq.lipytools.stats import msmx
-from pypaq.mpython.devices import DevicesParam, get_devices
-from pypaq.mpython.omp import OMPRunner, RunningWorker
-from pypaq.torchness.base_elements import TBwr
+from pypaq.mpython.devices import DevicesPypaq, get_devices
+from pypaq.mpython.ompr import OMPRunner, RunningWorker
+from pypaq.torchness.tbwr import TBwr
 from pypaq.pms.config_manager import ConfigManager
 from pypaq.pms.paspa import PaSpa
 from pypaq.pms.base_types import PSDD, POINT, point_str
@@ -74,13 +74,13 @@ SAMPLING_CONFIG_UPD = {
     'prob_top':     0.6}
 
 
-# hyper-parameters searching function (based on OMP engine)
+# hyper-parameters searching function (based on OMPRunner engine)
 #@timing <- temporary disabled
 def hpmser(
         func: Callable,                                 # function which parameters need to be optimized
         func_psdd: PSDD,                                # func PSDD, from here points {param: arg} will be sampled
         func_const: Optional[POINT]=    None,           # func constant kwargs, will be updated with sample (point) taken from PaSpa
-        devices: DevicesParam=          None,           # devices to use for search
+        devices: DevicesPypaq=          None,           # devices to use for search
         name: Optional[str]=            None,           # hpmser run name, for None stamp will be used
         add_stamp=                      True,           # adds short stamp to name, when name given
         use_GX=                         True,           # uses genetic xrossing while sampling top points
@@ -93,7 +93,6 @@ def hpmser(
         do_TB=                          True,           # plots with TB
         pref_axes: Optional[List[str]]= None,           # preferred axes for plot, put here a list of up to 3 params names ['param1',..]
         top_show_freq=                  20,             # how often top results summary will be printed
-        restart_exceptions_tasks=       False,          # does not restart task that raised exception
         raise_exceptions=               True,           # forces subprocesses to raise + print exceptions, independent from verbosity (raising subprocess exception does not break hpmser process)
         verb=                           1) -> SRL:
 
@@ -104,17 +103,17 @@ def hpmser(
                 self,
                 func: Callable,
                 func_const: Optional[POINT],
-                devices: DevicesParam = None):
+                devices: DevicesPypaq = None):
 
             self.func = func
             self.func_const = func_const if func_const else {}
             self.devices = devices
 
-            # manage 'devices' & 'hpmser_mode' param in func >> set it in func if needed
+            # manage 'device'/'devices' & 'hpmser_mode' param in func >> set it in func if needed
             func_args = get_params(self.func)
             func_args = list(func_args['with_defaults'].keys()) + func_args['without_defaults']
-            assert 'device' not in func_args, f'ERR: you should use "devices" instead of "device" in your "{self.func.__name__}()" function'
-            if 'devices' in func_args: self.func_const['devices'] = self.devices
+            for k in ['device','devices']:
+                if k in func_args: self.func_const[k] = self.devices
             if 'hpmser_mode' in func_args: self.func_const['hpmser_mode'] = True
 
         # processes given spoint, passes **kwargs
@@ -194,7 +193,7 @@ def hpmser(
 
     scores_all = []
 
-    devices = get_devices(devices=devices, namespace=None) # manage devices
+    devices = get_devices(devices=devices, torch_namespace=False) # manage devices
 
     num_free_rw = len(devices)
 
@@ -205,10 +204,10 @@ def hpmser(
         devices=                devices,
         name=                   'OMPR_NB_Hpmser',
         ordered_results=        False,
-        restart_ex_tasks=       restart_exceptions_tasks,
-        log_exceptions=         verb > 0 or raise_exceptions,
-        raise_RWW_exception=    verb>1 or raise_exceptions,
-        verb=                   verb-1)
+        log_RWW_exception=      verb > 0 or raise_exceptions,
+        raise_RWW_exception=    verb>1 or raise_exceptions
+        # TODO: put here logger?
+    )
 
     top_time = time.time()
     top_speed_save = []
