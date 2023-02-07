@@ -42,7 +42,7 @@ from typing import Optional, Dict, Tuple, Any
 
 from pypaq.lipytools.little_methods import stamp, get_params, get_func_dna
 from pypaq.lipytools.files import prep_folder
-from pypaq.lipytools.pylogger import get_pylogger, get_hi_child
+from pypaq.lipytools.pylogger import get_pylogger, get_child
 from pypaq.lipytools.moving_average import MovAvg
 from pypaq.pms.parasave import ParaSave
 from pypaq.mpython.devices import get_devices
@@ -244,7 +244,7 @@ class MOTorch(ParaSave, torch.nn.Module):
         device = get_devices(
             devices=            self._dna["device"],
             torch_namespace=    True,
-            logger=             get_hi_child(self._log, 'get_devices'))[0]
+            logger=             get_child(self._log, 'get_devices'))[0]
         self._log.info(f'> {self.name} given devices: {self._dna["device"]}, will use: {device}')
 
         self._dna.update({
@@ -278,7 +278,7 @@ class MOTorch(ParaSave, torch.nn.Module):
         ParaSave.__init__(
             self,
             lock_managed_params=    True,
-            logger=                 get_hi_child(self._log),
+            logger=                 get_child(self._log),
             **self._dna)
 
         # params names safety check
@@ -330,7 +330,7 @@ class MOTorch(ParaSave, torch.nn.Module):
             ann_base=       self.ann_base,
             ann_step=       self.ann_step,
             n_wup_off=      self.n_wup_off,
-            logger=         get_hi_child(self._log, 'ScaledLR'))
+            logger=         get_child(self._log, 'ScaledLR'))
 
         self._grad_clipper = GradClipperAVT(
             module=         self,
@@ -339,7 +339,7 @@ class MOTorch(ParaSave, torch.nn.Module):
             avt_window=     self.avt_window,
             avt_max_upd=    self.avt_max_upd,
             do_clip=        self.do_clip,
-            logger=         get_hi_child(self._log, 'GradClipperAVT'))
+            logger=         get_child(self._log, 'GradClipperAVT'))
 
         # MOTorch by default is not in training mode
         self.train(False)
@@ -638,7 +638,7 @@ class MOTorch(ParaSave, torch.nn.Module):
             data_TS=        data_TS,
             batch_size=     self.batch_size,
             batching_type=  'random_cov',
-            logger=         get_hi_child(self._log, 'Batcher'))
+            logger=         get_child(self._log, 'Batcher'))
 
     # trains model, returns optional test score
     def run_train(

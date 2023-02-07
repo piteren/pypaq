@@ -34,7 +34,7 @@ import time
 from typing import Any, List, Dict, Optional, Union, Callable
 
 from pypaq.lipytools.moving_average import MovAvg
-from pypaq.lipytools.pylogger import get_pylogger, get_hi_child
+from pypaq.lipytools.pylogger import get_pylogger, get_child
 from pypaq.lipytools.little_methods import get_params
 from pypaq.mpython.devices import DevicesPypaq, get_devices
 from pypaq.mpython.mptools import QMessage, Que, ExSubprocess
@@ -198,7 +198,7 @@ class OMPRunner:
                 rw_class=               self.rw_class,
                 rw_init_kwargs=         self.rwwD[id]['rw_init_kwargs'],
                 raise_unk_exception=    self.raise_RWW_exception,
-                logger=                 get_hi_child(self.logger))
+                logger=                 get_child(self.logger))
             self.rwwD[id]['rww'].start()
             self.logger.debug(f'> {self.ip_name} built and started RWWrap id: {id}..')
 

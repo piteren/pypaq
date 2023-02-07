@@ -20,7 +20,7 @@
 from copy import deepcopy
 from typing import List, Optional, Union, Dict, Set, Tuple
 
-from pypaq.lipytools.pylogger import get_pylogger, get_hi_child
+from pypaq.lipytools.pylogger import get_pylogger, get_child
 from pypaq.textools.text_metrics import lev_dist
 from pypaq.pms.base_types import POINT, PSDD
 from pypaq.pms.paspa import PaSpa
@@ -113,7 +113,7 @@ class SubGX(Subscriptable):
 
         self.__log = logger or get_pylogger()
 
-        Subscriptable.__init__(self, logger=get_hi_child(self.__log))
+        Subscriptable.__init__(self, logger=get_child(self.__log))
 
         self.name = name
         self.family = family

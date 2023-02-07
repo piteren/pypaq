@@ -16,7 +16,7 @@ import warnings
 
 from pypaq.lipytools.little_methods import stamp
 from pypaq.lipytools.files import r_pickle, w_pickle, prep_folder
-from pypaq.lipytools.pylogger import get_pylogger, get_hi_child
+from pypaq.lipytools.pylogger import get_pylogger, get_child
 from pypaq.pms.base_types import POINT
 from pypaq.pms.subscriptable import SubGX
 
@@ -73,7 +73,7 @@ class ParaSave(SubGX):
         self._managed_params: Optional[List[str]] = None
         if lock_managed_params: self._managed_params = self.get_managed_params()
 
-        SubGX.__init__(self, logger=get_hi_child(self.__log), **self.get_point())
+        SubGX.__init__(self, logger=get_child(self.__log), **self.get_point())
 
 
     def get_managed_params(self) -> List[str]:
