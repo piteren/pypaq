@@ -54,7 +54,7 @@ class ParaSave(SubGX):
             self.__log.error(ex_msg)
             raise Exception(ex_msg)
 
-        self.__log.info(f'*** ParaSave *** name: {self.name} initializes..')
+        self.__log.info(f'*** ParaSave : {self.name} *** initializes..')
 
         self.save_topdir = save_topdir
         self.save_fn_pfx = save_fn_pfx

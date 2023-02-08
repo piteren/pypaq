@@ -156,6 +156,7 @@ class MOTorch(ParaSave, torch.nn.Module):
             name_timestamp=                         False,
             save_topdir: Optional[str]=             None,
             save_fn_pfx: Optional[str]=             None,
+            tbwr: Optional[TBwr]=                   None,
             logger=                                 None,
             loglevel=                               20,
             **kwargs):
@@ -197,7 +198,7 @@ class MOTorch(ParaSave, torch.nn.Module):
         self._log = logger
 
         mod_info = self.module_type.__name__ if self.module_type else 'module_type NOT GIVEN (will try to load from saved)'
-        self._log.info(f'*** MOTorch *** name: {self.name} initializes for module_type: {mod_info}')
+        self._log.info(f'*** MOTorch : {self.name} *** initializes for module_type: {mod_info}')
         self._log.info(f'> {self.name} save_topdir: {save_topdir}{" <- read only mode!" if _read_only else ""}')
 
         # *************************************************************************************************** manage dna
@@ -347,7 +348,7 @@ class MOTorch(ParaSave, torch.nn.Module):
 
         # *********************************************************************************************** other & finish
 
-        self._TBwr = TBwr(logdir=MOTorch.__get_model_dir(self.save_topdir, self.name))  # TensorBoard writer
+        self._TBwr = tbwr or TBwr(logdir=MOTorch.__get_model_dir(self.save_topdir, self.name))  # TensorBoard writer
 
         self._batcher = None
 
@@ -423,6 +424,7 @@ class MOTorch(ParaSave, torch.nn.Module):
             *args,
             bypass_data_conv=   False,
             set_training: bool= True, # for backward training mode is set to True by default
+            empty_cuda_cache=   True,
             **kwargs) -> DTNS:
 
         out = self.loss(
@@ -436,6 +438,10 @@ class MOTorch(ParaSave, torch.nn.Module):
         self._opt.step()                                            # apply optimizer
         self._opt.zero_grad()                                       # clear gradients
         self._scheduler.step()                                      # apply LR scheduler
+
+        # releases all unoccupied cached memory currently held by the caching allocator
+        if empty_cuda_cache:
+            torch.cuda.empty_cache()
 
         out['currentLR'] = self._scheduler.get_last_lr()[0]         # INFO: we take currentLR of first group
         out.update(gnD)
