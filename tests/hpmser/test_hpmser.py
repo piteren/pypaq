@@ -57,9 +57,7 @@ class TestHpmser(unittest.TestCase):
             devices=            [None] * n_proc,
             n_loops=            500,
             hpmser_FD=          HPMSER_FD,
-            raise_exceptions=   False,
-            do_log=             False,  # INFO: unittests crashes with logger
-            verb=               verb)
+            raise_exceptions=   False)
 
 
 if __name__ == '__main__':

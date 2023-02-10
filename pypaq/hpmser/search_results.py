@@ -28,15 +28,15 @@ class SRL(Sized):
 
     def __init__(
             self,
+            logger,
             paspa: Optional[PaSpa]=     None,   # parameters space of this SRL
             name: str=                  'SRL',
             np_smooth: int=             3,      # (NPS) Number of Points taken into account while calculating smooth score - default / starting value
-            plot_axes: list=            None,   # list with axes names (max 3), eg: ['drop_a','drop_b','loss']
-            verb=                       0):
+            plot_axes: list=            None):  # list with axes names (max 3), eg: ['drop_a','drop_b','loss']
 
-        self.verb = verb
         self.name = name
-        if self.verb>0: print(f'\n*** SRL {self.name} initializing')
+        self.logger = logger
+        self.logger.info(f'*** SRL : {self.name} *** initializing..')
 
         self.paspa = paspa
 
@@ -60,12 +60,12 @@ class SRL(Sized):
     # loads (alternatively from backup)
     def load(self, save_dir :str):
 
-        if self.verb > 0: print(f' > SRL {self.name} loading form {save_dir}..')
+        self.logger.info(f' > SRL {self.name} loading form {save_dir}..')
 
         try:
             obj = r_pickle(self.__get_srl_path(save_dir))
         except Exception as e:
-            print(f' SRL {self.name} got exception: {str(e)} while loading, using backup file')
+            self.logger.warning(f' SRL {self.name} got exception: {str(e)} while loading, using backup file')
             obj = r_pickle(self.__get_srl_backup_path(save_dir))
 
         self.paspa =                    obj.paspa
@@ -79,7 +79,7 @@ class SRL(Sized):
         self.__avg_dst =                obj.__avg_dst
         self.prec=                      obj.prec
 
-        if self.verb>0: print(f' > SRL loaded {len(self.__srL)} results')
+        self.logger.info(f' > SRL loaded {len(self.__srL)} results')
 
     # saves with backup
     def save(self, folder :str):
@@ -189,7 +189,7 @@ class SRL(Sized):
                 all_p = list(all_p)
                 sample = random.choices(all_p, weights=all_w, k=1)[0]
                 pf = f'.{self.prec}f'
-                print(f'   % sampled #{all_p.index(sample)}/{len(all_p)} from: {maxs:{pf}}-{mins:{pf}} {_str_weights(all_w, float_prec=self.prec)}')
+                self.logger.info(f'   % sampled #{all_p.index(sample)}/{len(all_p)} from: {maxs:{pf}}-{mins:{pf}} {_str_weights(all_w, float_prec=self.prec)}')
             # GX from top points
             else:
                 n_top += 1 # last for reference
@@ -204,7 +204,7 @@ class SRL(Sized):
                     point_scnd=                 srb.point,
                     noise_scale=                avg_dst)
                 pf = f'.{self.prec}f'
-                print(f'   % sampled GX from: {sra.smooth_score:{pf}} and {srb.smooth_score:{pf}}')
+                self.logger.info(f'   % sampled GX from: {sra.smooth_score:{pf}} and {srb.smooth_score:{pf}}')
         est_score, _, _ =  self.smooth_point(sample)
         return sample, est_score
 
@@ -323,11 +323,11 @@ class SRL(Sized):
 
         self.__smoothed_and_sorted = True
 
-    def print_distances(self):
+    def log_distances(self):
         for dl in self.__distances:
             s = ''
             for d in dl: s += f'{d:.2f} '
-            print(s)
+            self.logger.info(s)
 
     def nice_str(
             self,

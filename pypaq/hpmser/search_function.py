@@ -48,8 +48,8 @@ from pypaq.hpmser.search_results import SRL
 from pypaq.hpmser.helpers import _str_weights
 from pypaq.lipytools.little_methods import stamp, get_params
 from pypaq.lipytools.files import prep_folder
-from pypaq.lipytools.logger import set_logger
 from pypaq.lipytools.stats import msmx
+from pypaq.lipytools.pylogger import get_pylogger, get_child
 from pypaq.mpython.devices import DevicesPypaq, get_devices
 from pypaq.mpython.ompr import OMPRunner, RunningWorker
 from pypaq.torchness.tbwr import TBwr
@@ -89,12 +89,13 @@ def hpmser(
         config_upd: Optional[int]=      1000,           # update config after n loops
         n_loops: Optional[int]=         None,           # limit for number of search loops
         hpmser_FD: str=                 '_hpmser_runs', # save folder
-        do_log=                         True,           # sets logger
         do_TB=                          True,           # plots with TB
         pref_axes: Optional[List[str]]= None,           # preferred axes for plot, put here a list of up to 3 params names ['param1',..]
         top_show_freq=                  20,             # how often top results summary will be printed
         raise_exceptions=               True,           # forces subprocesses to raise + print exceptions, independent from verbosity (raising subprocess exception does not break hpmser process)
-        verb=                           1) -> SRL:
+        logger=                         None,
+        loglevel=                       20
+) -> SRL:
 
     # hpmser RunningWorker (process run by OMP in hpmser)
     class HRW(RunningWorker):
@@ -140,19 +141,25 @@ def hpmser(
 
     prep_folder(hpmser_FD)  # create folder if needed
 
+    if not logger:
+        logger = get_pylogger(
+            name=       name,
+            add_stamp=  False,
+            folder=     f'{hpmser_FD}/{name}',
+            level=      loglevel)
+
     # check for continuation
     srl = None
     results_FDL = sorted(os.listdir(hpmser_FD))
     if len(results_FDL):
-        if verb>0: print(f'\nThere are {len(results_FDL)} searches in \'{hpmser_FD}\', do you want to continue with the last one ({results_FDL[-1]})? .. waiting 10 sec (y/n, n-default)')
+        logger.info(f'There are {len(results_FDL)} searches in \'{hpmser_FD}\'')
+        print('do you want to continue with the last one ({results_FDL[-1]})? .. waiting 10 sec (y/n, n-default)')
         i, o, e = select.select([sys.stdin], [], [], 10)
         if i and sys.stdin.readline().strip() == 'y':
             name = results_FDL[-1]  # take last
-            srl = SRL(name=name, verb=verb)
+            srl = SRL(name=name, logger=logger)
             srl.load(f'{hpmser_FD}/{name}')
             assert PaSpa(psdd=func_psdd, distance_L2=distance_L2) == srl.paspa, 'ERR: parameters space differs - cannot continue!'
-
-    if do_log: set_logger(log_folder=f'{hpmser_FD}/{name}', custom_name=name, add_stamp=False, verb=verb)  # set logger
 
     prep_folder(f'{hpmser_FD}/{name}') # needs to be created for ConfigManager
     config_manager = ConfigManager(
@@ -163,20 +170,20 @@ def hpmser(
 
     tbwr = TBwr(logdir=f'{hpmser_FD}/{name}') if do_TB else None
 
-    if verb>0:
-        print(f'\n*** hpmser {name} *** started for: {func.__name__}, sampling config: {sampling_config}')
-        if srl: print(f' search will continue with {len(srl)} results...')
+
+    logger.info(f'*** hpmser : {name} *** started for: {func.__name__}, sampling config: {sampling_config}')
+    if srl: logger.info(f'> search will continue with {len(srl)} results...')
 
     if not srl: srl = SRL(
         paspa=  PaSpa(
             psdd=           func_psdd,
             distance_L2=    distance_L2,
-            verb=           verb-1),
+            logger=         get_child(logger=logger, name='paspa', change_level=10)),
         name=   name,
-        verb=   verb)
+        logger= logger)
     srl.plot_axes = pref_axes
 
-    if verb>0: print(f'\n{srl.paspa}')
+    logger.info(f'\n{srl.paspa}')
 
     # prepare special points: corners and stochastic
     cpa, cpb = srl.paspa.sample_corners()
@@ -204,14 +211,15 @@ def hpmser(
         devices=                devices,
         name=                   'OMPR_NB_Hpmser',
         ordered_results=        False,
-        log_RWW_exception=      verb > 0 or raise_exceptions,
-        raise_RWW_exception=    verb>1 or raise_exceptions
-        # TODO: put here logger?
+        log_RWW_exception=      logger.level < 20 or raise_exceptions,
+        raise_RWW_exception=    logger.level < 11 or raise_exceptions,
+        logger=                 get_child(logger=logger, name='omp', change_level=10)
     )
 
     top_time = time.time()
     top_speed_save = []
-    print(f'\nhpmser starts search loop..\n -- id smooth [local diff_VS_est] topID:dist_to avg_distance/max_of_min_distances time')
+    logger.info(f'hpmser starts search loop..')
+    logger.info(' -- id smooth [local diff_VS_est] topID:dist_to avg_distance/max_of_min_distances time')
     try:
         while True:
 
@@ -221,10 +229,10 @@ def hpmser(
 
             # use all available devices
             while num_free_rw:
-                if verb>1: print(f' >> got {num_free_rw} free RW at {sample_num} sample_num start')
+                logger.debug(f' >> got {num_free_rw} free RW at {sample_num} sample_num start')
 
                 if config_upd == sample_num:
-                    if verb>0: print(f' > updating sampling config..')
+                    logger.info(f' > updating sampling config..')
                     new_sampling_config = config_manager.update(**SAMPLING_CONFIG_UPD)
                     sampling_config.update(new_sampling_config)
 
@@ -274,16 +282,16 @@ def hpmser(
                 # manage stochastic estimation without adding to the results
                 if msg_sample_num in stochastic_points:
                     stochastic_results.append(msg_score)
-                    if len(stochastic_results) == stochastic_est and verb:
-                        print(f'\n*** stochastic estimation with {stochastic_est} points:')
-                        print(f'  > results: {_str_weights(stochastic_results, float_prec=8)}')
-                        print(f'  > std_dev: {msmx(stochastic_results)["std"]:.8f}\n')
+                    if len(stochastic_results) == stochastic_est and logger.level < 21:
+                        logger.info(f' *** stochastic estimation with {stochastic_est} points:')
+                        logger.info(f'  > results: {_str_weights(stochastic_results, float_prec=8)}')
+                        logger.info(f'  > std_dev: {msmx(stochastic_results)["std"]:.8f}\n')
 
                 else:
                     sr = srl.add_result(
                         point=  msg_spoint,
                         score=  msg_score)
-                    if verb>1: print(f' >> got result #{msg_sample_num}')
+                    logger.debug(f' >> got result #{msg_sample_num}')
 
                     pf = f'.{srl.prec}f' # update precision of print
 
@@ -301,7 +309,7 @@ def hpmser(
                         gots_new_max = True
 
                     # current sr report
-                    if verb>0:
+                    if logger.level < 21:
 
                         dif = sr.smooth_score - msg_est_score
                         difs = f'{"+" if dif>0 else "-"}{abs(dif):{pf}}'
@@ -312,7 +320,7 @@ def hpmser(
                         srp =  f'{sr.id} {sr.smooth_score:{pf}} [{sr.score:{pf}} {difs}] {top_SR.id}:{dist_to_max:.3f}'
                         srp += f'  avg/mom:{avg_dst:.3f}/{mom_dst:.3f}  {time_passed}s'
                         if new_sampling_config: srp += f'  new sampling config: {sampling_config}'
-                        print(srp)
+                        logger.info(f'\n{srp}')
 
                         # new MAX report
                         if gots_new_max:
@@ -326,7 +334,7 @@ def hpmser(
                             for nps in NP_SMOOTH:
                                 ss_np, avd, all_sc = srl.smooth_point(top_SR, nps)
                                 msr += f'  NPS:{nps} {ss_np:{pf}} [{max(all_sc):{pf}}-{min(all_sc):{pf}}] {avd:.3f}\n'
-                            print(msr)
+                            logger.info(f'\n{msr}')
 
                         if top_show_freq and len(srl) % top_show_freq == 0:
                             speed = int((time.time()-top_time) / top_show_freq)
@@ -334,9 +342,9 @@ def hpmser(
                             top_speed_save.append(speed)
                             if len(top_speed_save) > 10: top_speed_save.pop(0)
                             diff = int(speed - (sum(top_speed_save) / len(top_speed_save)))
-                            print(f'\n ### hpmser speed: {speed} sec/task, diff: {"+" if diff >=0 else "-"}{abs(diff)} sec')
+                            logger.info(f' ### hpmser speed: {speed} sec/task, diff: {"+" if diff >=0 else "-"}{abs(diff)} sec')
 
-                            print(srl.nice_str(n_top=4, top_nps=NP_SMOOTH, all_nps=None))
+                            logger.info(srl.nice_str(n_top=4, top_nps=NP_SMOOTH, all_nps=None))
 
                     if tbwr:
                         scores_all.append(sr.score)
@@ -350,15 +358,15 @@ def hpmser(
                         tbwr.add(abs(score_diff), 'hpmser/space_estimation_error_abs', step)
 
                     if len(srl) == n_loops:
-                        if verb>0: print(f'{n_loops} loops done!')
+                        logger.info(f'{n_loops} loops done!')
                         break
 
     except KeyboardInterrupt:
-        if verb>0: print(' > hpmser_GX KeyboardInterrupt-ed..')
+        logger.warning(' > hpmser_GX KeyboardInterrupt-ed..')
         raise KeyboardInterrupt # raise exception for OMPRunner
 
     except Exception as e:
-        print(f'hpmser_GX Exception: {str(e)}')
+        logger.error(f'hpmser_GX Exception: {str(e)}')
         raise e
 
     finally:
@@ -369,6 +377,6 @@ def hpmser(
         results_str = srl.nice_str(top_nps=NP_SMOOTH)
         if hpmser_FD:
             with open( f'{hpmser_FD}/{name}/{name}_results.txt', 'w') as file: file.write(results_str)
-        if verb>0: print(f'\n{results_str}')
+        logger.info(f'\n{results_str}')
 
         return srl
