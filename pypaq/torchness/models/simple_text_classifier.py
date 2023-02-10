@@ -97,7 +97,7 @@ class STextCSF_MOTorch(MOTorch):
         out = self.module.encode(
             texts=              lines,
             show_progress_bar=  show_progress_bar,
-            device=             self.get_torch_device()) # needs to give device here because of SentenceTransformer bug in encode() #153
+            device=             self.device) # needs to give device here because of SentenceTransformer bug in encode() #153
         return out['embeddings']
 
     def get_probs(self, lines:List[str]) -> np.ndarray:

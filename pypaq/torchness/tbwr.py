@@ -1,3 +1,4 @@
+from typing import Optional
 from torch.utils.tensorboard import SummaryWriter
 
 
@@ -12,6 +13,7 @@ class TBwr:
         self.flush_secs = flush_secs
         # INFO: SummaryWriter creates logdir while init, because of that self.sw init has moved here (in the first call of add)
         self.sw = None
+        self.step = 0
 
     def _get_sw(self):
         return SummaryWriter(
@@ -21,8 +23,11 @@ class TBwr:
     def add(self,
             value,
             tag: str,
-            step: int):
+            step: Optional[int]=    None):
         if not self.sw: self.sw = self._get_sw()
+        if step is None:
+            step = self.step
+            self.step += 1
         self.sw.add_scalar(
             tag=            tag,
             scalar_value=   value,
@@ -32,8 +37,11 @@ class TBwr:
             self,
             values,
             tag: str,
-            step: int):
+            step: Optional[int]=    None):
         if not self.sw: self.sw = self._get_sw()
+        if step is None:
+            step = self.step
+            self.step += 1
         self.sw.add_histogram(
             tag=            tag,
             values=         values,

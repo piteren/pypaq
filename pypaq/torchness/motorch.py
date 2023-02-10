@@ -46,7 +46,7 @@ from pypaq.lipytools.pylogger import get_pylogger, get_child
 from pypaq.lipytools.moving_average import MovAvg
 from pypaq.pms.parasave import ParaSave
 from pypaq.mpython.devices import get_devices
-from pypaq.comoneural.batcher import Batcher, split_data_TR
+from pypaq.comoneural.batcher import Batcher
 from pypaq.torchness.types import TNS, DTNS
 from pypaq.torchness.base_elements import mrg_ckpts
 from pypaq.torchness.scaled_LR import ScaledLR
@@ -348,7 +348,7 @@ class MOTorch(ParaSave, torch.nn.Module):
 
         # *********************************************************************************************** other & finish
 
-        self._TBwr = tbwr or TBwr(logdir=MOTorch.__get_model_dir(self.save_topdir, self.name))  # TensorBoard writer
+        self._TBwr = tbwr or TBwr(logdir=MOTorch.__get_model_dir(self.save_topdir, self.name)) if self.do_TB else None  # TensorBoard writer
 
         self._batcher = None
 
@@ -625,23 +625,24 @@ class MOTorch(ParaSave, torch.nn.Module):
     # converts and loads data to Batcher
     def load_data(
             self,
-            data: Dict[str, np.ndarray],
-            split_VL: float=    0.0,
-            split_TS: float=    0.0,
-    ):
+            data_TR: Dict[str,np.ndarray],
+            data_VL: Optional[Dict[str,np.ndarray]]=    None,
+            data_TS: Optional[Dict[str,np.ndarray]]=    None,
+            split_VL: float=                            0.0,
+            split_TS: float=                            0.0):
 
-        data = {k: self.convert(data[k]) for k in data}
-
-        data_TR, data_VL, data_TS = split_data_TR(
-            data=       data,
-            split_VL=   split_VL,
-            split_TS=   split_TS,
-            seed=       self.seed)
+        data_TR = {k: self.convert(data_TR[k]) for k in data_TR}
+        if data_VL:
+            data_VL = {k: self.convert(data_VL[k]) for k in data_VL}
+        if data_TS:
+            data_TS = {k: self.convert(data_TS[k]) for k in data_TS}
 
         self._batcher = Batcher(
             data_TR=        data_TR,
             data_VL=        data_VL,
             data_TS=        data_TS,
+            split_VL=       split_VL,
+            split_TS=       split_TS,
             batch_size=     self.batch_size,
             batching_type=  'random_cov',
             logger=         get_child(self._log, 'Batcher'))
@@ -649,19 +650,23 @@ class MOTorch(ParaSave, torch.nn.Module):
     # trains model, returns optional test score
     def run_train(
             self,
-            data: Optional[Dict[str, np.ndarray]]=  None,
-            split_VL: float=                        0.0,
-            split_TS: float=                        0.0,
-            n_batches: Optional[int]=               None,
-            test_freq=                              100,    # number of batches between tests, model SHOULD BE tested while training
-            mov_avg_factor=                         0.1,
-            save_max=                               True,   # allows to save model while training (after max test)
-            use_F1=                                 True,   # uses F1 as a train/test score (not acc)
-            **kwargs) -> Optional[float]:
+            data_TR: Dict[str,np.ndarray],  # INFO: it will also accept Dict[str,torch.Tensor] :) !
+            data_VL: Optional[Dict[str,np.ndarray]]=    None,
+            data_TS: Optional[Dict[str,np.ndarray]]=    None,
+            split_VL: float=                            0.0,
+            split_TS: float=                            0.0,
+            n_batches: Optional[int]=                   None,
+            test_freq=                                  100,    # number of batches between tests, model SHOULD BE tested while training
+            mov_avg_factor=                             0.1,
+            save_max=                                   True,   # allows to save model while training (after max test)
+            use_F1=                                     True,   # uses F1 as a train/test score (not acc)
+        ) -> Optional[float]:
 
-        if data:
+        if data_TR:
             self.load_data(
-                data=       data,
+                data_TR=    data_TR,
+                data_VL=    data_VL,
+                data_TS=    data_TS,
                 split_VL=   split_VL,
                 split_TS=   split_TS)
 
@@ -759,7 +764,8 @@ class MOTorch(ParaSave, torch.nn.Module):
                 weight += 1
             ts_score_wval /= sum_weight
 
-            if self.do_TB: self.log_TB(value=ts_score_wval, tag=f'ts/ts_{score_name}_wval', step=self.train_batch_IX)
+            if self.do_TB:
+                self.log_TB(value=ts_score_wval, tag=f'ts/ts_{score_name}_wval', step=self.train_batch_IX)
 
         self._log.info(f'### model {self.name} finished training')
         if ts_score_wval is not None:
@@ -823,7 +829,7 @@ class MOTorch(ParaSave, torch.nn.Module):
             tag: str,
             step: int) -> None:
         if self.do_TB: self._TBwr.add(value=value, tag=tag, step=step)
-        else: self._log.warning(f'{self.name} cannot log TensorBoard since do_TB flag is False!')
+        else: self._log.warning(f'{self.name} cannot log to TensorBoard since \'do_TB\' flag was set to False!')
 
     @property
     def logger(self):

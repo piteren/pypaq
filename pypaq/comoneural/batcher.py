@@ -29,9 +29,11 @@ class Batcher:
 
     def __init__(
             self,
-            data_TR: Dict[str,np.ndarray],
+            data_TR: Dict[str,np.ndarray],                      # INFO: it will also accept Dict[str,torch.Tensor] :) !
             data_VL: Optional[Dict[str,np.ndarray]]=    None,
             data_TS: Optional[Dict[str,np.ndarray]]=    None,
+            split_VL: float=                            0.0,    # if > 0.0 and not data_VL then factor of data_TR will be put to data_VL
+            split_TS: float=                            0.0,    # if > 0.0 and not data_TS then factor of data_TR will be put to data_TS
             batch_size: int=                            16,
             bs_mul: int=                                2,      # VL & TS batch_size multiplier
             batching_type: str=                         'random_cov',
@@ -41,13 +43,24 @@ class Batcher:
         self.__log = logger or get_pylogger()
 
         self.seed_counter = seed
+        np.random.seed(self.seed_counter)
 
         if batching_type not in BATCHING_TYPES:
-            raise BatcherException('ERR: unknown batching_type!')
+            raise BatcherException('unknown batching_type')
 
         self.btype = batching_type
 
         self._data_keys = sorted(list(data_TR.keys()))
+
+        if split_VL > 0 or split_TS > 0:
+
+            if data_VL or data_TS:
+                raise BatcherException('cannot split for given data_VL or data_TS')
+
+            data_TR, data_VL, data_TS = self.data_split(
+                data=       data_TR,
+                split_VL=   split_VL,
+                split_TS=   split_TS)
 
         self._data_TR = data_TR
         self._data_VL = data_VL
@@ -67,6 +80,36 @@ class Batcher:
         self.__log.debug('> Batcher keys:')
         for k in self._data_keys:
             self.__log.debug(f'>> {k}, shape: {self._data_TR[k].shape}, type:{type(self._data_TR[k][0])}')
+
+
+    @staticmethod
+    def data_split(
+            data: Dict[str,np.ndarray],
+            split_VL: float,
+            split_TS: float):
+
+        keys = list(data.keys())
+        d_len = data[keys[0]].shape[0]
+        indices = np.random.permutation(d_len)
+        nVL = int(d_len * split_VL)
+        nTS = int(d_len * split_TS)
+        nTR = d_len - nVL - nTS
+        indices_TR = indices[:nTR]
+        indices_VL = indices[nTR:nTR + nVL] if nVL else None
+        indices_TS = indices[nTR + nVL:] if nTS else None
+
+        data_TR = {}
+        data_VL = {}
+        data_TS = {}
+        for k in keys:
+            data_TR[k] = data[k][indices_TR]
+            if indices_VL is not None:
+                data_VL[k] = data[k][indices_VL]
+            if indices_TS is not None:
+                data_TS[k] = data[k][indices_TS]
+
+        return data_TR, data_VL, data_TS
+
 
     def _extend_ixmap(self):
 
@@ -135,37 +178,7 @@ class Batcher:
 
     def get_data_size(self) -> Tuple[int,int,int]:
         k = self._data_keys[0]
-        return self._data_TR[k].shape[0], self._data_VL[k].shape[0] if self._data_VL else 0, self._data_TS[k].shape[0] if self._data_TS else 0
-
-
-def split_data_TR(
-        data: Dict[str,np.ndarray], # INFO: it will also accept Dict[str,torch.Tensor] :) !
-        split_VL: float=    0.0,    # if > 0.0 and not data_VL then factor of data_TR will be put to data_VL
-        split_TS: float=    0.0,    # if > 0.0 and not data_TS then factor of data_TR will be put to data_TS
-        seed=               123,
-) -> Tuple[Dict[str,np.ndarray], Optional[Dict[str,np.ndarray]], Optional[Dict[str,np.ndarray]]]:
-
-    if split_VL == 0.0 and split_TS == 0.0:
-        return data, None, None
-    else:
-        data_keys = list(data.keys())
-        d_len = data[data_keys[0]].shape[0]
-        np.random.seed(seed)
-        indices = np.random.permutation(d_len)
-        nVL = int(d_len * split_VL)
-        nTS = int(d_len * split_TS)
-        nTR = d_len-nVL-nTS
-        indices_TR = indices[:nTR]
-        indices_VL = indices[nTR:nTR+nVL] if nVL else None
-        indices_TS = indices[nTR+nVL:] if nTS else None
-
-        dTR = {}
-        dVL = {}
-        dTS = {}
-        for k in data_keys:
-            dTR[k] = data[k][indices_TR]
-            if indices_VL is not None:
-                dVL[k] = data[k][indices_VL]
-            if indices_TS is not None: dTS[k] = data[k][indices_TS]
-
-        return dTR, dVL or None, dTS or None
+        n_TR = self._data_TR[k].shape[0]
+        n_VL = self._data_VL[k].shape[0] if self._data_VL else 0
+        n_TS = self._data_TS[k].shape[0] if self._data_TS else 0
+        return n_TR, n_VL, n_TS
