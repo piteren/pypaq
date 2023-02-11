@@ -7,7 +7,7 @@ _PSDD = {
     'b': [0.0,  1.0],
     'c': ('sth','a','b','c','d','rf','ad')}
 
-_DNA = {
+_POINT = {
     'a': 1,
     'b': 0.5,
     'c': 'sth'}
@@ -55,42 +55,45 @@ class TestSubGX(unittest.TestCase):
 
     def test_base(self):
 
-        sa = SubGX(name='sa', **_DNA)
+        sa = SubGX(name='sa', **_POINT)
         print(sa)
         self.assertTrue(sa['a'] == 1)
         self.assertTrue(not sa.get_gxable_point())
 
-        sb_dna = SubGX.gx_dna(sa)
-        sb = SubGX(**sb_dna)
+        sb_point = SubGX.gx_point(sa)
+        sb = SubGX(**sb_point)
         print(sb)
         self.assertTrue(sb['name'] == 'sa_(sgxp)')
         self.assertTrue(sb['a'] == 1)
         self.assertTrue(not sa.get_gxable_point())
 
         sa['psdd'] = _PSDD
-        sc_dna = SubGX.gx_dna(sa,sb)
-        sc = SubGX(**sc_dna)
+        sc_point = SubGX.gx_point(sa, sb)
+        sc = SubGX(**sc_point)
         print(sc)
         self.assertTrue(1<=sc['a']<=20 and 0<=sc['b']<=1 and sc['c'] in _PSDD['c'])
         self.assertTrue(len(sc.get_gxable_point())==3)
 
         sa['a'] = 1000
-        self.assertRaises(AssertionError, SubGX.gx_dna, sa)
+        self.assertRaises(AssertionError, SubGX.gx_point, sa)
         print('\nPoint out of space while GX!')
         sa['a'] = 1
 
         sa['family'] = 'fa'
         sc['family'] = 'fb'
-        self.assertRaises(AssertionError, SubGX.gx_dna, sa, sc)
+        self.assertRaises(AssertionError, SubGX.gx_point, sa, sc)
         print('\nIncompatible families!')
 
         sc['family'] = 'fa'
-        sd_dna = SubGX.gx_dna(sa, sc, name_child='sd', prob_noise=0.9, noise_scale=0.5, prob_diff_axis=0.5)
-        sd = SubGX(**sd_dna)
+        sd_point = SubGX.gx_point(
+            parent_main=    sa,
+            parent_scnd=    sc,
+            name_child=     'sd',
+            prob_mix=       0.3,
+            prob_noise=     0.9,
+            noise_scale=    0.5,
+            prob_diff_axis= 0.5)
+        sd = SubGX(**sd_point)
         print(sd)
         self.assertTrue(1<=sd['a']<=20 and 0<=sd['b']<=1 and sd['c'] in _PSDD['c'])
         self.assertTrue(len(sd.get_gxable_point())==3)
-
-
-if __name__ == '__main__':
-    unittest.main()

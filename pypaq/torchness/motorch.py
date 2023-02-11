@@ -40,7 +40,7 @@ from sklearn.metrics import f1_score
 import torch
 from typing import Optional, Dict, Tuple, Any
 
-from pypaq.lipytools.little_methods import stamp, get_params, get_func_dna
+from pypaq.lipytools.little_methods import stamp, get_params, get_func_point
 from pypaq.lipytools.files import prep_folder
 from pypaq.lipytools.pylogger import get_pylogger, get_child
 from pypaq.lipytools.moving_average import MovAvg
@@ -147,7 +147,7 @@ class MOTorch(ParaSave, torch.nn.Module):
     }
 
     SAVE_TOPDIR = '_models'
-    SAVE_FN_PFX = 'motorch_dna' # filename (DNA) prefix
+    SAVE_FN_PFX = 'motorch_point' # POINT file prefix
 
     def __init__(
             self,
@@ -201,17 +201,17 @@ class MOTorch(ParaSave, torch.nn.Module):
         self._log.info(f'*** MOTorch : {self.name} *** initializes for module_type: {mod_info}')
         self._log.info(f'> {self.name} save_topdir: {save_topdir}{" <- read only mode!" if _read_only else ""}')
 
-        # *************************************************************************************************** manage dna
+        # ************************************************************************************************* manage point
 
-        # load dna from folder
-        dna_saved = ParaSave.load_dna(
+        # load point from folder
+        point_saved = ParaSave.load_point(
             name=           self.name,
             save_topdir=    save_topdir,
             save_fn_pfx=    save_fn_pfx)
 
         # in case 'module_type' was not given with init, try to get it from saved
         if not self.module_type:
-            self.module_type = dna_saved.get('module_type', None)
+            self.module_type = point_saved.get('module_type', None)
 
         if not self.module_type:
             msg = 'module_type was not given and has not been found in saved, cannot continue!'
@@ -232,47 +232,47 @@ class MOTorch(ParaSave, torch.nn.Module):
                     _init_method_params_defaults_for_update.pop(param)
 
         # update in proper order
-        self._dna = {}
-        self._dna.update(self.INIT_DEFAULTS)
-        self._dna.update(_init_method_params_defaults_for_update)
-        self._dna.update(dna_saved)
-        self._dna.update(kwargs)  # update with kwargs given NOW by user
+        self._point = {}
+        self._point.update(self.INIT_DEFAULTS)
+        self._point.update(_init_method_params_defaults_for_update)
+        self._point.update(point_saved)
+        self._point.update(kwargs)  # update with kwargs given NOW by user
 
         # resolve device (do it here to update 'device' param)
         # INFO: device is a special parameter, MOTorch allows it to be in DevicesPypaq type - it needs to be casted to torch namespace
-        self._log.debug(f'> {self.name} resolves devices, given: {self._dna["device"]}')
+        self._log.debug(f'> {self.name} resolves devices, given: {self._point["device"]}')
         self._log.debug(f'>> torch.cuda.is_available(): {torch.cuda.is_available()}')
         device = get_devices(
-            devices=            self._dna["device"],
+            devices=            self._point["device"],
             torch_namespace=    True,
             logger=             get_child(self._log, 'get_devices'))[0]
-        self._log.info(f'> {self.name} given devices: {self._dna["device"]}, will use: {device}')
+        self._log.info(f'> {self.name} given devices: {self._point["device"]}, will use: {device}')
 
-        self._dna.update({
+        self._point.update({
             'name':         self.name,
             'save_topdir':  save_topdir,
             'save_fn_pfx':  save_fn_pfx,
             'device':       device})
 
-        _dna_module = {}
-        _dna_module.update(self._dna)
-        _dna_module['logger'] = self._log # INFO: we need to set logger like this, since _log is not in managed_params
-        self._dna_module = get_func_dna(self.module_type.__init__, _dna_module)
+        _point_module = {}
+        _point_module.update(self._point)
+        _point_module['logger'] = self._log # INFO: we need to set logger like this, since _log is not in managed_params
+        self._point_module = get_func_point(self.module_type.__init__, _point_module)
 
         not_used_kwargs = {}
         for k in kwargs:
-            if k not in self._dna_module:
+            if k not in self._point_module:
                 not_used_kwargs[k] = kwargs[k]
 
-        self._log.debug(f'> {self.name} DNA sources:')
+        self._log.debug(f'> {self.name} POINT sources:')
         self._log.debug(f'>> class INIT_DEFAULTS:       {self.INIT_DEFAULTS}')
         self._log.debug(f'>> Module defaults:           {_init_method_params_defaults}')
-        self._log.debug(f'>> DNA saved:                 {dna_saved}')
+        self._log.debug(f'>> POINT saved:               {point_saved}')
         self._log.debug(f'>> given kwargs:              {kwargs}')
-        self._log.debug(f'> resolved DNA:')
-        self._log.debug(f'Module complete DNA:          {self._dna_module}')
+        self._log.debug(f'> resolved POINT:')
+        self._log.debug(f'Module complete POINT:        {self._point_module}')
         self._log.debug(f'>> kwargs not used by Module: {not_used_kwargs}')
-        self._log.debug(f'{self.name} complete DNA:     {self._dna}')
+        self._log.debug(f'{self.name} complete POINT:   {self._point}')
 
         # ************************************************************************************************ init ParaSave
 
@@ -280,7 +280,7 @@ class MOTorch(ParaSave, torch.nn.Module):
             self,
             lock_managed_params=    True,
             logger=                 get_child(self._log),
-            **self._dna)
+            **self._point)
 
         # params names safety check
         pms = sorted(list(self.SPEC_KEYS) + list(self.INIT_DEFAULTS.keys()) + list(kwargs.keys()))
@@ -300,7 +300,7 @@ class MOTorch(ParaSave, torch.nn.Module):
 
         self._log.info(f'{self.name} builds graph')
         torch.nn.Module.__init__(self) # init self as a torch.nn.Module
-        self._module = self.module_type(**self._dna_module) # private not to be saved with dna
+        self._module = self.module_type(**self._point_module) # private not to be saved with point
 
         if self.try_load_ckpt:
             self.load_ckpt() # TODO do we want to do sth with returned additional data?
@@ -499,10 +499,10 @@ class MOTorch(ParaSave, torch.nn.Module):
 
         torch.save(obj=save_obj, f=ckpt_path)
 
-    # saves MOTorch (ParaSave DNA and model checkpoint)
+    # saves MOTorch (ParaSave POINT and model checkpoint)
     def save(self):
         if self.read_only: raise MOTorchException('read_only MOTorch cannot be saved!')
-        self.save_dna()
+        self.save_point()
         self.save_ckpt()
         self._log.info(f'{self.__class__.__name__} {self.name} saved to {self.save_topdir}')
 
@@ -519,7 +519,7 @@ class MOTorch(ParaSave, torch.nn.Module):
             src=    MOTorch.__get_ckpt_path(save_topdir_src, name_src),
             dst=    MOTorch.__get_ckpt_path(save_topdir_trg, name_trg))
 
-    # copies full MOTorch folder (DNA & checkpoints)
+    # copies full MOTorch folder (POINT & checkpoints)
     @classmethod
     def copy_saved(
             cls,
@@ -534,7 +534,7 @@ class MOTorch(ParaSave, torch.nn.Module):
 
         if save_topdir_trg is None: save_topdir_trg = save_topdir_src
 
-        cls.copy_saved_dna(
+        cls.copy_saved_point(
             name_src=           name_src,
             name_trg=           name_trg,
             save_topdir_src=    save_topdir_src,
@@ -593,7 +593,7 @@ class MOTorch(ParaSave, torch.nn.Module):
         if not save_topdir_parent_main: save_topdir_parent_main = cls.SAVE_TOPDIR
         if not save_fn_pfx: save_fn_pfx = cls.SAVE_FN_PFX
 
-        cls.gx_saved_dna(
+        cls.gx_saved_point(
             name_parent_main=           name_parent_main,
             name_parent_scnd=           name_parent_scnd,
             name_child=                 name_child,
@@ -778,16 +778,12 @@ class MOTorch(ParaSave, torch.nn.Module):
     # optional loss <- since there may be not TS batches
     def run_test(
             self,
-            data: Optional[Dict[str, np.ndarray]]=  None,
-            split_VL: float=                        0.0,
+            data: Optional[Dict[str,np.ndarray]]=   None,
             split_TS: float=                        1.0, # if data for test will be given above, by default MOTorch will be tested on ALL
     ) -> Tuple[Optional[float], Optional[float], Optional[float]]:
 
         if data:
-            self.load_data(
-                data=       data,
-                split_VL=   split_VL,
-                split_TS=   split_TS)
+            self.load_data(data_TR=data, split_TS=split_TS)
 
         if not self._batcher: raise MOTorchException(f'{self.name} has not been given data for testing, use load_data() or give it while testing!')
 

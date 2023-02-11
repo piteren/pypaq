@@ -126,12 +126,12 @@ class TestMOTorch(unittest.TestCase):
             module_type=    LinModel,
             in_drop=    0.1)
         print(model.name)
-        dna_org = model.get_point()
-        print(dna_org)
+        point_org = model.get_point()
+        print(point_org)
         model.save()
-        dna = MOTorch.load_dna(name=model.name)
-        print(dna)
-        self.assertTrue(dna_org == dna)
+        point = MOTorch.load_point(name=model.name)
+        print(point)
+        self.assertTrue(point_org == point)
 
 
     def test_inherited_interfaces(self):
@@ -211,14 +211,14 @@ class TestMOTorch(unittest.TestCase):
             seed=   252)
 
         # this will not load
-        dna = model.load_dna(
+        dna = model.load_point(
             name=           model["name"],
             save_topdir=    'other')
         print(dna)
         self.assertFalse(dna)
 
         # this will load
-        dna = model.load_dna(name=model["name"])
+        dna = model.load_point(name=model["name"])
         print(dna)
         for p in pms:
             if p not in dna: print(p)
@@ -252,11 +252,11 @@ class TestMOTorch(unittest.TestCase):
         model = MOTorch(name=model['name'])
         self.assertTrue(model['in_shape'] == 12)
 
-        model.copy_saved_dna(
+        model.copy_saved_point(
             name_src=           model["name"],
             name_trg=           'CopiedPS')
 
-        model.gx_saved_dna(
+        model.gx_saved_point(
             name_parent_main=           model["name"],
             name_parent_scnd=           None,
             name_child=                 'GXed')
@@ -271,12 +271,12 @@ class TestMOTorch(unittest.TestCase):
         print(model.gxable)
         print(model['psdd'])
         print(model['seed'])
-        dna = model.gx_dna(
+        dna = model.gx_point(
             parent_main=    model,
             prob_noise=     0.0,
             prob_axis=      0.0)
         print(dna['seed'])
-        dna = model.gx_dna(
+        dna = model.gx_point(
             parent_main=    model,
             prob_noise=     1.0,
             prob_axis=      1.0)

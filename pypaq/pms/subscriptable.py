@@ -1,22 +1,3 @@
-"""
-
- 2022 (c) piteren
-
-    Subscriptable - class of objects which parameters may be accessed in dict-like style [], but are not dict type
-        - protected fields may also be accessed with [], but rather should not
-
-    SubGX
-
-        Class of objects that may perform GX on DNA
-
-        DNA is a POINT in context of class __init__, type(DNA) == type(POINT),
-        it is a complete set of kwargs needed to perform init of a class instance.
-
-        DNA of child comes from parent fields and those sampled with GX algorithm.
-
-        GX of one parent is a procedure of sampling child from the space of parent with GXA parameters.
-"""
-
 from copy import deepcopy
 from typing import List, Optional, Union, Dict, Set, Tuple
 
@@ -25,8 +6,13 @@ from pypaq.textools.text_metrics import lev_dist
 from pypaq.pms.base_types import POINT, PSDD
 from pypaq.pms.paspa import PaSpa
 
-
+# implements dict-like style access to its (self) parameters
 class Subscriptable:
+    """
+    Subscriptable
+        its (object) parameters of POINT may be accessed in dict-like style [], but are IS NOT a dict type
+        protected fields may also be accessed with [], but rather should not
+    """
 
     def __init__(self, logger=None):
         self.__log = logger or get_pylogger()
@@ -44,8 +30,9 @@ class Subscriptable:
 
     # returns list of all object fields
     def get_all_fields(self, protected=False) -> List[str]:
-        fields = [pm for pm in vars(self)]
-        if not protected: fields = [f for f in fields if not f.startswith('_')]
+        fields = [pm for pm in vars(self) if not pm.startswith('_Subscriptable__')]
+        if not protected:
+            fields = [pm for pm in fields if not pm.startswith('_')]
         return fields
 
     # prepares list of params managed by Subscriptable (all but private and protected)
@@ -59,7 +46,7 @@ class Subscriptable:
     # *************************************************************************************************** update & check
 
     # update in dict-like style
-    def update(self, dct:dict):
+    def update(self, dct:dict) -> None:
         for key in dct:
             self.__setitem__(key, dct[key])
 
@@ -67,7 +54,8 @@ class Subscriptable:
     def check_params_sim(
             self,
             params: Optional[Union[Dict,List]]= None,
-            lev_dist_diff: int=                 1) -> Optional[Set[Tuple[str,str]]]:
+            lev_dist_diff: int=                 1
+    ) -> Optional[Set[Tuple[str,str]]]:
 
         if params is None: params = []
         paramsL = params if type(params) is list else list(params.keys())
@@ -100,8 +88,16 @@ class Subscriptable:
             s += f'{p:30s} {v:30s}\n'
         return s[:-1]
 
-# adds GX on DNA to Subscriptable
+# extends Subscriptable with GX on POINT
 class SubGX(Subscriptable):
+    """
+    Subscriptable with GX (genetic crossing algorithm)
+        implements GX on parents POINTs
+        GX algorithm builds child POINT from:
+            - parameters of parents POINTs
+            - and parameters sampled from merged both parents PSDD
+        it is also possible to preform GX of SINGLE parent
+    """
 
     def __init__(
             self,
@@ -128,26 +124,29 @@ class SubGX(Subscriptable):
         point_gxable = {k: self[k] for k in self.psdd}
         return point_gxable
 
-    # checks for compatibility of families stored in given DNA, True when are equal or when at least one family is None
+    # checks for compatibility of families, True when are equal or when at least one family is None
     @staticmethod
     def families_compatible(
             parent_main: "SubGX",
-            parent_scnd: Optional["SubGX"]= None) -> bool:
+            parent_scnd: Optional["SubGX"]= None
+    ) -> bool:
 
-        dna_main = parent_main.get_point()
-        dna_scnd = parent_scnd.get_point() if parent_scnd else None
+        point_main = parent_main.get_point()
+        point_scnd = parent_scnd.get_point() if parent_scnd else None
 
-        if dna_scnd is None: return True
+        if point_scnd is None: return True
 
-        if not dna_scnd: dna_scnd = {}
-        fmm = dna_main.get('family', None)
-        fms = dna_scnd.get('family', None)
+        if not point_scnd: point_scnd = {}
+        fmm = point_main.get('family', None)
+        fms = point_scnd.get('family', None)
+
         if fmm is not None and fms is not None and fmm != fms: return False
+
         return True
 
-    # GX on DNA (POINTs)
+    # GX on SubGX POINTs
     @staticmethod
-    def gx_dna(
+    def gx_point(
             parent_main: "SubGX",
             parent_scnd: Optional["SubGX"]= None,
             name_child: Optional[str]=      None,
@@ -155,46 +154,47 @@ class SubGX(Subscriptable):
             prob_noise=                     0.3,
             noise_scale=                    0.1,
             prob_axis=                      0.1,
-            prob_diff_axis=                 0.3) -> POINT:
+            prob_diff_axis=                 0.3
+    ) -> POINT:
 
         assert SubGX.families_compatible(parent_main, parent_scnd), 'ERR: families not compatible'
 
-        dna_main = parent_main.get_point()
-        dna_scnd = parent_scnd.get_point() if parent_scnd else None
+        point_main = parent_main.get_point()
+        point_scnd = parent_scnd.get_point() if parent_scnd else None
 
-        psdd_main = dna_main.get('psdd', {})
-        psdd_scnd = dna_scnd.get('psdd', {}) if dna_scnd is not None else None
+        psdd_main = point_main.get('psdd', {})
+        psdd_scnd = point_scnd.get('psdd', {}) if point_scnd is not None else None
         psdd_merged = PaSpa.merge_psdd(
                 psdd_a= psdd_main,
                 psdd_b= psdd_scnd) if psdd_scnd is not None else psdd_main
 
         paspa_merged = PaSpa(psdd=psdd_merged)
 
-        paspa_axes_not_in_parent = [a for a in paspa_merged.axes if a not in dna_main]
+        paspa_axes_not_in_parent = [a for a in paspa_merged.axes if a not in point_main]
         assert not paspa_axes_not_in_parent, f'ERR: paspa axes not in parent_main: {paspa_axes_not_in_parent}'
 
         # sub-points limited to axes of psdd_merged (PaSpa.sample_point_GX() does not accept other axes..)
-        dna_main_psdd = {k: dna_main[k] for k in psdd_merged}
-        dna_scnd_psdd = {k: dna_scnd[k] for k in psdd_merged} if dna_scnd is not None else None
+        point_main_psdd = {k: point_main[k] for k in psdd_merged}
+        point_scnd_psdd = {k: point_scnd[k] for k in psdd_merged} if point_scnd is not None else None
 
         point_gx = paspa_merged.sample_point_GX(
-            point_main=     dna_main_psdd,
-            point_scnd=     dna_scnd_psdd,
+            point_main=     point_main_psdd,
+            point_scnd=     point_scnd_psdd,
             prob_mix=       prob_mix,
             prob_noise=     prob_noise,
             noise_scale=    noise_scale,
             prob_axis=      prob_axis,
             prob_diff_axis= prob_diff_axis)
 
-        # dna_child is based on parent_main with updated values of point_gx
-        dna_child: POINT = deepcopy(dna_main)
-        dna_child.update(point_gx)
-        dna_child['psdd'] = psdd_merged # update psdd to psdd_merged
+        # point_child is based on parent_main with updated values of point_gx
+        point_child: POINT = deepcopy(point_main)
+        point_child.update(point_gx)
+        point_child['psdd'] = psdd_merged # update psdd to psdd_merged
 
         name_merged = f'{parent_main.name}+{parent_scnd.name}_(gxp)' if parent_scnd else f'{parent_main.name}_(sgxp)'
-        dna_child['name'] = name_child or name_merged
+        point_child['name'] = name_child or name_merged
 
-        return dna_child
+        return point_child
 
     def __str__(self):
         s = f'\n(Subscriptable) name: {self.name}, family: {self.family}\n'

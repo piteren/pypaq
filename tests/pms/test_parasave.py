@@ -7,7 +7,7 @@ from pypaq.pms.parasave import ParaSave, ParaSaveException
 
 PARASAVE_DIR = f'{flush_tmp_dir()}/parasave'
 
-DNA = {
+POINT = {
     'name': 'pio',
     'a':    1,
     'b':    2,
@@ -59,28 +59,28 @@ class TestParaSave(unittest.TestCase):
         print(psb)
 
 
-    def test_base(self):
+    def test_more(self):
 
         # build A and try to save
-        ps_dna = {}
-        ps_dna.update(DNA)
-        ps_dna['name'] = 'ps'
-        ps = ParaSave(**ps_dna)
+        ps_point = {}
+        ps_point.update(POINT)
+        ps_point['name'] = 'ps'
+        ps = ParaSave(**ps_point)
         print(ps.get_point())
         self.assertTrue(ps['a'] == 1)
-        #ps.save_dna()
-        self.assertRaises(ParaSaveException, ps.save_dna)
+        #ps.save_point()
+        self.assertRaises(ParaSaveException, ps.save_point)
         print('Cannot save without a folder!')
 
         # build and save A
-        ps_dna = {}
-        ps_dna.update(DNA)
-        ps_dna['name'] = 'ps'
-        ps = ParaSave(save_topdir=PARASAVE_DIR, **ps_dna)
+        ps_point = {}
+        ps_point.update(POINT)
+        ps_point['name'] = 'ps'
+        ps = ParaSave(save_topdir=PARASAVE_DIR, **ps_point)
         print(ps.get_point())
         self.assertTrue(ps['a'] == 1)
         ps['a'] = 2
-        ps.save_dna()
+        ps.save_point()
 
         # load A from folder
         ps = ParaSave(name='ps', save_topdir=PARASAVE_DIR)
@@ -88,10 +88,10 @@ class TestParaSave(unittest.TestCase):
         self.assertTrue(ps['a'] == 2)
         ps['psdd'].update(PSDD)
         print(ps.get_point())
-        ps.save_dna()
+        ps.save_point()
 
         # make copy of A to B
-        ParaSave.copy_saved_dna(
+        ParaSave.copy_saved_point(
             name_src=           'ps',
             name_trg=           'psb',
             save_topdir_src=    PARASAVE_DIR)
@@ -100,7 +100,7 @@ class TestParaSave(unittest.TestCase):
         self.assertTrue(psb['a'] == 2)
 
         # GX saved C from B
-        ParaSave.gx_saved_dna(
+        ParaSave.gx_saved_point(
             name_parent_main=           'psb',
             name_parent_scnd=           None,
             name_child=                 'psc',
@@ -110,11 +110,12 @@ class TestParaSave(unittest.TestCase):
         self.assertTrue(0<=psc['a']<=100 and 0<=psc['b']<=10)
 
         # GX saved D from B & C
-        ParaSave.gx_saved_dna(
+        ParaSave.gx_saved_point(
             name_parent_main=           'psb',
             name_parent_scnd=           'psc',
             name_child=                 'psd',
             save_topdir_parent_main=    PARASAVE_DIR)
-        psd = ParaSave(name='psd', save_topdir=PARASAVE_DIR)
+        psd = ParaSave(
+            name='psd', save_topdir=PARASAVE_DIR)
         print(psd.get_point())
         self.assertTrue(0<=psd['a']<=100 and 0<=psd['b']<=10)

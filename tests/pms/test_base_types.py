@@ -4,7 +4,7 @@ from pypaq.pms.base_types import POINT, point_str
 
 
 class TestPOINT(unittest.TestCase):
-    #"""
+
     def test_point_str(self):
         p: POINT = {
             'value':        1234.5,
@@ -15,7 +15,3 @@ class TestPOINT(unittest.TestCase):
         ps = point_str(p)
         self.assertEqual(sum([1 for k in p if k in ps]), len(p))
         print(point_str(p))
-    #"""
-
-if __name__ == '__main__':
-    unittest.main()

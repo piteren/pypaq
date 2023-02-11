@@ -1,14 +1,18 @@
+from typing import Any, Dict, List, Tuple
+
+from pypaq.lipytools.little_methods import float_to_str
+
+AXIS =  str                                     # axis type (parameter name)
+P_VAL = float or int or Any                     # point value (parameter value)
+POINT = Dict[AXIS, P_VAL]                       # POINT ia a dict {parameter: value}
+
+
 """
-
- 2018 (c) piteren
-
     PSDD - Parameters Space Definition Dict
-        Dictionary that defines space of parameters, is used as an "simple" representation of space by some classes
-
-        PSDD - {axis(parameter name): list or tuple or value}
-            > list of ints or floats defines continuous range
-            > tuple may contain elements of any type (even non-numeric), may have one
-            > any other type is considered to be a constant (single value)
+        dictionary that defines space of POINTS {axis(parameter name): list or tuple or value}
+            - list of ints or floats defines continuous range
+            - tuple may contain elements of any type (even non-numeric), may have one
+            - any other type is considered to be a constant (single value)
 
             example:
             {   'a':    [0.0, 1],               # range of floats
@@ -19,14 +23,6 @@
                 'f':    (16.2,)}                # single value
 
 """
-
-from typing import Any, Dict, List, Tuple
-
-from pypaq.lipytools.little_methods import float_to_str
-
-AXIS =  str                                     # axis type (parameter name)
-P_VAL = float or int or Any                     # point value (parameter value)
-POINT = Dict[AXIS, P_VAL]                       # point (dictionary {parameter: value}) ~ DNA
 
 RANGE = List[P_VAL] or Tuple[P_VAL] or P_VAL    # axis range type (range of parameter)
 PSDD  = Dict[AXIS, RANGE]                       # Parameters Space Definition Dict {parameter: range}}
@@ -41,5 +37,3 @@ def point_str(p: POINT) -> str:
         s += f'{axis}:{vs} '
     s = s[:-1] + '}'
     return s
-
-# TODO: put here functions that (check, validate, extract info from) PSDD
