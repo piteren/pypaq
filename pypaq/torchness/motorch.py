@@ -143,7 +143,7 @@ class MOTorch(ParaSave, torch.nn.Module):
         'try_load_ckpt':    True,               # tries to load a checkpoint while init
         'hpmser_mode':      False,              # it will set model to be read_only and quiet when running with hpmser
         'read_only':        False,              # sets MOTorch to be read only - won't save anything (won't even create self.motorch_dir)
-        'do_TB':            True                # runs TensorBard, saves in self.motorch_dir
+        'do_TB':            True,               # runs TensorBard, saves in self.motorch_dir
     }
 
     SAVE_TOPDIR = '_models'

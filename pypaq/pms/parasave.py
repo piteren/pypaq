@@ -21,7 +21,16 @@ from pypaq.pms.base_types import POINT
 from pypaq.pms.subscriptable import SubGX
 
 
+class ParaSaveException(Exception):
+    pass
+
+
 class ParaSave(SubGX):
+
+    INIT_DEFAULTS = {
+        'gxable':   True,
+        'parents':  [], # list of parents names TODO: what is this for?
+    }
 
     SAVE_TOPDIR = None
     SAVE_FN_PFX = 'dna' # filename (DNA) prefix
@@ -31,49 +40,59 @@ class ParaSave(SubGX):
     def __init__(
             self,
             name:str,
-            save_topdir: Optional[str]= SAVE_TOPDIR,    # ParaSave top directory, when not given folders functionality (load/save) is not accessible
-            save_fn_pfx: str=           SAVE_FN_PFX,    # ParaSave filename (DNA) prefix
-            gxable: bool or None=       None,           # None sets to default - True, it may override default and save by setting it to True/False
-            assert_saved=               False,          # for True asserts that ParaSave has been already saved in save_topdir
-            lock_managed_params=        False,          # locks _managed_params to only those known while init
+            save_topdir: Optional[str]= None,   # ParaSave top directory, when not given folders functionality (load, save ..) is disabled
+            save_fn_pfx: Optional[str]= None,   # ParaSave filename (DNA) prefix
+            assert_saved=               False,  # for True asserts that ParaSave has been already saved in save_topdir
+            lock_managed_params=        False,  # locks _managed_params to only those known while init
             logger=                     None,
             loglevel=                   20,
             **kwargs):
 
         self.name = name
+        self.save_topdir = save_topdir or self.SAVE_TOPDIR
+        self.save_fn_pfx = save_fn_pfx or self.SAVE_FN_PFX
 
         if not logger:
             logger = get_pylogger(
                 name=       self.name,
-                folder=     ParaSave.__full_dir(name=self.name, save_topdir=save_topdir),
+                folder=     ParaSave.__full_dir(name=self.name, save_topdir=self.save_topdir),
                 level=      loglevel)
         self.__log = logger
 
-        if assert_saved and not os.path.isfile(ParaSave.__obj_fn(name, save_topdir, save_fn_pfx)):
+        self.__log.info(f'*** ParaSave : {self.name} *** initializes..')
+        self.__log.debug(f'> save_topdir: {self.save_topdir}')
+        self.__log.debug(f'> save_fn_pfx: {self.save_fn_pfx}')
+
+
+        if assert_saved and not os.path.isfile(ParaSave.__obj_fn(name, self.save_topdir, self.save_fn_pfx)):
             ex_msg = f'ParaSave {self.name} does not exist!'
             self.__log.error(ex_msg)
-            raise Exception(ex_msg)
+            raise ParaSaveException(ex_msg)
 
-        self.__log.info(f'*** ParaSave : {self.name} *** initializes..')
-
-        self.save_topdir = save_topdir
-        self.save_fn_pfx = save_fn_pfx
-        self.gxable = True
-        self.parents = [] # list of parents names TODO: what is this for?
-
-        dna_folder = ParaSave.load_dna(
+        dna_saved = ParaSave.load_dna(
             name=           self.name,
             save_topdir=    self.save_topdir,
             save_fn_pfx=    self.save_fn_pfx)
-        self.update(dna_folder) # 1. update with params from folder
-        self.update(kwargs)     # 3. update with params given by user
-        if gxable is not None: self.gxable = gxable  # if user forces it to be True/False (no matter what saved)
+
+        # update in proper order
+        self.update(self.INIT_DEFAULTS)
+        self.update(dna_saved)
+        self.update(kwargs)
 
         # _managed_params allows to lock managed params only to those given here
         self._managed_params: Optional[List[str]] = None
         if lock_managed_params: self._managed_params = self.get_managed_params()
 
-        SubGX.__init__(self, logger=get_child(self.__log), **self.get_point())
+        dna = self.get_point()
+
+        self.__log.debug(f'> ParaSave DNA sources:')
+        self.__log.debug(f'>> class INIT_DEFAULTS: {self.INIT_DEFAULTS}')
+        self.__log.debug(f'>> DNA saved:           {dna_saved}')
+        self.__log.debug(f'>> given kwargs:        {kwargs}')
+        self.__log.debug(f'>> managed params:      {self.get_managed_params()}')
+        self.__log.debug(f'ParaSave complete DNA:  {dna}')
+
+        SubGX.__init__(self, logger=get_child(self.__log), **dna)
 
 
     def get_managed_params(self) -> List[str]:
@@ -120,10 +139,17 @@ class ParaSave(SubGX):
             return dna
         return {}
 
+    # alias to save_dna()
+    def save(self):
+        self.save_dna()
+
     # saves ParaSave DNA to folder (with preview in txt)
     def save_dna(self):
 
-        assert self.save_topdir, 'ERR: cannot save ParaSave, if save directory was not given, aborting!'
+        if not self.save_topdir:
+            msg = 'cannot save ParaSave, if save directory was not given, aborting'
+            self.__log.error(msg)
+            raise ParaSaveException(msg)
 
         obj_FN = ParaSave.__obj_fn(
             name=           self.name,
@@ -147,6 +173,8 @@ class ParaSave(SubGX):
             s = f' *** ParaSave DNA saved: {stamp(year=True, letters=None)} ***\n'
             s += ParaSave.dict_2str(dna)
             file.write(s)
+
+        self.__log.info(f'{self.name} saved to: {self.save_topdir}')
 
     # loads, next overrides parameters from given kwargs and saves new ParaSave DNA
     @classmethod
