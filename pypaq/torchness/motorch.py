@@ -204,7 +204,7 @@ class MOTorch(ParaSave, torch.nn.Module):
         # *************************************************************************************************** manage dna
 
         # load dna from folder
-        dna_saved = self.load_dna(
+        dna_saved = ParaSave.load_dna(
             name=           self.name,
             save_topdir=    save_topdir,
             save_fn_pfx=    save_fn_pfx)
@@ -504,7 +504,7 @@ class MOTorch(ParaSave, torch.nn.Module):
         if self.read_only: raise MOTorchException('read_only MOTorch cannot be saved!')
         self.save_dna()
         self.save_ckpt()
-        self._log.info(f'MOTorch {self.name} saved')
+        self._log.info(f'{self.__class__.__name__} {self.name} saved to {self.save_topdir}')
 
     @classmethod
     def copy_checkpoint(

@@ -55,7 +55,8 @@ class ParaSave(SubGX):
         if not logger:
             logger = get_pylogger(
                 name=       self.name,
-                folder=     ParaSave.__full_dir(name=self.name, save_topdir=self.save_topdir),
+                add_stamp=  False,
+                folder=     ParaSave.__full_dir(name=self.name, save_topdir=self.save_topdir) if self.save_topdir else None,
                 level=      loglevel)
         self.__log = logger
 
@@ -174,7 +175,7 @@ class ParaSave(SubGX):
             s += ParaSave.dict_2str(dna)
             file.write(s)
 
-        self.__log.info(f'{self.name} saved to: {self.save_topdir}')
+        self.__log.debug(f'{self.__class__.__name__} {self.name} saved to {self.save_topdir}')
 
     # loads, next overrides parameters from given kwargs and saves new ParaSave DNA
     @classmethod
@@ -324,3 +325,7 @@ class ParaSave(SubGX):
         s = f'(ParaSave) name: {self.name}, family: {self.family}\n'
         s += self.dict_2str(self.get_point())
         return s
+
+    @property
+    def logger(self):
+        return self.__log
