@@ -134,10 +134,6 @@ class ParaSave(SubGX):
             return point
         return {}
 
-    # alias to save_point()
-    def save(self):
-        self.save_point()
-
     # saves ParaSave POINT to folder (with preview in txt)
     def save_point(self):
 
@@ -173,7 +169,7 @@ class ParaSave(SubGX):
 
     # loads, next overrides parameters from given kwargs and saves new ParaSave POINT
     @classmethod
-    def oversave(
+    def oversave_point(
             cls,
             name: str,
             save_topdir: Optional[str]= None,
@@ -293,15 +289,6 @@ class ParaSave(SubGX):
                 noise_scale=    noise_scale,
                 prob_axis=      prob_axis,
                 prob_diff_axis= prob_diff_axis)
-
-    # returns difference in POINT of saved VS self
-    def _get_diff_saved(self) -> POINT:
-        point_current = self.get_point()
-        point_saved = ParaSave.load_point(
-            name=           self.name,
-            save_topdir=    self.save_topdir,
-            save_fn_pfx=    self.save_fn_pfx)
-        return {k: point_saved[k] for k in point_saved if point_saved[k]!=point_current[k]}
 
     # returns nice string of given dict (mostly for .txt preview save)
     @staticmethod

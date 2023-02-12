@@ -574,7 +574,7 @@ class MOTorch(ParaSave, torch.nn.Module):
             ratio=          ratio,
             noise=          noise)
 
-    # performs GX on saved MOTorch objects, without even building child objects
+    # performs GX on saved MOTorch (without even building child objects)
     @classmethod
     def gx_saved(
             cls,

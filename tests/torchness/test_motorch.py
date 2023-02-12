@@ -207,7 +207,7 @@ class TestMOTorch(unittest.TestCase):
         print(f'orig_seed: {orig_seed}')
         model.save()
 
-        MOTorch.oversave(
+        MOTorch.oversave_point(
             name=   model["name"],
             seed=   252)
 
