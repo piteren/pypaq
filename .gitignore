@@ -4,3 +4,4 @@ build/
 dist/
 pypaq.egg-info/
 venv/
+tests/_tmp

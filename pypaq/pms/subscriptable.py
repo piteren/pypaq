@@ -3,7 +3,7 @@ from typing import List, Optional, Union, Dict, Set, Tuple
 
 from pypaq.lipytools.pylogger import get_pylogger, get_child
 from pypaq.textools.text_metrics import lev_dist
-from pypaq.pms.base_types import POINT, PSDD
+from pypaq.pms.base import POINT, PSDD
 from pypaq.pms.paspa import PaSpa
 
 # implements dict-like style access to its (self) parameters

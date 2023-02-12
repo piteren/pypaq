@@ -1,6 +1,6 @@
 import unittest
 
-from pypaq.lipytools.little_methods import stamp, print_nested_dict
+from pypaq.lipytools.printout import stamp, print_nested_dict
 
 
 class TestLittleMethods(unittest.TestCase):
@@ -20,8 +20,3 @@ class TestLittleMethods(unittest.TestCase):
             'b0': ['el1','el2','el3']
         }
         print_nested_dict(dc)
-
-
-
-if __name__ == '__main__':
-    unittest.main()

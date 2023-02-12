@@ -58,7 +58,3 @@ class TestHpmser(unittest.TestCase):
             n_loops=            500,
             hpmser_FD=          HPMSER_FD,
             raise_exceptions=   False)
-
-
-if __name__ == '__main__':
-    unittest.main()

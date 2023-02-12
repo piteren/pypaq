@@ -40,13 +40,14 @@ from sklearn.metrics import f1_score
 import torch
 from typing import Optional, Dict, Tuple, Any
 
-from pypaq.lipytools.little_methods import stamp, get_params, get_func_point
+from pypaq.lipytools.printout import stamp
 from pypaq.lipytools.files import prep_folder
 from pypaq.lipytools.pylogger import get_pylogger, get_child
 from pypaq.lipytools.moving_average import MovAvg
+from pypaq.pms.base import get_params, point_trim
 from pypaq.pms.parasave import ParaSave
 from pypaq.mpython.devices import get_devices
-from pypaq.comoneural.batcher import Batcher
+from pypaq.torchness.comoneural.batcher import Batcher
 from pypaq.torchness.types import TNS, DTNS
 from pypaq.torchness.base_elements import mrg_ckpts
 from pypaq.torchness.scaled_LR import ScaledLR
@@ -117,7 +118,7 @@ class MOTorch(ParaSave, torch.nn.Module):
         'acc',          # accuracy
         'f1'}           # F1
 
-    INIT_DEFAULTS = {
+    MOTORCH_DEFAULTS = {
         'seed':             123,                # seed for torch and numpy
         'device':           -1,                 # :DevicesPypaq (check pypaq.mpython.devices)
         'dtype':            torch.float32,      # dtype of floats in MOTorch (16/32/64 etc)
@@ -233,7 +234,8 @@ class MOTorch(ParaSave, torch.nn.Module):
 
         # update in proper order
         self._point = {}
-        self._point.update(self.INIT_DEFAULTS)
+        self._point.update(ParaSave.PARASAVE_DEFAULTS)
+        self._point.update(MOTorch.MOTORCH_DEFAULTS)
         self._point.update(_init_method_params_defaults_for_update)
         self._point.update(point_saved)
         self._point.update(kwargs)  # update with kwargs given NOW by user
@@ -257,7 +259,7 @@ class MOTorch(ParaSave, torch.nn.Module):
         _point_module = {}
         _point_module.update(self._point)
         _point_module['logger'] = self._log # INFO: we need to set logger like this, since _log is not in managed_params
-        self._point_module = get_func_point(self.module_type.__init__, _point_module)
+        self._point_module = point_trim(self.module_type.__init__, _point_module)
 
         not_used_kwargs = {}
         for k in kwargs:
@@ -265,25 +267,23 @@ class MOTorch(ParaSave, torch.nn.Module):
                 not_used_kwargs[k] = kwargs[k]
 
         self._log.debug(f'> {self.name} POINT sources:')
-        self._log.debug(f'>> class INIT_DEFAULTS:       {self.INIT_DEFAULTS}')
+        self._log.debug(f'>> PARASAVE_DEFAULTS:         {ParaSave.PARASAVE_DEFAULTS}')
+        self._log.debug(f'>> MOTORCH_DEFAULTS:          {MOTorch.MOTORCH_DEFAULTS}')
         self._log.debug(f'>> Module defaults:           {_init_method_params_defaults}')
         self._log.debug(f'>> POINT saved:               {point_saved}')
         self._log.debug(f'>> given kwargs:              {kwargs}')
         self._log.debug(f'> resolved POINT:')
         self._log.debug(f'Module complete POINT:        {self._point_module}')
         self._log.debug(f'>> kwargs not used by Module: {not_used_kwargs}')
-        self._log.debug(f'{self.name} complete POINT:   {self._point}')
+        self._log.debug(f'{self.name} complete POINT:\n{self._point}')
 
         # ************************************************************************************************ init ParaSave
 
-        ParaSave.__init__(
-            self,
-            lock_managed_params=    True,
-            logger=                 get_child(self._log),
-            **self._point)
+        parasave_logger = get_child(self._log, name='parasave')
+        ParaSave.__init__(self, logger=parasave_logger, **self._point)
 
         # params names safety check
-        pms = sorted(list(self.SPEC_KEYS) + list(self.INIT_DEFAULTS.keys()) + list(kwargs.keys()))
+        pms = sorted(list(self.SPEC_KEYS) + list(MOTorch.MOTORCH_DEFAULTS.keys()) + list(kwargs.keys()))
         found = self.check_params_sim(params=pms)
         if found:
             self._log.warning('MOTorch was asked to check for params similarity and found:')

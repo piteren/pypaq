@@ -10,7 +10,9 @@ from functools import wraps
 from inspect import getfullargspec
 import time
 
-from pypaq.lipytools.little_methods import get_params, stamp
+from pypaq.lipytools.printout import stamp
+from pypaq.pms.base import get_params
+
 
 # decorator printing execution time report
 def timing(f):

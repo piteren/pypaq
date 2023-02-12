@@ -6,7 +6,7 @@ from pypaq.hpmser.helpers import _str_weights
 from pypaq.lipytools.files import r_pickle, w_pickle
 from pypaq.lipytools.plots import three_dim
 from pypaq.pms.paspa import PaSpa
-from pypaq.pms.base_types import POINT, point_str
+from pypaq.pms.base import POINT, point_str
 
 
 # Search Results List [SeRes] with some methods

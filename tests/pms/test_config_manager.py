@@ -1,12 +1,12 @@
 import time
 import unittest
 
-from tests.envy import get_tmp_dir
+from tests.envy import flush_tmp_dir
 
 from pypaq.lipytools.files import prep_folder
 from pypaq.pms.config_manager import ConfigManager
 
-CONFIG_DIR = f'{get_tmp_dir()}/config_manager'
+CONFIG_DIR = f'{flush_tmp_dir()}/config_manager'
 
 
 class TestCM(unittest.TestCase):
@@ -35,7 +35,3 @@ class TestCM(unittest.TestCase):
 
         cm = ConfigManager(file=f'{CONFIG_DIR}/config.file')
         print(cm.get_config())
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -7,7 +7,7 @@ class TestExperienceMemory(unittest.TestCase):
 
     def test_ExperienceMemory(self):
 
-        mem = ExperienceMemory(maxsize=20)
+        mem = ExperienceMemory(maxsize=20, seed=123)
 
         for n in range(30):
             e = {'n': n}

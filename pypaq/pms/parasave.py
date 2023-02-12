@@ -2,10 +2,10 @@ import os
 import shutil
 from typing import Optional, List
 
-from pypaq.lipytools.little_methods import stamp
+from pypaq.lipytools.printout import stamp
 from pypaq.lipytools.files import r_pickle, w_pickle, prep_folder
 from pypaq.lipytools.pylogger import get_pylogger, get_child
-from pypaq.pms.base_types import POINT
+from pypaq.pms.base import POINT
 from pypaq.pms.subscriptable import SubGX
 
 
@@ -20,7 +20,7 @@ class ParaSave(SubGX):
         implements GX for saved
     """
 
-    INIT_DEFAULTS = {
+    PARASAVE_DEFAULTS = {
         'gxable':   True,
         'parents':  [], # list of parents names TODO: what is this for?
     }
@@ -69,7 +69,7 @@ class ParaSave(SubGX):
             save_fn_pfx=    self.save_fn_pfx)
 
         # update in proper order
-        self.update(self.INIT_DEFAULTS)
+        self.update(ParaSave.PARASAVE_DEFAULTS)
         self.update(point_saved)
         self.update(kwargs)
 
@@ -80,7 +80,7 @@ class ParaSave(SubGX):
         point = self.get_point()
 
         self.__log.debug(f'> ParaSave POINT sources:')
-        self.__log.debug(f'>> class INIT_DEFAULTS:  {self.INIT_DEFAULTS}')
+        self.__log.debug(f'>> PARASAVE_DEFAULTS:    {ParaSave.PARASAVE_DEFAULTS}')
         self.__log.debug(f'>> POINT saved:          {point_saved}')
         self.__log.debug(f'>> given kwargs:         {kwargs}')
         self.__log.debug(f'>> managed params:       {self.get_managed_params()}')

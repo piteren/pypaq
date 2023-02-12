@@ -23,6 +23,8 @@ class TestPlots(unittest.TestCase):
         two_dim(list(zip(y, x)))
         two_dim(y)
 
+    # TODO: implement pos encoding with torchness -> enable test
+    """
     def test_three_dim(self):
 
         from pypaq.neuralmess.layers import positional_encoding
@@ -38,9 +40,4 @@ class TestPlots(unittest.TestCase):
                 xyz.append([rix, eix, pe[rix, eix]])
 
         three_dim(xyz)
-
-
-
-
-if __name__ == '__main__':
-    unittest.main()
+    """

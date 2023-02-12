@@ -4,10 +4,10 @@ import unittest
 
 from tests.envy import flush_tmp_dir
 
-from pypaq.comoneural.zeroes_processor import ZeroesProcessor
+from pypaq.torchness.comoneural.zeroes_processor import ZeroesProcessor
 from pypaq.torchness.tbwr import TBwr
 
-BASE_DIR = f'{flush_tmp_dir()}/comoneural'
+BASE_DIR = f'{flush_tmp_dir()}/torchness/comoneural'
 
 
 class TestZeroesProcessor(unittest.TestCase):
@@ -34,10 +34,3 @@ class TestZeroesProcessor(unittest.TestCase):
             zsL.append(z)
 
             zepro.process(zs=zsL)
-
-
-
-
-
-if __name__ == '__main__':
-    unittest.main()

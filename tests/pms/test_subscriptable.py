@@ -50,7 +50,6 @@ class TestSubscriptable(unittest.TestCase):
         self.assertTrue(sa.check_params_sim(params=list(more_dict.keys())))
 
 
-
 class TestSubGX(unittest.TestCase):
 
     def test_base(self):

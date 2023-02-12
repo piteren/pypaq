@@ -35,7 +35,7 @@ from typing import Any, List, Dict, Optional, Union, Callable
 
 from pypaq.lipytools.moving_average import MovAvg
 from pypaq.lipytools.pylogger import get_pylogger, get_child
-from pypaq.lipytools.little_methods import get_params
+from pypaq.pms.base import get_params
 from pypaq.mpython.devices import DevicesPypaq, get_devices
 from pypaq.mpython.mptools import QMessage, Que, ExSubprocess
 

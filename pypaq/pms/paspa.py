@@ -21,7 +21,7 @@ import math
 import random
 from typing import Optional
 
-from pypaq.pms.base_types import P_VAL, POINT, PSDD
+from pypaq.pms.base import P_VAL, POINT, PSDD
 from pypaq.lipytools.pylogger import get_pylogger
 
 NO_REF = '__NO-REF__'

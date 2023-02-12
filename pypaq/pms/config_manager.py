@@ -7,7 +7,7 @@ from copy import deepcopy
 from typing import Optional
 
 from pypaq.lipytools.files import r_json, w_json
-from pypaq.pms.base_types import POINT
+from pypaq.pms.base import POINT
 
 
 class ConfigManager:

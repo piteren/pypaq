@@ -46,7 +46,8 @@ from typing import Callable, Optional, List, Any
 
 from pypaq.hpmser.search_results import SRL
 from pypaq.hpmser.helpers import _str_weights
-from pypaq.lipytools.little_methods import stamp, get_params
+from pypaq.lipytools.printout import stamp
+from pypaq.pms.base import get_params
 from pypaq.lipytools.files import prep_folder
 from pypaq.lipytools.stats import msmx
 from pypaq.lipytools.pylogger import get_pylogger, get_child
@@ -55,7 +56,7 @@ from pypaq.mpython.ompr import OMPRunner, RunningWorker
 from pypaq.torchness.tbwr import TBwr
 from pypaq.pms.config_manager import ConfigManager
 from pypaq.pms.paspa import PaSpa
-from pypaq.pms.base_types import PSDD, POINT, point_str
+from pypaq.pms.base import PSDD, POINT, point_str
 
 
 NP_SMOOTH = [3,5,9] # numbers of points for smoothing

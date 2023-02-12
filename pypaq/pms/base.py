@@ -1,6 +1,7 @@
-from typing import Any, Dict, List, Tuple
+import inspect
+from typing import Any, Dict, List, Tuple, Callable, Optional
 
-from pypaq.lipytools.little_methods import float_to_str
+from pypaq.lipytools.printout import float_to_str
 
 AXIS =  str                                     # axis type (parameter name)
 P_VAL = float or int or Any                     # point value (parameter value)
@@ -37,3 +38,43 @@ def point_str(p: POINT) -> str:
         s += f'{axis}:{vs} '
     s = s[:-1] + '}'
     return s
+
+# prepares function parameters dictionary
+def get_params(function: Callable) -> Dict:
+
+    params_dict = {
+        'without_defaults': [],
+        'with_defaults':    {}}
+
+    if function:
+
+        specs = inspect.getfullargspec(function)
+        #print(specs)
+
+        params = specs.args + specs.kwonlyargs
+
+        vals = []
+        if specs.defaults:
+            vals += list(specs.defaults)
+        if specs.kwonlydefaults:
+            vals += list(specs.kwonlydefaults.values())
+
+        while len(params) > len(vals):
+            params_dict['without_defaults'].append(params.pop(0))
+
+        params_dict['with_defaults'] = {k: v for k,v in zip(params,vals)}
+
+    return params_dict
+
+# prepares sub-POINT trimmed to function params (given wider POINT)
+def point_trim(
+        func: Optional[Callable],
+        point: POINT,
+        remove_self= True # removes self in case of methods (class)
+) -> POINT:
+    if func is None: return {}
+    pms = get_params(func)
+    valid_keys = pms['without_defaults'] + list(pms['with_defaults'].keys())
+    if remove_self and 'self' in valid_keys: valid_keys.remove('self')
+    func_dna = {k: point[k] for k in point if k in valid_keys} # filter to get only params accepted by func
+    return func_dna

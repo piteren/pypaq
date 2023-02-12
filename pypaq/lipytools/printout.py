@@ -1,49 +1,8 @@
-"""
-
- 2018 (c) piteren
-
-    some little methods (but frequently used) for Python
-
-"""
-
-import inspect
 import random
 import string
 import time
-from typing import Dict, List, Callable, Any, Optional
+from typing import List, Any, Optional
 
-from pypaq.pms.base_types import POINT
-
-
-# prepares function parameters dictionary
-def get_params(function: Callable) -> Dict:
-    params_dict = {'without_defaults':[], 'with_defaults':Dict}
-    if function:
-        specs = inspect.getfullargspec(function)
-        params = specs.args
-        if not params: params = []
-        vals = specs.defaults
-        if not vals: vals = ()
-
-        while len(params) > len(vals):
-            params_dict['without_defaults'].append(params.pop(0))
-
-        params_dict['with_defaults'] = {k: v for k,v in zip(params,vals)}
-
-    return params_dict
-
-# prepares func sub-POINT given wider POINT
-def get_func_point(
-        func: Optional[Callable],
-        point: POINT,
-        remove_self= True # removes self in case of methods (class)
-) -> POINT:
-    if func is None: return {}
-    pms = get_params(func)
-    valid_keys = pms['without_defaults'] + list(pms['with_defaults'].keys())
-    if remove_self and 'self' in valid_keys: valid_keys.remove('self')
-    func_dna = {k: point[k] for k in point if k in valid_keys} # filter to get only params accepted by func
-    return func_dna
 
 # short(compressed) scientific notation for floats
 def short_scin(

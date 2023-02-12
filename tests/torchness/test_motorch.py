@@ -49,10 +49,11 @@ class TestMOTorch(unittest.TestCase):
 
 
     def test_base_init(self):
-        MOTorch(
+        model = MOTorch(
             module_type=    LinModel,
             in_drop=        0.0,
             loglevel=       10)
+        print(model)
 
 
     def test_init_raises(self):
@@ -264,9 +265,9 @@ class TestMOTorch(unittest.TestCase):
         psdd = {'seed': [0,1000]}
         model = MOTorch(
             module_type=    LinModel,
-            name=       'GXLin',
-            psdd=       psdd,
-            in_drop=    0.0)
+            name=           'GXLin',
+            psdd=           psdd,
+            in_drop=        0.0)
 
         print(model.gxable)
         print(model['psdd'])

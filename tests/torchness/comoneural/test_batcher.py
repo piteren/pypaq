@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from pypaq.comoneural.batcher import Batcher, BATCHING_TYPES
+from pypaq.torchness.comoneural.batcher import Batcher, BATCHING_TYPES
 from pypaq.lipytools.stats import msmx
 
 
@@ -59,13 +59,13 @@ class TestBatcher(unittest.TestCase):
             'samples': samples,
             'labels': labels}
 
-        batcher = Batcher(data, batch_size=b_size, batching_type='random_cov', verb=1)
+        batcher = Batcher(data, batch_size=b_size, batching_type='random_cov')
         sA = []
         while len(sA) < 10000:
             sA += batcher.get_batch()['samples'].tolist()
             np.random.seed(len(sA))
 
-        batcher = Batcher(data, batch_size=b_size, batching_type='random_cov', verb=1)
+        batcher = Batcher(data, batch_size=b_size, batching_type='random_cov')
         sB = []
         while len(sB) < 10000:
             sB += batcher.get_batch()['samples'].tolist()
@@ -76,7 +76,3 @@ class TestBatcher(unittest.TestCase):
             if sA[ix] != sB[ix]: seed_is_fixed = False
         print(f'final result: seed is fixed: {seed_is_fixed}!')
         print(f' *** finished seed tests')
-
-
-if __name__ == '__main__':
-    unittest.main()

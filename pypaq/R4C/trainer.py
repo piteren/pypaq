@@ -21,9 +21,9 @@ from pypaq.lipytools.moving_average import MovAvg
 from pypaq.R4C.envy import RLEnvy, FiniteActionsRLEnvy
 from pypaq.R4C.actor import TrainableActor
 from pypaq.R4C.helpers import RLException
-from pypaq.torchness.base_elements import TBwr
-from pypaq.comoneural.avg_probs import avg_probs
-from pypaq.comoneural.zeroes_processor import ZeroesProcessor
+from pypaq.torchness.tbwr import TBwr
+from pypaq.torchness.comoneural.avg_probs import avg_probs
+from pypaq.torchness.comoneural.zeroes_processor import ZeroesProcessor
 
 
 # Trainer Experience Memory (deque od dicts)

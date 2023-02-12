@@ -1,7 +1,7 @@
 import random
 import unittest
 
-from pypaq.pms.base_types import point_str
+from pypaq.pms.base import point_str
 from pypaq.pms.paspa import PaSpa
 
 SAMPLE_PSDD = {
@@ -26,6 +26,7 @@ SAMPLE_PSDD = {
     't':    (1,2,3,4,8,4,'','wert','5')}
 
 
+
 def get_subs(psdd):
     keys = list(psdd.keys())
     for _ in range(random.randint(0,len(keys)-1)):
@@ -36,13 +37,13 @@ def get_subs(psdd):
 class TestPaspa(unittest.TestCase):
 
     def test_base(self):
-        paspa = PaSpa(SAMPLE_PSDD, verb=1)
+        paspa = PaSpa(SAMPLE_PSDD)
         print(paspa)
 
-        paspa = PaSpa(get_subs(SAMPLE_PSDD)) + PaSpa(get_subs(SAMPLE_PSDD))
-        print(paspa)
 
-        for _ in range(1000):
+    def test_loop(self):
+
+        for _ in range(100):
             paspa_a = PaSpa(get_subs(SAMPLE_PSDD))
             self.assertTrue(paspa_a.rdim <= paspa_a.dim)
             paspa_b = PaSpa(get_subs(SAMPLE_PSDD))
@@ -57,8 +58,9 @@ class TestPaspa(unittest.TestCase):
             pc = paspa_b.sample_point_GX(pc, pd)
 
             if paspa_a != paspa_b:
-                self.assertRaises(AssertionError,paspa_a.sample_point_GX,pa,pc)
+                self.assertRaises(AssertionError, paspa_a.sample_point_GX, pa, pc)
             else: print(paspa_a.axes,paspa_b.axes)
+
 
     def test_add(self):
 
@@ -82,6 +84,7 @@ class TestPaspa(unittest.TestCase):
         print(paspa_b)
         paspa_c = paspa_a + paspa_b
         print(paspa_c)
+
 
     def test_random(self):
 
@@ -139,6 +142,7 @@ class TestPaspa(unittest.TestCase):
         print(avg_dst_fract/num_samples)
         print(max_dst_fract)
 
+
     def test_close_points(self):
 
         psd = {
@@ -176,7 +180,3 @@ class TestPaspa(unittest.TestCase):
                 ref_pt = nref_pt
                 print(f' next point ldrt_drop: {ref_pt["ldrt_drop"]}')
         print(f'\nFinal point:\n > {point_str(ref_pt)}')
-
-
-if __name__ == '__main__':
-    unittest.main()

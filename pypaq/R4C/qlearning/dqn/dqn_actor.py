@@ -12,7 +12,7 @@ from typing import Optional, Union, Callable, List
 
 from pypaq.R4C.qlearning.ql_actor import QLearningActor
 from pypaq.R4C.helpers import RLException
-from pypaq.comoneural.nnwrap import NNWrap
+from pypaq.torchness.comoneural import NNWrap
 
 
 # DQN (NN based) QLearningActor

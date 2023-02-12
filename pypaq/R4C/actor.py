@@ -10,7 +10,7 @@ from abc import abstractmethod, ABC
 import numpy as np
 from typing import Optional
 
-from pypaq.lipytools.little_methods import stamp
+from pypaq.lipytools.printout import stamp
 from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.R4C.envy import RLEnvy
 from pypaq.R4C.helpers import RLException
