@@ -40,7 +40,7 @@ class PaSpa:
         if not logger:
             logger = get_pylogger(
                 name=       'paspa',
-                add_stamp=  False,
+                add_stamp=  True,
                 folder=     None,
                 level=      loglevel)
         self.logger = logger
