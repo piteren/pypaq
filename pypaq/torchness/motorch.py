@@ -86,11 +86,14 @@ class Module(torch.nn.Module):
         return float(np.average(np.equal(preds, labels)))
 
     # baseline F1 implementation for logits & lables
+    # macro - mean of class F1 scores
+    # weighted avg - mean weighted by support
+    # micro avg - accuracy
     def f1(
             self,
             logits: TNS,
             labels: TNS,
-            average=    'macro', # 'weighted'
+            average=    'weighted', # 'macro'
     ) -> float:
         logits = logits.detach().cpu().numpy()
         preds = np.argmax(logits, axis=-1)
@@ -791,15 +794,18 @@ class MOTorch(ParaSave, torch.nn.Module):
         lossL = []
         accL = []
         f1L = []
+        n_all = 0
         for batch in batches:
             out = self.loss(**batch, bypass_data_conv=True)
-            lossL.append(out['loss'])
-            if 'acc' in out: accL.append(out['acc'])
-            if 'f1' in out:  f1L.append(out['f1'])
+            n_new = len(out['logits'])
+            n_all += n_new
+            lossL.append(out['loss']*n_new)
+            if 'acc' in out: accL.append(out['acc']*n_new)
+            if 'f1' in out:  f1L.append(out['f1']*n_new)
 
-        acc_avg = sum(accL)/len(accL) if accL else None
-        f1_avg = sum(f1L)/len(f1L) if f1L else None
-        loss_avg = sum(lossL)/len(lossL) if lossL else None
+        acc_avg = sum(accL)/n_all if accL else None
+        f1_avg = sum(f1L)/n_all if f1L else None
+        loss_avg = sum(lossL)/n_all if lossL else None
         return loss_avg, acc_avg, f1_avg
 
 
