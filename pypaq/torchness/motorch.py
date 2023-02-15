@@ -86,19 +86,21 @@ class Module(torch.nn.Module):
         return float(np.average(np.equal(preds, labels)))
 
     # baseline F1 implementation for logits & lables
-    # macro - mean of class F1 scores
-    # weighted avg - mean weighted by support
-    # micro avg - accuracy
     def f1(
             self,
             logits: TNS,
             labels: TNS,
-            average=    'weighted', # 'macro'
+            average=    'weighted', # mean weighted by support
     ) -> float:
         logits = logits.detach().cpu().numpy()
         preds = np.argmax(logits, axis=-1)
         labels = labels.cpu().numpy()
-        return f1_score(labels, preds, average=average, zero_division=0)
+        return f1_score(
+            y_true=         labels,
+            y_pred=         preds,
+            average=        average,
+            labels=         np.unique(preds),
+            zero_division=  0)
 
     # returned DTNS should be: forward() DTNS updated with loss (and optional acc, f1)
     def loss(self, *args, **kwargs) -> DTNS:
