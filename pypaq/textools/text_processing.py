@@ -1,4 +1,4 @@
-# normalizes whitespace characters (newlines also) in given string to single space
+# normalizes whitespace characters & newlines -> single space
 def whitespace_normalization(
         text: str,
         remove_nlines=  True) -> str:  # for False leaves single (space separated) '\n' between lines, for True replaces '\n' with space

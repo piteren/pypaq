@@ -1,9 +1,3 @@
-"""
-
- 2018 (c) piteren
-
-"""
-
 import Levenshtein
 
 
