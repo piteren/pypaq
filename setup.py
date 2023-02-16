@@ -9,7 +9,7 @@ def get_requirements():
 
 setup(
     name=               'pypaq',
-    version=            'v0.3.0',
+    version=            'v0.3.1',
     url=                'https://github.com/piteren/pypaq.git',
     author=             'Piotr Niewinski',
     author_email=       'pioniewinski@gmail.com',
