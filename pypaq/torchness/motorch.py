@@ -61,7 +61,7 @@ class MOTorchException(Exception):
 
 
 # torch.nn.Module to be implemented
-# forward & loss methods are needed by MOTorch.run_train()
+# forward() is needed by torch.nn.Module, loss() is needed by MOTorch: backward() & run_train()
 class Module(torch.nn.Module):
 
     def __init__(self):

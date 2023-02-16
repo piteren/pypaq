@@ -50,7 +50,7 @@ class PaSpa:
         self.L2 = distance_L2
         self.dim = len(self.__psdd)
         self.logger.info(f'*** PaSpa ***  inits..')
-        self.logger.info('> (dim: {self.dim})')
+        self.logger.info(f'> (dim: {self.dim})')
 
         # resolve axis type and width and some safety checks
         self.__axT = {} # axis type, [list,tuple]_[float,int,diff] list_diff is not allowed
@@ -83,7 +83,7 @@ class PaSpa:
             self.__axW[axis] = pdef[-1] - pdef[0] if tpn != 'diff' else len(pdef) - 1 # range, for diff_tuple - number of elements
 
         self.rdim = self.get_rdim()
-        self.logger.info(f' > rdim: {self.rdim:.1f}')
+        self.logger.info(f'> rdim: {self.rdim:.1f}')
 
         # width of str(value) for axes, used for str formatting
         self.__str_width = {}
