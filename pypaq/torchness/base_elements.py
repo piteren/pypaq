@@ -2,6 +2,8 @@ from collections import OrderedDict
 import torch
 from typing import Optional
 
+from pypaq.mpython.mpdecor import proc_wait
+
 
 class TorchnessException(Exception):
     pass
@@ -19,7 +21,7 @@ def my_initializer(*args, std=0.02, **kwargs):
     # - trunc_normal_ is normal with mean 0 and given std, all values SAMPLED till in <a,b>
     return bert_initializer(*args, **kwargs, std=std)
 
-# weighted merge of two checkpoints, does NOT check for compatibility of two checkpoints, but will crash if those are not compatible
+@proc_wait
 def mrg_ckpts(
         ckptA: str,                     # checkpoint A (file name)
         ckptB: Optional[str],           # checkpoint B (file name), for None takes 100% ckptA
@@ -27,7 +29,11 @@ def mrg_ckpts(
         ratio: float=           0.5,    # ratio of merge
         noise: float=           0.0     # noise factor, amount of noise added to new value <0.0;1.0>
 ):
-
+    """
+    weighted merge of two checkpoints
+    does NOT check for compatibility of two checkpoints, but will crash if those are not compatible
+    enclosed with subprocess for better separation of torch objects
+    """
     checkpoint_A = torch.load(ckptA)
     checkpoint_B = torch.load(ckptB) if ckptB else checkpoint_A
 

@@ -364,7 +364,7 @@ class PaSpa:
     def merge_psdd(
             psdd_a: PSDD,
             psdd_b: PSDD) -> PSDD:
-        return (PaSpa(psdd_a) + PaSpa(psdd_b)).get_psdd()
+        return (PaSpa(psdd_a, loglevel=30) + PaSpa(psdd_b, loglevel=30)).get_psdd()
 
     # returns info(string) about self
     def __str__(self):
@@ -413,4 +413,4 @@ class PaSpa:
                 else:
                     ranges = psdd_merged[ax] + psdd_b[ax]
                     psdd_merged[ax] = [min(ranges), max(ranges)]
-        return PaSpa(psdd_merged)
+        return PaSpa(psdd_merged, loglevel=30)

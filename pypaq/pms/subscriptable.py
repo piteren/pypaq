@@ -168,7 +168,7 @@ class SubGX(Subscriptable):
                 psdd_a= psdd_main,
                 psdd_b= psdd_scnd) if psdd_scnd is not None else psdd_main
 
-        paspa_merged = PaSpa(psdd=psdd_merged)
+        paspa_merged = PaSpa(psdd=psdd_merged, loglevel=30)
 
         paspa_axes_not_in_parent = [a for a in paspa_merged.axes if a not in point_main]
         assert not paspa_axes_not_in_parent, f'ERR: paspa axes not in parent_main: {paspa_axes_not_in_parent}'
