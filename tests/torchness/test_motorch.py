@@ -228,8 +228,8 @@ class TestMOTorch(unittest.TestCase):
 
         # this model will not load
         model = MOTorch(
+            name=           'inne',
             module_type=    LinModel,
-            save_topdir=    '_models',
             in_drop=        0.0)
         print(f'not loaded model in_shape: {model["in_shape"]}')
         self.assertTrue(model['in_shape'] != 12)
