@@ -428,8 +428,8 @@ class MOTorch(ParaSave, torch.nn.Module):
             self,
             *args,
             bypass_data_conv=   False,
-            set_training: bool= True, # for backward training mode is set to True by default
-            empty_cuda_cache=   True,
+            set_training: bool= True,   # for backward training mode is set to True by default
+            empty_cuda_cache=   False,  # releases all unoccupied cached memory currently held by the caching allocator INFO: BEWARE: allocates another memory in cuda:0
             **kwargs) -> DTNS:
 
         out = self.loss(
@@ -444,7 +444,6 @@ class MOTorch(ParaSave, torch.nn.Module):
         self._opt.zero_grad()                                       # clear gradients
         self._scheduler.step()                                      # apply LR scheduler
 
-        # releases all unoccupied cached memory currently held by the caching allocator
         if empty_cuda_cache:
             torch.cuda.empty_cache()
 
