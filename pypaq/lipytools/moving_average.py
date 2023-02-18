@@ -7,9 +7,13 @@ class MovAvg:
         self.value: Optional[float] = None
         self.factor = factor
 
-    def upd(self, val: float):
+    def upd(self, val:float):
         if self.value is None: self.value = val
         else: self.value = (1-self.factor)*self.value + self.factor*val
         return self.value
 
-    def __call__(self) -> float: return self.value
+    def reset(self, val:float):
+        self.value = val
+
+    def __call__(self) -> float:
+        return self.value
