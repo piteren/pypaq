@@ -6,7 +6,7 @@
 from copy import deepcopy
 from typing import Optional
 
-from pypaq.lipytools.files import r_json, w_json
+from pypaq.lipytools.files import prep_folder, r_json, w_json
 from pypaq.pms.base import POINT
 
 
@@ -20,7 +20,12 @@ class ConfigManager:
 
         self.__file = file
         self.__config: POINT = config if config is not None else {}
-        if try_to_load: self.load()
+
+        prep_folder(file)
+
+        if try_to_load:
+            self.load()
+
         self.__save_file()
 
     # loads configuration from file and returns it
