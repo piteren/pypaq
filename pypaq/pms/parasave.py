@@ -86,7 +86,7 @@ class ParaSave(SubGX):
         self.__log.debug(f'>> managed params:       {self.get_managed_params()}')
         self.__log.debug(f'ParaSave complete POINT: {point}')
 
-        SubGX.__init__(self, logger=get_child(self.__log), **point)
+        SubGX.__init__(self, **point)
 
 
     def get_managed_params(self) -> List[str]:

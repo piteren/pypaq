@@ -22,7 +22,6 @@ import random
 from typing import Optional
 
 from pypaq.pms.base import P_VAL, POINT, PSDD
-from pypaq.lipytools.pylogger import get_pylogger
 
 NO_REF = '__NO-REF__'
 
@@ -34,23 +33,17 @@ class PaSpa:
             self,
             psdd : PSDD,            # params space dictionary
             distance_L2=    True,   # sets L1 or L2 distance for PaSpa
-            logger=         None,
-            loglevel=       20):
+            logger=         None):
 
-        if not logger:
-            logger = get_pylogger(
-                name=       'paspa',
-                add_stamp=  True,
-                folder=     None,
-                level=      loglevel)
         self.logger = logger
 
         self.__psdd = psdd
         self.axes = sorted(list(self.__psdd.keys()))
         self.L2 = distance_L2
         self.dim = len(self.__psdd)
-        self.logger.info(f'*** PaSpa ***  inits..')
-        self.logger.info(f'> (dim: {self.dim})')
+        if self.logger:
+            self.logger.info(f'*** PaSpa ***  inits..')
+            self.logger.info(f'> (dim: {self.dim})')
 
         # resolve axis type and width and some safety checks
         self.__axT = {} # axis type, [list,tuple]_[float,int,diff] list_diff is not allowed
@@ -83,7 +76,7 @@ class PaSpa:
             self.__axW[axis] = pdef[-1] - pdef[0] if tpn != 'diff' else len(pdef) - 1 # range, for diff_tuple - number of elements
 
         self.rdim = self.get_rdim()
-        self.logger.info(f'> rdim: {self.rdim:.1f}')
+        if self.logger: self.logger.info(f'> rdim: {self.rdim:.1f}')
 
         # width of str(value) for axes, used for str formatting
         self.__str_width = {}
@@ -364,7 +357,7 @@ class PaSpa:
     def merge_psdd(
             psdd_a: PSDD,
             psdd_b: PSDD) -> PSDD:
-        return (PaSpa(psdd_a, loglevel=30) + PaSpa(psdd_b, loglevel=30)).get_psdd()
+        return (PaSpa(psdd_a) + PaSpa(psdd_b)).get_psdd()
 
     # returns info(string) about self
     def __str__(self):
@@ -413,4 +406,4 @@ class PaSpa:
                 else:
                     ranges = psdd_merged[ax] + psdd_b[ax]
                     psdd_merged[ax] = [min(ranges), max(ranges)]
-        return PaSpa(psdd_merged, loglevel=30)
+        return PaSpa(psdd_merged)

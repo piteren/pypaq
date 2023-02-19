@@ -1,10 +1,10 @@
 from copy import deepcopy
 from typing import List, Optional, Union, Dict, Set, Tuple
 
-from pypaq.lipytools.pylogger import get_pylogger, get_child
 from pypaq.textools.text_metrics import lev_dist
 from pypaq.pms.base import POINT, PSDD
 from pypaq.pms.paspa import PaSpa
+
 
 # implements dict-like style access to its (self) parameters
 class Subscriptable:
@@ -13,9 +13,6 @@ class Subscriptable:
         its (object) parameters of POINT may be accessed in dict-like style [], but are IS NOT a dict type
         protected fields may also be accessed with [], but rather should not
     """
-
-    def __init__(self, logger=None):
-        self.__log = logger or get_pylogger()
 
     def __getitem__(self, key):
         return getattr(self, key)
@@ -73,10 +70,6 @@ class Subscriptable:
                     if levD <= lev_dist_diff:
                         found.add(tuple(sorted([pa, pb])))
 
-        if found:
-            self.__log.warning('Subscriptable was asked to check for params similarity and found:')
-            for pa,pb in found: self.__log.warning(f'> params \'{pa}\' and \'{pb}\' are close !!!')
-
         return found or None
 
     def __str__(self):
@@ -104,20 +97,15 @@ class SubGX(Subscriptable):
             name: str,
             family: Optional[str]=  None, # family of GXable
             psdd: Optional[PSDD]=   None, # PSDD of GXable
-            logger=                 None,
             **kwargs):
 
-        self.__log = logger or get_pylogger()
-
-        Subscriptable.__init__(self, logger=get_child(self.__log))
 
         self.name = name
         self.family = family
-        self.psdd = psdd or {}
-        self.update(kwargs)
         # INFO: all keys of self.psdd should be present in self
         #  - it is not checked now (while init) since self may be updated even after init, IT IS checked while GX
-        self.__log.info(f'*** Subscriptable *** name: {self.name} initialized, family: {self.family}, psdd: {self.psdd}')
+        self.psdd = psdd or {}
+        self.update(kwargs)
 
     # returns self POINT limited to axes included in self.psdd
     def get_gxable_point(self) -> POINT:
@@ -168,7 +156,7 @@ class SubGX(Subscriptable):
                 psdd_a= psdd_main,
                 psdd_b= psdd_scnd) if psdd_scnd is not None else psdd_main
 
-        paspa_merged = PaSpa(psdd=psdd_merged, loglevel=30)
+        paspa_merged = PaSpa(psdd=psdd_merged)
 
         paspa_axes_not_in_parent = [a for a in paspa_merged.axes if a not in point_main]
         assert not paspa_axes_not_in_parent, f'ERR: paspa axes not in parent_main: {paspa_axes_not_in_parent}'

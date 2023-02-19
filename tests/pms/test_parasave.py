@@ -27,7 +27,7 @@ class TestParaSave(unittest.TestCase):
     def test_init(self):
         ps = ParaSave(name='ps_test')
         print(ps)
-        self.assertRaises(ParaSaveException, ps.save)
+        self.assertRaises(ParaSaveException, ps.save_point)
 
 
     def test_init_save(self):
@@ -35,7 +35,7 @@ class TestParaSave(unittest.TestCase):
             name=           'ps_test',
             save_topdir=    PARASAVE_DIR)
         print(ps)
-        ps.save()
+        ps.save_point()
 
 
     def test_saved_params_resolution(self):
@@ -47,7 +47,7 @@ class TestParaSave(unittest.TestCase):
             param_b=        'b',
             loglevel=       10)
         print(ps)
-        ps.save()
+        ps.save_point()
 
         psb = ParaSave(
             name=           'ps_test',
