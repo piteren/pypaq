@@ -48,7 +48,6 @@ class ParaSave(SubGX):
         if not logger:
             logger = get_pylogger(
                 name=       self.name,
-                add_stamp=  False,
                 folder=     ParaSave.__full_dir(name=self.name, save_topdir=self.save_topdir) if self.save_topdir else None,
                 level=      loglevel)
         self.__log = logger

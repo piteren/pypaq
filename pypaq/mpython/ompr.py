@@ -438,7 +438,6 @@ class OMPRunner:
         if not logger:
             logger = get_pylogger(
                 name=       self.omp_name,
-                add_stamp=  False,
                 folder=     None,
                 level=      loglevel)
         self.logger = logger

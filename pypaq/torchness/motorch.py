@@ -132,7 +132,7 @@ class MOTorch(ParaSave, torch.nn.Module):
         'batch_size':       64,                 # training batch size
         'n_batches':        1000,               # default length of training
         'opt_class':        torch.optim.Adam,   # default optimizer
-        'train_batch_IX':   0,                  # default (starting) batch index (counter)
+        'train_step':       0,                  # default (starting) train step, updated while backward()
             # LR management (check pypaq.torchness.base_elements.ScaledLR)
         'baseLR':           3e-4,
         'warm_up':          None,
@@ -198,7 +198,6 @@ class MOTorch(ParaSave, torch.nn.Module):
         if not logger:
             logger = get_pylogger(
                 name=       self.name,
-                add_stamp=  False,
                 folder=     None if _read_only else MOTorch.__get_model_dir(save_topdir, self.name),
                 level=      loglevel)
         self._log = logger
@@ -331,7 +330,7 @@ class MOTorch(ParaSave, torch.nn.Module):
         # from now LR is managed by scheduler
         self._scheduler = ScaledLR(
             optimizer=      self._opt,
-            starting_step=  self.train_batch_IX,
+            starting_step=  self.train_step,
             warm_up=        self.warm_up,
             ann_base=       self.ann_base,
             ann_step=       self.ann_step,
@@ -438,11 +437,12 @@ class MOTorch(ParaSave, torch.nn.Module):
             set_training=       set_training,
             **kwargs)
 
-        out['loss'].backward()                                      # update gradients
-        gnD = self._grad_clipper.clip()                             # clip gradients, adds: 'gg_norm' & 'gg_avt_norm' to out
-        self._opt.step()                                            # apply optimizer
-        self._opt.zero_grad()                                       # clear gradients
-        self._scheduler.step()                                      # apply LR scheduler
+        out['loss'].backward()              # update gradients
+        gnD = self._grad_clipper.clip()     # clip gradients, adds: 'gg_norm' & 'gg_avt_norm' to out
+        self._opt.step()                    # apply optimizer
+        self._opt.zero_grad()               # clear gradients
+        self._scheduler.step()              # apply LR scheduler
+        self.train_step += 1                # update step
 
         if empty_cuda_cache:
             torch.cuda.empty_cache()
@@ -708,17 +708,16 @@ class MOTorch(ParaSave, torch.nn.Module):
             f1 = out['f1'] if 'f1' in out else None
 
             batch_IX += 1
-            self.train_batch_IX += 1
 
             if self.do_TB:
-                self.log_TB(value=loss,                 tag='tr/loss',      step=self.train_batch_IX)
-                self.log_TB(value=out['gg_norm'],       tag='tr/gn',        step=self.train_batch_IX)
-                self.log_TB(value=out['gg_avt_norm'],   tag='tr/gn_avt',    step=self.train_batch_IX)
-                self.log_TB(value=out['currentLR'],     tag='tr/cLR',       step=self.train_batch_IX)
+                self.log_TB(value=loss,               tag='tr/loss',   step=self.train_step)
+                self.log_TB(value=out['gg_norm'],     tag='tr/gn',     step=self.train_step)
+                self.log_TB(value=out['gg_avt_norm'], tag='tr/gn_avt', step=self.train_step)
+                self.log_TB(value=out['currentLR'],   tag='tr/cLR',    step=self.train_step)
                 if acc is not None:
-                    self.log_TB(value=acc,              tag='tr/acc',       step=self.train_batch_IX)
+                    self.log_TB(value=acc,            tag='tr/acc',    step=self.train_step)
                 if f1 is not None:
-                    self.log_TB(value=f1,               tag='tr/F1',       step=self.train_batch_IX)
+                    self.log_TB(value=f1,             tag='tr/F1',     step=self.train_step)
 
             if acc is not None: tr_accL.append(acc)
             if f1 is not None: tr_f1L.append(f1)
@@ -733,13 +732,13 @@ class MOTorch(ParaSave, torch.nn.Module):
                     ts_score_all_results.append(ts_score)
                 if self.do_TB:
                     if ts_loss is not None:
-                        self.log_TB(value=ts_loss,                      tag='ts/loss',              step=self.train_batch_IX)
+                        self.log_TB(value=ts_loss,                    tag='ts/loss',              step=self.train_step)
                     if ts_acc is not None:
-                        self.log_TB(value=ts_acc,                       tag='ts/acc',               step=self.train_batch_IX)
+                        self.log_TB(value=ts_acc,                     tag='ts/acc',               step=self.train_step)
                     if ts_f1 is not None:
-                        self.log_TB(value=ts_f1,                        tag='ts/F1',                step=self.train_batch_IX)
+                        self.log_TB(value=ts_f1,                      tag='ts/F1',                step=self.train_step)
                     if ts_score is not None:
-                        self.log_TB(value=ts_score_mav.upd(ts_score),   tag=f'ts/{score_name}_mav', step=self.train_batch_IX)
+                        self.log_TB(value=ts_score_mav.upd(ts_score), tag=f'ts/{score_name}_mav', step=self.train_step)
 
                 tr_acc_nfo = f'{100*sum(tr_accL)/test_freq:.1f}' if acc is not None else '--'
                 tr_f1_nfo =  f'{100*sum(tr_f1L)/test_freq:.1f}' if f1 is not None else '--'
@@ -747,7 +746,7 @@ class MOTorch(ParaSave, torch.nn.Module):
                 ts_acc_nfo = f'{100*ts_acc:.1f}' if ts_acc is not None else '--'
                 ts_f1_nfo = f'{100*ts_f1:.1f}' if ts_f1 is not None else '--'
                 ts_loss_nfo = f'{ts_loss:.3f}' if ts_loss is not None else '--'
-                self._log.info(f'# {self["train_batch_IX"]:5d} TR: {tr_acc_nfo} / {tr_f1_nfo} / {tr_loss_nfo} -- TS: {ts_acc_nfo} / {ts_f1_nfo} / {ts_loss_nfo}')
+                self._log.info(f'# {self["train_step"]:5d} TR: {tr_acc_nfo} / {tr_f1_nfo} / {tr_loss_nfo} -- TS: {ts_acc_nfo} / {ts_f1_nfo} / {ts_loss_nfo}')
                 tr_accL = []
                 tr_f1L = []
                 tr_lssL = []
@@ -769,7 +768,7 @@ class MOTorch(ParaSave, torch.nn.Module):
             ts_score_wval /= sum_weight
 
             if self.do_TB:
-                self.log_TB(value=ts_score_wval, tag=f'ts/ts_{score_name}_wval', step=self.train_batch_IX)
+                self.log_TB(value=ts_score_wval, tag=f'ts/ts_{score_name}_wval', step=self.train_step)
 
         self._log.info(f'### model {self.name} finished training')
         if ts_score_wval is not None:

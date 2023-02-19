@@ -96,7 +96,7 @@ class TestMOTorch(unittest.TestCase):
 
         model = MOTorch(
             module_type=    LinModel,
-            loglevel=       10,
+            #loglevel=       10,
             in_drop=        0.1)
 
         inp = np.random.random((5,784)).astype(np.float32)
@@ -118,7 +118,26 @@ class TestMOTorch(unittest.TestCase):
             out = model.backward(inp, lbl)
             loss = out['loss']
             acc = out['acc']
-            print(loss, acc)
+            print(model.train_step, loss, acc)
+
+
+    def test_saved_step(self):
+
+        model = MOTorch(
+            name=           'modA',
+            module_type=    LinModel,
+            in_drop=        0.1)
+
+        inp = np.random.random((5, 784)).astype(np.float32)
+        lbl = np.random.randint(0, 9, 5)
+        for _ in range(5):
+            out = model.backward(inp, lbl)
+        print(model.name, model.train_step)
+        model.save()
+
+        model = MOTorch(name=model.name)
+        print(model.name, model.train_step)
+        self.assertTrue(model.name == 'modA' and model.train_step == 5)
 
 
     def test_class_method(self):

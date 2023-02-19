@@ -62,7 +62,6 @@ class ExSubprocess(Process, ABC):
         if not logger:
             logger = get_pylogger(
                 name=       self.id,
-                add_stamp=  False,
                 folder=     None,
                 level=      loglevel)
         self.logger = logger

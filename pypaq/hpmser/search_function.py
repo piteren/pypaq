@@ -145,7 +145,6 @@ def hpmser(
     if not logger:
         logger = get_pylogger(
             name=       name,
-            add_stamp=  False,
             folder=     f'{hpmser_FD}/{name}',
             level=      loglevel)
 

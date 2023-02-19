@@ -8,7 +8,7 @@ from pypaq.lipytools.files import prep_folder
 # returns formatted Logger
 def get_pylogger(
         name: Optional[str]=    None,
-        add_stamp=              True,   # to prevent merging loggers from one class many objects
+        add_stamp=              True,   # to prevent merging loggers from one-class-many-objects
         folder: Optional[str]=  None,   # if given then writes logfile
         level=                  logging.INFO,
         format: str=            '%(asctime)s {%(filename)20s:%(lineno)3d} p%(process)s %(levelname)s: %(message)s',
