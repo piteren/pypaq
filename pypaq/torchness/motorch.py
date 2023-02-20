@@ -198,6 +198,7 @@ class MOTorch(ParaSave, torch.nn.Module):
         if not logger:
             logger = get_pylogger(
                 name=       self.name,
+                add_stamp=  False,
                 folder=     None if _read_only else MOTorch.__get_model_dir(save_topdir, self.name),
                 level=      loglevel)
         self._log = logger
