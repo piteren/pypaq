@@ -532,7 +532,9 @@ class MOTorch(ParaSave, torch.nn.Module):
             name_trg: str,
             save_topdir_src: Optional[str]= None,
             save_topdir_trg: Optional[str]= None,
-            save_fn_pfx: Optional[str]=     None):
+            save_fn_pfx: Optional[str]=     None,
+            logger=                         None,
+            loglevel=                       30):
 
         if not save_topdir_src: save_topdir_src = cls.SAVE_TOPDIR
         if not save_fn_pfx: save_fn_pfx = cls.SAVE_FN_PFX
@@ -544,7 +546,9 @@ class MOTorch(ParaSave, torch.nn.Module):
             name_trg=           name_trg,
             save_topdir_src=    save_topdir_src,
             save_topdir_trg=    save_topdir_trg,
-            save_fn_pfx=        save_fn_pfx)
+            save_fn_pfx=        save_fn_pfx,
+            logger=             logger,
+            loglevel=           loglevel)
 
         cls.copy_checkpoint(
             name_src=           name_src,
@@ -592,7 +596,9 @@ class MOTorch(ParaSave, torch.nn.Module):
             save_fn_pfx: Optional[str]=             None,
             do_gx_ckpt=                             True,
             ratio: float=                           0.5,
-            noise: float=                           0.03
+            noise: float=                           0.03,
+            logger=                                 None,
+            loglevel=                               20,
     ) -> None:
 
         if not save_topdir_parent_main: save_topdir_parent_main = cls.SAVE_TOPDIR
@@ -605,7 +611,9 @@ class MOTorch(ParaSave, torch.nn.Module):
             save_topdir_parent_main=    save_topdir_parent_main,
             save_topdir_parent_scnd=    save_topdir_parent_scnd,
             save_topdir_child=          save_topdir_child,
-            save_fn_pfx=                save_fn_pfx)
+            save_fn_pfx=                save_fn_pfx,
+            logger=                     logger,
+            loglevel=                   loglevel)
 
         if do_gx_ckpt:
             cls.gx_ckpt(

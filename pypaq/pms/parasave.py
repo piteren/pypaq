@@ -190,7 +190,10 @@ class ParaSave(SubGX):
             name_trg: str,
             save_topdir_src: Optional[str]= None,
             save_topdir_trg: Optional[str]= None,
-            save_fn_pfx: Optional[str]=     None):
+            save_fn_pfx: Optional[str]=     None,
+            logger=                         None,
+            loglevel=                       20
+    ) -> None:
 
         if not save_topdir_src: save_topdir_src = cls.SAVE_TOPDIR
         if not save_fn_pfx: save_fn_pfx = cls.SAVE_FN_PFX
@@ -200,13 +203,15 @@ class ParaSave(SubGX):
             save_topdir=    save_topdir_src,
             save_fn_pfx=    save_fn_pfx,
             assert_saved=   True,
-            loglevel=       30)
+            logger=         logger,
+            loglevel=       loglevel)
 
         ps_trg = ParaSave(
             name=           name_trg,
             save_topdir=    save_topdir_trg or save_topdir_src,
             save_fn_pfx=    save_fn_pfx,
-            loglevel=       30)
+            logger=         logger,
+            loglevel=       loglevel)
 
         point_src = ps_src.get_point()
         for k in ['name','save_topdir']: point_src.pop(k)
@@ -224,6 +229,8 @@ class ParaSave(SubGX):
             save_topdir_parent_scnd: Optional[str]= None,   # ParaSave top directory of parent scnd
             save_topdir_child: Optional[str]=       None,   # ParaSave top directory of child
             save_fn_pfx: Optional[str]=             None,   # ParaSave POINT file prefix
+            logger=                                 None,
+            loglevel=                               20,
     ) -> None:
 
         if not save_topdir_parent_main: save_topdir_parent_main = cls.SAVE_TOPDIR
@@ -236,13 +243,15 @@ class ParaSave(SubGX):
             save_topdir=    save_topdir_parent_main,
             save_fn_pfx=    save_fn_pfx,
             assert_saved=   True,
-            loglevel=       30)
+            logger=         logger,
+            loglevel=       loglevel)
 
         ps = ParaSave(
             name=           name_parent_scnd,
             save_topdir=    save_topdir_parent_scnd,
             save_fn_pfx=    save_fn_pfx,
-            loglevel=       30) if name_parent_scnd else None
+            logger=         logger,
+            loglevel=       loglevel) if name_parent_scnd else None
 
         not_gxable_parents = []
         if not pm['gxable']: not_gxable_parents.append(pm)
@@ -271,13 +280,13 @@ class ParaSave(SubGX):
             prob_noise=                         0.3,
             noise_scale=                        0.1,
             prob_axis=                          0.1,
-            prob_diff_axis=                     0.3
+            prob_diff_axis=                     0.3,
     ) -> POINT:
         not_gxable_parents = []
         if not parent_main['gxable']: not_gxable_parents.append(parent_main)
         if parent_scnd and not parent_scnd['gxable']: not_gxable_parents.append(parent_scnd)
         if not_gxable_parents:
-            raise ParaSaveException('not gxable parents, cannot GX!')
+            raise ParaSaveException('not gxable parents, cannot GX')
         else:
             return SubGX.gx_point(
                 parent_main=    parent_main,
