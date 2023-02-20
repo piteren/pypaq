@@ -12,7 +12,7 @@ from pypaq.hpmser.search_function import hpmser
 HPMSER_FD = f'{flush_tmp_dir()}/hpmser'
 
 
-class TestHpmser(unittest.TestCase):
+class TestSearchFunction(unittest.TestCase):
 
     def setUp(self) -> None:
         prep_folder(HPMSER_FD, flush_non_empty=True)

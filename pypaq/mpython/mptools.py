@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from multiprocessing import cpu_count, Process, Queue
+from multiprocessing import cpu_count, Process, Queue, Value
 from queue import Empty
 import psutil
 import time
@@ -14,14 +14,30 @@ class QMessage:
         self.type = type
         self.data = data
 
+# https://github.com/vterron/lemon/commit/9ca6b4b1212228dbd4f69b88aaf88b12952d7d6f
+class SharedCounter:
+
+    def __init__(self, n:int=0):
+        self.count = Value('i', n)
+
+    def increment(self, n:int=1):
+        with self.count.get_lock():
+            self.count.value += n
+
+    @property
+    def value(self) -> int:
+        return self.count.value
+
 # my que
 class Que:
 
     def __init__(self):
         self.q = Queue()
+        self.size = SharedCounter(0)
 
     def put(self, msg:QMessage, **kwargs):
         assert isinstance(msg, QMessage)
+        self.size.increment(1)
         self.q.put(msg, **kwargs)
 
     # does not raise Empty exception, but returns None in case no QMessage
@@ -31,14 +47,17 @@ class Que:
             ) -> Optional[QMessage]:
         try:
             msg = self.q.get(block=block, timeout=timeout)
+            self.size.increment(-1)
             assert isinstance(msg, QMessage)
             return msg
         except Empty:
             return None
 
-    def empty(self): return self.q.empty()
+    def empty(self) -> bool:
+        return not self.qsize()
 
-    def qsize(self): return self.q.qsize()
+    def qsize(self) -> int:
+        return self.size.value
 
 
 # Exception Managed Subprocess - with basic exceptions management

@@ -18,7 +18,7 @@ class TestMPTools(unittest.TestCase):
         self.assertTrue(qm.data == 1)
 
         self.assertTrue(que.empty())
-        self.assertTrue(que.qsize()==0)
+        self.assertTrue(que.qsize() == 0)
         qm = que.get(block=False)
         self.assertTrue(not qm)
 
@@ -60,7 +60,6 @@ class TestMPTools(unittest.TestCase):
                     time.sleep(1)
 
             def after_exception_handle_run(self):
-                print('dupex')
                 self.oque.put(QMessage(type='info', data='after'))
 
         exs = ExS(Que(), Que(), raise_unk_exception=False)
