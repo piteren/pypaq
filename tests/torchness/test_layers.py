@@ -1,7 +1,7 @@
 import torch
 import unittest
 
-from pypaq.torchness.layers import LayDense, TF_Dropout, LayConv1D, zeroes
+from pypaq.torchness.layers import LayDense, TF_Dropout, LayConv1D, PositionalEncoding, zeroes
 
 
 class TestLayers(unittest.TestCase):
@@ -29,6 +29,7 @@ class TestLayers(unittest.TestCase):
         print(torch.sum(out))
         self.assertTrue(float(torch.sum(out)) == 0.0)
 
+
     def test_tf_dropout(self):
         tns = torch.rand((5,5,5))
         sum_tns = float(torch.sum(tns))
@@ -39,6 +40,7 @@ class TestLayers(unittest.TestCase):
         sum_dropped = float(torch.sum(dropped))
         print(sum_dropped)
 
+
     def test_LayConv1D(self):
         inp = torch.rand(3,6)  # [Channels,SignalSeq]
         print(inp.shape, inp)
@@ -47,6 +49,19 @@ class TestLayers(unittest.TestCase):
         out = conv_lay(inp)
         print(out.shape, out)
         self.assertTrue(tuple(out.shape) == (3,8))
+
+
+    def test_PositionalEncoding(self):
+
+        tns = torch.zeros(12,32,64)
+        print(tns)
+        print(tns.shape)
+
+        pe = PositionalEncoding(64)
+        out = pe(tns)
+        print(out)
+        print(out.shape)
+
 
     def test_zeroes(self):
 

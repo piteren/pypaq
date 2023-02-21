@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import torch
 from typing import Optional
@@ -161,6 +162,33 @@ class LayRES(torch.nn.Module):
         if self.dropout:
             bypass = self.dropout(bypass)
         return inp + bypass
+
+
+class PositionalEncoding(torch.nn.Module):
+
+    def __init__(
+            self,
+            d_model: int,
+            dropout: float= 0.0,
+            max_len: int=   512):
+
+        super().__init__()
+
+        self.dropout = torch.nn.Dropout(p=dropout) if dropout else None
+
+        position = torch.arange(max_len).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
+        pe = torch.zeros(max_len, d_model)
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        self.register_buffer('pe', pe)
+
+    # x - tensor of shape [..,seq,feats]
+    def forward(self, x:TNS) -> TNS:
+        x = x + self.pe[:x.size(-2)]
+        if self.dropout:
+            x = self.dropout(x)
+        return x
 
 
 # returns [0,1] tensor: 1 where inp not activated (value =< 0), looks at last dimension / features
