@@ -45,7 +45,7 @@ import time
 from typing import Callable, Optional, List, Any
 
 from pypaq.hpmser.search_results import SRL
-from pypaq.hpmser.helpers import _str_weights
+from pypaq.hpmser.helpers import str_floatL
 from pypaq.lipytools.printout import stamp
 from pypaq.pms.base import get_params
 from pypaq.lipytools.files import prep_folder
@@ -284,7 +284,7 @@ def hpmser(
                     stochastic_results.append(msg_score)
                     if len(stochastic_results) == stochastic_est and logger.level < 21:
                         logger.info(f' *** stochastic estimation with {stochastic_est} points:')
-                        logger.info(f'  > results: {_str_weights(stochastic_results, float_prec=8)}')
+                        logger.info(f'  > results: {str_floatL(stochastic_results, float_prec=8)}')
                         logger.info(f'  > std_dev: {msmx(stochastic_results)["std"]:.8f}\n')
 
                 else:
