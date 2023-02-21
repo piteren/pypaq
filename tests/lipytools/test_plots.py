@@ -1,7 +1,7 @@
 import numpy as np
 import unittest
 
-from pypaq.lipytools.plots import histogram, two_dim, three_dim
+from pypaq.lipytools.plots import histogram, two_dim, three_dim, two_dim_multi
 
 
 class TestPlots(unittest.TestCase):
@@ -22,6 +22,16 @@ class TestPlots(unittest.TestCase):
         two_dim(y, x)
         two_dim(list(zip(y, x)))
         two_dim(y)
+
+    def test_two_dim_multi(self):
+
+        va = [1,2,3,1,2,3,1,2,1]
+        vb = [1,2,3,4,5,4,3,2,1]
+        two_dim_multi(ys=[va,vb])
+        va = [22, 22, 14, 10, 12, 4, 6, 14]
+        vb = [22, 22.0, 18.0, 14.0, 13.0, 8.5, 7.2, 10.6]
+        two_dim_multi(ys=[va, vb])
+
 
     # TODO: implement pos encoding with torchness -> enable test
     """

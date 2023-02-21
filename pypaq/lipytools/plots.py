@@ -90,14 +90,17 @@ def two_dim(
 
 def two_dim_multi(
         ys: list,               # list of lists or np.arrays
-        names: List[str]=   None,
-        save_FD: str=       None,
-        xlogscale=          False,
-        ylogscale=          False,
-        legend_loc=         'upper left'):
+        names: Optional[List[str]]= None,
+        name: Optional[str]=        None,
+        save_FD: str=               None,
+        xlogscale=                  False,
+        ylogscale=                  False,
+        legend_loc=                 'upper left'):
+
+    if names is None:
+        names = [f'values_{ix}' for ix in range(len(ys))]
 
     x = np.arange(len(ys[0]))
-    if names is None: names = ['values'] * len(ys)
 
     plt.clf()
     for y,name in zip(ys,names):
@@ -110,7 +113,9 @@ def two_dim_multi(
 
     if save_FD:
         prep_folder(save_FD)
-        plt.savefig(f'{save_FD}/{" ".join(names)}.png')
+        if name is None:
+            name = "_".join(names)
+        plt.savefig(f'{save_FD}/{name}.png')
     else:
         plt.show()
 
