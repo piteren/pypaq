@@ -14,8 +14,10 @@ class TestMPTools(unittest.TestCase):
 
         qm = QMessage(type='test', data=1)
         que.put(qm)
+        self.assertTrue(que.qsize() == 1)
         qm = que.get()
         self.assertTrue(qm.data == 1)
+        self.assertTrue(que.qsize() == 0)
 
         self.assertTrue(que.empty())
         self.assertTrue(que.qsize() == 0)
