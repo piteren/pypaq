@@ -11,7 +11,7 @@ import numpy as np
 from typing import Optional
 
 from pypaq.R4C.policy_gradients.pg_actor import PGActor
-from pypaq.R4C.policy_gradients.base.pt_based.pg_PT_module import PGModel
+from pypaq.R4C.policy_gradients.base.pg_PT_module import PGModel
 from pypaq.torchness.motorch import MOTorch, Module
 
 
@@ -50,5 +50,5 @@ class PG_PTActor(PGActor, ABC):
         out = self.nnw.backward(obs_vecs, actions, dreturns)
         out.pop('logits')
         if 'probs' in out: out['probs'] = out['probs'].cpu().detach().numpy()
-        if 'zeroes' in out: out['zeroes'] = [e.cpu().detach().numpy() for e in out['zeroes']]
+        #if 'zeroes' in out: out['zeroes'] = [e.cpu().detach().numpy() for e in out['zeroes']]
         return out

@@ -107,9 +107,11 @@ class PGTrainer(FATrainer):
             dreturns=       dreturns,
             inspect=        inspect)
 
-        value = out.pop('value').cpu().detach().numpy()
-        advantage = out.pop('advantage').cpu().detach().numpy()
+        # TODO: below probably added for higher than PG algorithm and is not valid for PG
+        #value = out.pop('value').cpu().detach().numpy()
+        #advantage = out.pop('advantage').cpu().detach().numpy()
 
+        """
         if inspect:
             two_dim_multi(
                 ys=     [
@@ -123,5 +125,6 @@ class PGTrainer(FATrainer):
                     'advantage',
                 ],
                 legend_loc= 'lower left')
+        """
 
         return out

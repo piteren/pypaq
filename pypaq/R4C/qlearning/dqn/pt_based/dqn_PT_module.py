@@ -46,7 +46,7 @@ class DQNModel(Module):
             out_features=   num_actions,
             activation=     None)
 
-        self.loss = torch.nn.MSELoss(reduction='none')
+        self.loss_fn = torch.nn.MSELoss(reduction='none')
 
     def forward(self, obs) -> dict:
         out = self.ln(obs)
@@ -66,7 +66,7 @@ class DQNModel(Module):
     def loss(self, obs, lbl, mask=None) -> dict:
         out = self(obs)
         logits = out['logits']
-        loss = self.loss(logits, lbl)
+        loss = self.loss_fn(logits, lbl)
         if mask is not None: loss *= mask       # mask
         loss = torch.sum(loss, dim=-1)          # reduce over samples
         out['loss'] = torch.mean(loss)          # average

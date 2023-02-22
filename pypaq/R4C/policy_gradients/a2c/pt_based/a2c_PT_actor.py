@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pypaq.R4C.policy_gradients.base.pt_based.pg_PT_actor import PG_PTActor
+from pypaq.R4C.policy_gradients.base.pg_PT_actor import PG_PTActor
 from pypaq.R4C.policy_gradients.a2c.pt_based.a2c_PT_module import A2CModel
 from pypaq.torchness.motorch import Module
 
