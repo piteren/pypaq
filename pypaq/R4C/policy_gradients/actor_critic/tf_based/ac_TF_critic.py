@@ -27,15 +27,15 @@ class AC_TFCritic(PGActor):
 
     def get_qvs(self, observation) -> np.ndarray:
         obs_vec = self._get_observation_vec(observation)
-        out = self.nnw(
-            feed_dict=  {self.nnw['observation_PH']: [obs_vec]},
+        out = self.model(
+            feed_dict=  {self.model['observation_PH']: [obs_vec]},
             fetch=      ['qvs'])
         return out['qvs']
 
     def get_qvs_batch(self, observations) -> np.ndarray:
         obs_vecs = self._get_observation_vec_batch(observations)
-        out = self.nnw(
-            feed_dict=  {self.nnw['observation_PH']: obs_vecs},
+        out = self.model(
+            feed_dict=  {self.model['observation_PH']: obs_vecs},
             fetch=      ['qvs'])
         return out['qvs']
 
@@ -48,13 +48,13 @@ class AC_TFCritic(PGActor):
             rewards,
             inspect=    False) -> dict:
         obs_vecs = self._get_observation_vec_batch(observations)
-        out = self.nnw.backward(
+        out = self.model.backward(
             feed_dict=  {
-                self.nnw['observation_PH']:       obs_vecs,
-                self.nnw['action_OH_PH']:         actions_OH,
-                self.nnw['next_action_qvs_PH']:   next_action_qvs,
-                self.nnw['next_action_probs_PH']: next_actions_probs,
-                self.nnw['reward_PH']:            rewards},
+                self.model['observation_PH']:       obs_vecs,
+                self.model['action_OH_PH']:         actions_OH,
+                self.model['next_action_qvs_PH']:   next_action_qvs,
+                self.model['next_action_probs_PH']: next_actions_probs,
+                self.model['reward_PH']:            rewards},
             fetch=      ['optimizer','loss','gg_norm','gg_avt_norm'])
         out.pop('optimizer')
         return out

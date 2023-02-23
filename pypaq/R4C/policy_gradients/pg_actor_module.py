@@ -1,19 +1,12 @@
-"""
-
- 2022 (c) piteren
-
-    baseline PG Module for MOTorch (PyTorch)
-
-"""
-
 import torch
 
 from pypaq.torchness.motorch import Module
+from pypaq.torchness.types import TNS, DTNS
 from pypaq.torchness.layers import LayDense, zeroes
 from pypaq.torchness.base_elements import scaled_cross_entropy
 
-
-class PGModel(Module):
+# baseline PG Module for MOTorch (PyTorch)
+class PGModule(Module):
 
     def __init__(
             self,
@@ -52,7 +45,7 @@ class PGModel(Module):
 
         self.use_scaled_ce = use_scaled_ce
 
-    def forward(self, observation) -> dict:
+    def forward(self, observation:TNS) -> DTNS:
 
         out = self.ln(observation) if self.lay_norm else observation
 
@@ -70,7 +63,11 @@ class PGModel(Module):
             'probs':        probs,
             'zeroes':       zsL}
 
-    def loss(self, observation, action_taken, dreturn) -> dict:
+    def loss(
+            self,
+            observation: TNS,
+            action_taken: TNS,
+            dreturn: TNS) -> DTNS:
 
         out = self(observation)
         logits = out['logits']

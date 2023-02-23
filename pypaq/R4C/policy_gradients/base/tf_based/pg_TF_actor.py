@@ -24,16 +24,16 @@ class PG_TFActor(PGActor, ABC):
 
     def get_policy_probs(self, observation: object) -> np.ndarray:
         obs_vec = self._get_observation_vec(observation)
-        out = self.nnw(
-            feed_dict=  {self.nnw['observation_PH']: [obs_vec]},
+        out = self.model(
+            feed_dict=  {self.model['observation_PH']: [obs_vec]},
             fetch=      ['probs'])
         return out['probs'][0] # reduce dim
 
     # optimized with batch call to NN
     def get_policy_probs_batch(self, observations: List[object]) -> np.ndarray:
         obs_vecs = self._get_observation_vec_batch(observations)
-        out = self.nnw(
-            feed_dict=  {self.nnw['observation_PH']: obs_vecs},
+        out = self.model(
+            feed_dict=  {self.model['observation_PH']: obs_vecs},
             fetch=      ['probs'])
         return out['probs']
 
@@ -45,11 +45,11 @@ class PG_TFActor(PGActor, ABC):
             dreturns,
             inspect=    False) -> dict:
         obs_vecs = self._get_observation_vec_batch(observations)
-        out = self.nnw.backward(
+        out = self.model.backward(
             feed_dict=  {
-                self.nnw['observation_PH']:  obs_vecs,
-                self.nnw['action_PH']:       actions,
-                self.nnw['return_PH']:       dreturns},
+                self.model['observation_PH']:  obs_vecs,
+                self.model['action_PH']:       actions,
+                self.model['return_PH']:       dreturns},
             fetch=      ['optimizer','probs','loss','gg_norm','gg_avt_norm','actor_ce_mean','zeroes'])
         out.pop('optimizer')
         return out

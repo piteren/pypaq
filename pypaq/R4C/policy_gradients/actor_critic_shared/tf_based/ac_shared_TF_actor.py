@@ -26,11 +26,11 @@ class ACShared_TFActor(PG_TFActor, ABC):
             dreturns,
             inspect=    False) -> dict:
         obs_vecs = self._get_observation_vec_batch(observations)
-        out = self.nnw.backward(
+        out = self.model.backward(
             feed_dict=  {
-                self.nnw['observation_PH']:  obs_vecs,
-                self.nnw['action_PH']:       actions,
-                self.nnw['qv_label_PH']:     dreturns},
+                self.model['observation_PH']:  obs_vecs,
+                self.model['action_PH']:       actions,
+                self.model['qv_label_PH']:     dreturns},
             fetch=      ['optimizer','loss','loss_actor','loss_critic','gg_norm','gg_avt_norm','amax_prob','amin_prob'])
         out.pop('optimizer')
         return out

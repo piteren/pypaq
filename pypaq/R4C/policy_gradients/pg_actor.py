@@ -8,13 +8,14 @@
 
 """
 
-from abc import ABC, abstractmethod
+from abc import ABC
 import numpy as np
 from typing import Optional, List
 
+from pypaq.torchness.motorch import MOTorch, Module
 from pypaq.R4C.actor import TrainableActor
 from pypaq.R4C.envy import FiniteActionsRLEnvy
-from pypaq.torchness.motorch import MOTorch, Module
+from pypaq.R4C.policy_gradients.pg_actor_module import PGModule
 
 
 class PGActor(TrainableActor, ABC):
@@ -22,14 +23,15 @@ class PGActor(TrainableActor, ABC):
     def __init__(
             self,
             envy: FiniteActionsRLEnvy,
-            nnwrap: type(MOTorch),
-            module_type: Optional[Module]=  None,
-            seed: int=                      123,
+            name: str=                              'PGActor',
+            module_type: Optional[type(Module)]=    PGModule,
+            seed: int=                              123,
             **kwargs):
 
         TrainableActor.__init__(
             self,
             envy=   envy,
+            name=   name,
             **kwargs)
         self._envy = envy  # to update type (for pycharm only)
 
@@ -42,21 +44,22 @@ class PGActor(TrainableActor, ABC):
         kwargs['num_actions'] = self._envy.num_actions()
         kwargs['observation_width'] = self._get_observation_vec(self._envy.get_observation()).shape[-1]
 
-        self.nnw: MOTorch = nnwrap(module_type=module_type, seed=seed, **kwargs)
+        self.model = MOTorch(module_type=module_type, seed=seed, **kwargs)
 
-        self._rlog.info('*** PG_Actor *** (NN based) initialized')
-        self._rlog.info(f'> NNWrap: {nnwrap.__name__}')
+        self._rlog.info(f'*** PGActor : {self.name} *** (NN based) initialized')
 
     # vectorization of observations batch, may be overridden with more optimal custom implementation
     def _get_observation_vec_batch(self, observations: List[object]) -> np.ndarray:
         return np.asarray([self._get_observation_vec(v) for v in observations])
 
-    @abstractmethod
-    def get_policy_probs(self, observation: object) -> np.ndarray: pass
+    def get_policy_probs(self, observation: object) -> np.ndarray:
+        obs_vec = self._get_observation_vec(observation)
+        return self.model(obs_vec)['probs'].detach().cpu().numpy()
 
-    # baseline, may be overridden with more optimal custom implementation
+    # batch call to NN
     def get_policy_probs_batch(self, observations: List[object]) -> np.ndarray:
-        return np.asarray([self.get_policy_probs(o) for o in observations])
+        obs_vecs = self._get_observation_vec_batch(observations)
+        return self.model(obs_vecs)['probs'].detach().cpu().numpy()
 
     # gets policy action based on policy (action) probs
     def get_policy_action(self, observation: object, sampled=False) -> int:
@@ -71,11 +74,24 @@ class PGActor(TrainableActor, ABC):
         else:       actions = np.argmax(probs, axis=-1)
         return actions
 
+    # updates self NN with batch of data
+    def update_with_experience(
+            self,
+            observations,
+            actions,
+            dreturns,
+            inspect=    False) -> dict:
+        obs_vecs = self._get_observation_vec_batch(observations)
+        out = self.model.backward(obs_vecs, actions, dreturns)
+        out.pop('logits')
+        if 'probs' in out: out['probs'] = out['probs'].cpu().detach().numpy()
+        return out
+
     def _get_save_topdir(self) -> str:
-        return self.nnw['save_topdir']
+        return self.model['save_topdir']
 
     def save(self):
-        self.nnw.save()
+        self.model.save()
 
     def __str__(self):
-        return self.nnw.__str__()
+        return self.model.__str__()

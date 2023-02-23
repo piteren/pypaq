@@ -26,11 +26,11 @@ class A2C_TFActor(PG_TFActor):
             dreturns,
             inspect=    False) -> dict:
         obs_vecs = self._get_observation_vec_batch(observations)
-        out = self.nnw.backward(
+        out = self.model.backward(
             feed_dict=  {
-                self.nnw['observation_PH']:  obs_vecs,
-                self.nnw['action_PH']:       actions,
-                self.nnw['return_PH']:       dreturns},
+                self.model['observation_PH']:  obs_vecs,
+                self.model['action_PH']:       actions,
+                self.model['return_PH']:       dreturns},
             fetch=      ['optimizer','probs','loss','loss_actor','loss_critic','gg_norm','gg_avt_norm','actor_ce_mean','zeroes'])
         out.pop('optimizer')
         return out
