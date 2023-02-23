@@ -1,12 +1,13 @@
 import torch
 from typing import Optional
 
+from pypaq.torchness.types import TNS, DTNS
 from pypaq.torchness.motorch import Module
 from pypaq.torchness.layers import LayDense, zeroes
 from pypaq.torchness.base_elements import scaled_cross_entropy
 
 
-class A2CModel(Module):
+class A2CModule(Module):
 
     def __init__(
             self,
@@ -70,7 +71,7 @@ class A2CModel(Module):
         self.use_scaled_ce = use_scaled_ce
         self.use_huber = use_huber
 
-    def forward(self, observation) -> dict:
+    def forward(self, observation:TNS) -> DTNS:
 
         inp = self.ln(observation) if self.lay_norm else observation
 
@@ -100,7 +101,12 @@ class A2CModel(Module):
             'probs':    probs,
             'zeroes':   zsL}
 
-    def loss(self, observation, action_taken, dreturn) -> dict:
+    def loss(
+            self,
+            observation: TNS,
+            action_taken: TNS,
+            dreturn: TNS,
+    ) -> DTNS:
 
         out = self(observation)
 
