@@ -11,7 +11,7 @@
 import numpy as np
 
 from pypaq.R4C.helpers import extract_from_batch, RLException
-#from pypaq.R4C.policy_gradients.base.tf_based.pg_TF_actor import PG_TFActor
+from pypaq.R4C.policy_gradients.pg_actor import PGActor
 from pypaq.R4C.policy_gradients.actor_critic.tf_based.ac_TF_critic import AC_TFCritic
 from pypaq.R4C.policy_gradients.pg_trainer import PGTrainer
 
@@ -20,7 +20,7 @@ class ACTrainer(PGTrainer):
 
     def __init__(
             self,
-            actor: PG_TFActor,
+            actor: PGActor,
             critic_class: type(AC_TFCritic),
             **kwargs):
 

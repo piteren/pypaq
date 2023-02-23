@@ -6,8 +6,10 @@ from pypaq.torchness.layers import LayDense, zeroes
 from pypaq.torchness.base_elements import scaled_cross_entropy
 
 # baseline PG Module for MOTorch (PyTorch)
-class PGModule(Module):
+class ACModule(Module):
 
+    # TODO: implement
+    """
     def __init__(
             self,
             observation_width=  4,
@@ -86,3 +88,5 @@ class PGModule(Module):
         out.update({'loss': torch.mean(actor_ce_scaled)})
 
         return out
+    """
+    pass
