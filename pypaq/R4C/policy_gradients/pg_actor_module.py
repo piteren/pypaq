@@ -5,8 +5,9 @@ from pypaq.torchness.types import TNS, DTNS
 from pypaq.torchness.layers import LayDense, zeroes
 from pypaq.torchness.base_elements import scaled_cross_entropy
 
-# baseline PG Module for MOTorch (PyTorch)
-class PGModule(Module):
+
+# baseline PG Actor Module
+class PGActorModule(Module):
 
     def __init__(
             self,

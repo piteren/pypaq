@@ -15,7 +15,7 @@ from typing import Optional, List
 from pypaq.torchness.motorch import MOTorch, Module
 from pypaq.R4C.actor import TrainableActor
 from pypaq.R4C.envy import FiniteActionsRLEnvy
-from pypaq.R4C.policy_gradients.pg_actor_module import PGModule
+from pypaq.R4C.policy_gradients.pg_actor_module import PGActorModule
 
 
 class PGActor(TrainableActor, ABC):
@@ -24,7 +24,7 @@ class PGActor(TrainableActor, ABC):
             self,
             envy: FiniteActionsRLEnvy,
             name: str=                              'PGActor',
-            module_type: Optional[type(Module)]=    PGModule,
+            module_type: Optional[type(Module)]=    PGActorModule,
             seed: int=                              123,
             **kwargs):
 

@@ -3,23 +3,23 @@ import torch
 from pypaq.torchness.motorch import Module
 from pypaq.torchness.types import TNS, DTNS
 from pypaq.torchness.layers import LayDense, zeroes
-from pypaq.torchness.base_elements import scaled_cross_entropy
 
-# baseline PG Module for MOTorch (PyTorch)
-class ACModule(Module):
 
-    # TODO: implement
-    """
+# baseline AC Critic Module
+class ACCriticModule(Module):
+
     def __init__(
             self,
             observation_width=  4,
+            gamma=              0.99,  # discount factor (gamma)
             num_actions: int=   2,
-            hidden_layers=      (20,),
+            hidden_layers=      (24,24),
             lay_norm=           False,
-            use_scaled_ce=      True,  # experimental Scaled Cross Entropy loss
             seed=               121):
 
         torch.nn.Module.__init__(self)
+
+        self.gamma = gamma
 
         lay_shapeL = []
         next_in = observation_width
@@ -40,12 +40,10 @@ class ACModule(Module):
             self.add_module(f'lay_ln{lix}', ln)
             lix += 1
 
-        self.logits = LayDense(
+        self.qvs = LayDense(
             in_features=    next_in,
             out_features=   num_actions,
             activation=     None)
-
-        self.use_scaled_ce = use_scaled_ce
 
 
     def forward(self, observation:TNS) -> DTNS:
@@ -58,35 +56,30 @@ class ACModule(Module):
             zsL.append(zeroes(out))
             if self.lay_norm: out = ln(out)
 
-        logits = self.logits(out)
-        probs = torch.nn.functional.softmax(input=logits, dim=-1)
+        qvs = self.qvs(out)
 
         return {
-            'logits':       logits,
-            'probs':        probs,
-            'zeroes':       zsL}
+            'qvs':      qvs,
+            'zeroes':   zsL}
 
 
     def loss(
             self,
             observation: TNS,
-            action_taken: TNS,
-            dreturn: TNS) -> DTNS:
+            action_taken_OH: TNS, # one-hot vector of action taken
+            next_action_qvs: TNS,
+            next_action_probs: TNS,
+            reward: TNS
+    ) -> DTNS:
 
         out = self(observation)
-        logits = out['logits']
+        qvs = out['qvs']
 
-        if self.use_scaled_ce:
-            actor_ce_scaled = scaled_cross_entropy(
-                labels= action_taken,
-                scale=  dreturn,
-                probs=  out['probs'])
-        else:
-            actor_ce = torch.nn.functional.cross_entropy(logits, action_taken, reduction='none')
-            actor_ce_scaled = actor_ce * dreturn
+        qv = torch.sum(qvs * action_taken_OH, dim=-1)
+        next_V = torch.sum(next_action_qvs * next_action_probs, dim=-1) # V(next_s)
+        labels = reward + self.gamma * next_V
+        diff = labels - qv
+        loss = torch.mean(diff * diff) # MSE
 
-        out.update({'loss': torch.mean(actor_ce_scaled)})
-
+        out.update({'loss': loss})
         return out
-    """
-    pass

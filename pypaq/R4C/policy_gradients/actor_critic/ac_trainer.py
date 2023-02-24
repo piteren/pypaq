@@ -67,7 +67,7 @@ class ACTrainer(PGTrainer):
         observations =          np.asarray(extract_from_batch(batch, 'observation'))
         actions =               np.asarray(extract_from_batch(batch, 'action'))
         rewards =               np.asarray(extract_from_batch(batch, 'reward'))
-        next_observations =              extract_from_batch(batch, 'next_observation')
+        next_observations =                extract_from_batch(batch, 'next_observation')
         terminals =             np.asarray(extract_from_batch(batch, 'terminal'))
 
         if inspect:
@@ -110,9 +110,12 @@ class ACTrainer(PGTrainer):
             next_action_qvs=    next_actions_qvs,
             next_actions_probs= next_actions_probs,
             rewards=            rewards)
-        for k in crt_metrics:
-            act_metrics[f'critic_{k}'] = crt_metrics[k]
 
-        if np.isnan(act_metrics['loss']) or np.isnan(crt_metrics['loss']): raise RLException('NaN loss!')
+        # merge critic metrics
+        for k in crt_metrics:
+            if k not in ['qvs','zeroes']: # TODO: make more general, what about critic zeroes?
+                act_metrics[f'critic_{k}'] = crt_metrics[k]
+
+        #if np.isnan(act_metrics['loss']) or np.isnan(crt_metrics['loss']): raise RLException('NaN loss!')
 
         return act_metrics
