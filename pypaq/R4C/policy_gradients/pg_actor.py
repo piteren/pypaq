@@ -1,13 +1,3 @@
-"""
-
- 2021 (c) piteren
-
-    PG_Actor - PolicyGradients TrainableActor, NN based
-
-    TODO: implement parallel training, in batches (many envys)
-
-"""
-
 from abc import ABC
 import numpy as np
 from typing import Optional, List
@@ -17,7 +7,9 @@ from pypaq.R4C.actor import TrainableActor
 from pypaq.R4C.envy import FiniteActionsRLEnvy
 from pypaq.R4C.policy_gradients.pg_actor_module import PGActorModule
 
+# TODO: implement parallel training, in batches (many envys)
 
+# PolicyGradients TrainableActor, NN based
 class PGActor(TrainableActor, ABC):
 
     def __init__(
@@ -84,7 +76,10 @@ class PGActor(TrainableActor, ABC):
             dreturns,
             inspect=    False) -> dict:
         obs_vecs = self._get_observation_vec_batch(observations)
-        out = self.model.backward(obs_vecs, actions, dreturns)
+        out = self.model.backward(
+            observation=    obs_vecs,
+            action_taken=   actions,
+            dreturn=        dreturns)
         out.pop('logits')
         if 'probs' in out: out['probs'] = out['probs'].cpu().detach().numpy()
         return out

@@ -283,7 +283,7 @@ class RLTrainer(ABC):
 
             if self._tbwr:
                 for k,v in upd_metrics.items():
-                    if k not in ['value','advantage']: # TODO <- those are here as Tensors with shape [256] - not value - not Ok for TB <- fix it
+                    if k not in ['value','advantage','qvs']: # TODO <- those are here as Tensors with shape [256] - not value - not Ok for TB <- fix it
                         #print(v.shape)
                         #print(k,v)
                         self._tbwr.add(value=v, tag=f'actor_upd/{k}', step=self._upd_step)
