@@ -12,7 +12,7 @@ import numpy as np
 
 from pypaq.R4C.helpers import extract_from_batch, RLException
 from pypaq.R4C.policy_gradients.pg_actor import PGActor
-from pypaq.R4C.policy_gradients.actor_critic.tf_based.ac_TF_critic import AC_TFCritic
+from pypaq.R4C.policy_gradients.actor_critic.ac_critic import ACCritic
 from pypaq.R4C.policy_gradients.pg_trainer import PGTrainer
 
 
@@ -21,7 +21,7 @@ class ACTrainer(PGTrainer):
     def __init__(
             self,
             actor: PGActor,
-            critic_class: type(AC_TFCritic),
+            critic_class: type(ACCritic),
             **kwargs):
 
         # split kwargs assuming that Critic kwargs starts with 'critic_'

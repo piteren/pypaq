@@ -38,13 +38,15 @@ class PGActor(TrainableActor, ABC):
         np.random.seed(seed)
 
         # some overrides and updates
-        kwargs['name'] = self.name
-        kwargs['name_timestamp'] = False                # name timestamp is driven by TrainableActor (with self.name)
         if 'logger' in kwargs: kwargs.pop('logger')     # NNWrap will always create own logger (since then it is not given) with optionally given level
         kwargs['num_actions'] = self._envy.num_actions()
         kwargs['observation_width'] = self._get_observation_vec(self._envy.get_observation()).shape[-1]
 
-        self.model = MOTorch(module_type=module_type, seed=seed, **kwargs)
+        self.model = MOTorch(
+            module_type=    module_type,
+            name=           self.name,
+            seed=           seed,
+            **kwargs)
 
         self._rlog.info(f'*** PGActor : {self.name} *** (NN based) initialized')
 
