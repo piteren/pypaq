@@ -90,10 +90,13 @@ class ACTrainer(PGTrainer):
             print(f'qv_actions {qv_actions.shape}, {qv_actions[0]}')
 
         # update Actor
-        act_metrics = self.actor.update_with_experience(
-            observations=   observations,
-            actions=        actions,
-            dreturns=       qv_actions)
+        batch = [{
+            'observation':  o,
+            'action':       a,
+            'dreturn':      d} for o,a,d in zip(observations,actions,qv_actions)]
+        metrics = self.actor.update_with_experience(
+            batch=      batch,
+            inspect=    inspect)
 
         actions_OH = self._actions_OH_encoding(actions)
         if inspect: print(f'actions_OH {actions_OH.shape}, {actions_OH[0]}')
@@ -104,18 +107,20 @@ class ACTrainer(PGTrainer):
         if inspect: print(f'next_action_qvs {next_actions_qvs.shape}, {next_actions_qvs[0]}')
 
         # update Critic
+        batch = [{
+            'observation':          o,
+            'action_OH':            ao,
+            'next_action_qvs':      naq,
+            'next_action_probs':    nap,
+            'reward':               r}
+            for o,ao,naq,nap,r in zip(observations,actions_OH,next_actions_qvs,next_actions_probs,rewards)]
         crt_metrics = self.critic.update_with_experience(
-            observations=       observations,
-            actions_OH=         actions_OH,
-            next_action_qvs=    next_actions_qvs,
-            next_actions_probs= next_actions_probs,
-            rewards=            rewards)
+            batch=      batch,
+            inspect=    inspect)
 
-        # merge critic metrics
+        metrics['zeroes'] += crt_metrics.pop['zeroes']
+
         for k in crt_metrics:
-            if k not in ['qvs','zeroes']: # TODO: make more general, what about critic zeroes?
-                act_metrics[f'critic_{k}'] = crt_metrics[k]
+            metrics[f'critic_{k}'] = crt_metrics[k]
 
-        #if np.isnan(act_metrics['loss']) or np.isnan(crt_metrics['loss']): raise RLException('NaN loss!')
-
-        return act_metrics
+        return metrics

@@ -1,18 +1,3 @@
-"""
-
- 2022 (c) piteren
-
-    Envy is a base environment interface
-
-    RLEnvy is an interface that defines base RL methods used by Actor or Trainer (..or other objects)
-
-        RLEnvy returns reward after step (run). This value may (should?) be processed / overridden by Trainer.
-        Trainer is supposed to train Actor using information of reward that he defines / corrects observing an Envy.
-        He may apply discount, factor, moving average etc to those values.
-        (Actor does not need reward to act with policy.)
-
-"""
-
 from abc import abstractmethod, ABC
 import numpy as np
 from typing import List, Tuple, Optional
@@ -58,14 +43,21 @@ class Envy(ABC):
     def get_max_steps(self) -> Optional[int]: pass
 
 
-# adds to Envy methods needed by base RL algorithms
+# adds to Envy methods needed by base RL algorithms (used by Actor or Trainer)
 class RLEnvy(Envy, ABC):
 
     def run(self, action: object) -> Tuple[
         float,  # reward
         bool,   # is terminal
         bool    # has won
-    ]: pass
+    ]:
+        """
+        RLEnvy returns reward after each step (run). This value may (should?) be processed / overridden by Trainer.
+        Trainer is supposed to train Actor using information of reward that he defines / corrects observing an Envy.
+        He may apply discount, factor, moving average etc. to those values.
+        (Actor does not need reward to act with policy.)
+        """
+        pass
 
     # Envy current state rendering (for debug, preview etc.)
     def render(self): pass

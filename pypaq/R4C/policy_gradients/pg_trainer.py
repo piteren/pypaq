@@ -1,10 +1,3 @@
-"""
-
- 2022 (c) piteren
-
-    Policy Gradients Trainer
-
-"""
 import numpy as np
 
 from pypaq.lipytools.plots import two_dim_multi
@@ -13,6 +6,7 @@ from pypaq.R4C.policy_gradients.pg_actor import PGActor
 from pypaq.R4C.trainer import FATrainer
 
 
+# Policy Gradient Trainer
 class PGTrainer(FATrainer):
 
     def __init__(
@@ -35,7 +29,7 @@ class PGTrainer(FATrainer):
         self._rlog.info(f'> discount: {self.discount}')
 
     # PGActor update method
-    def _update_actor(self, inspect=False) -> dict:
+    def _update_actor(self, inspect:bool=False) -> dict:
 
         # get all and flush
         batch = self.memory.get_all()
@@ -98,33 +92,13 @@ class PGTrainer(FATrainer):
         else:
             for rs in episode_rewards:
                 dreturns += discounted_return(rewards=rs, discount=self.discount)
-        if self.do_zscore: dreturns = zscore_norm(dreturns)
-        dreturns = np.asarray(dreturns, dtype=np.float32)
+        if self.do_zscore:
+            dreturns = zscore_norm(dreturns)
 
-        out = self.actor.update_with_experience(
-            observations=   observations,
-            actions=        actions,
-            dreturns=       dreturns,
-            inspect=        inspect)
-
-        # TODO: below probably added for higher than PG algorithm and is not valid for PG
-        #value = out.pop('value').cpu().detach().numpy()
-        #advantage = out.pop('advantage').cpu().detach().numpy()
-
-        """
-        if inspect:
-            two_dim_multi(
-                ys=     [
-                    dreturns,
-                    value,
-                    advantage,
-                ],
-                names=  [
-                    'dreturns',
-                    'value',
-                    'advantage',
-                ],
-                legend_loc= 'lower left')
-        """
-
-        return out
+        batch = [{
+            'observation':  o,
+            'action':       a,
+            'dreturn':      d} for o,a,d in zip(observations,actions,dreturns)]
+        return self.actor.update_with_experience(
+            batch=      batch,
+            inspect=    inspect)

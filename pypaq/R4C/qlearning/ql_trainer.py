@@ -48,8 +48,10 @@ class QLearningTrainer(FATrainer):
 
         new_qvs = [(r + self.gamma * max(no_qvs)) for r, no_qvs in zip(rewards, no_qvs)]
 
+        batch = [{
+            'observation':  o,
+            'action':       a,
+            'new_qvs':      n} for o,a,n in zip(observations,actions,new_qvs)]
         return self.actor.update_with_experience(
-            observations=   observations,
-            actions=        actions,
-            new_qvs=        new_qvs,
-            inspect=        inspect)
+            batch=      batch,
+            inspect=    inspect)

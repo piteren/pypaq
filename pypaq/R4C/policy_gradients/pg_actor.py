@@ -1,11 +1,12 @@
 from abc import ABC
 import numpy as np
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
-from pypaq.torchness.motorch import MOTorch, Module
+from pypaq.R4C.helpers import extract_from_batch
 from pypaq.R4C.actor import TrainableActor
 from pypaq.R4C.envy import FiniteActionsRLEnvy
 from pypaq.R4C.policy_gradients.pg_actor_module import PGActorModule
+from pypaq.torchness.motorch import MOTorch, Module
 
 # TODO: implement parallel training, in batches (many envys)
 
@@ -71,17 +72,21 @@ class PGActor(TrainableActor, ABC):
     # updates self NN with batch of data
     def update_with_experience(
             self,
-            observations,
-            actions,
-            dreturns,
-            inspect=    False) -> dict:
+            batch: List[Dict[str,Any]],
+            inspect: bool,
+    ) -> Dict[str, Any]:
+
+        observations = extract_from_batch(batch, 'observation')
+
         obs_vecs = self._get_observation_vec_batch(observations)
         out = self.model.backward(
             observation=    obs_vecs,
-            action_taken=   actions,
-            dreturn=        dreturns)
+            action_taken=   extract_from_batch(batch, 'action'),
+            dreturn=        extract_from_batch(batch, 'dreturn'))
+
         out.pop('logits')
         if 'probs' in out: out['probs'] = out['probs'].cpu().detach().numpy()
+
         return out
 
     def _get_save_topdir(self) -> str:

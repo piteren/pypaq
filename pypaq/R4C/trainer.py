@@ -1,20 +1,9 @@
-"""
-
- 2022 (c) piteren
-
-    RL Trainer for Actor acting on RLEnvy
-
-        Implements generic RL training procedure, that is valid for some algorithms (QTable, PG, AC).
-        May be overridden with custom implementation, returns Dict with some training stats
-
-"""
-
 from abc import abstractmethod, ABC
 from collections import deque
 import numpy as np
 import random
 import time
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict, Any
 
 from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.lipytools.moving_average import MovAvg
@@ -36,15 +25,15 @@ class ExperienceMemory:
         self.memory = deque(maxlen=maxsize)
         random.seed(seed)
 
-    def append(self, element:dict):
+    def append(self, element:Dict[str,Any]):
         self.memory.append(element)
 
     # returns random sample of non-duplicates from memory
-    def sample(self, n) -> List[dict]:
+    def sample(self, n:int) -> List[Dict[str,Any]]:
         return random.sample(self.memory, n)
 
     # returns all elements from memory in original order
-    def get_all(self) -> List[dict]:
+    def get_all(self) -> List[Dict[str,Any]]:
         return list(self.memory)
 
     def clear(self):
@@ -56,6 +45,11 @@ class ExperienceMemory:
 
 # Reinforcement Learning Trainer for Actor acting on RLEnvy
 class RLTrainer(ABC):
+    """
+    Implements generic RL training procedure -> train()
+    This procedure is valid for some RL algorithms (QTable, PG, AC)
+    and may be overridden with custom implementation.
+    """
 
     def __init__(
             self,
@@ -65,10 +59,10 @@ class RLTrainer(ABC):
             memsize_batches: int,   # ExperienceMemory size (in number of batches)
             exploration: float,     # train exploration factor
             train_sampled: float,   # how often move is sampled (vs argmax) while training
-            seed: int=      123,
-            logger=         None,
-            loglevel=       20,
-            hpmser_mode=    False):
+            seed: int=          123,
+            logger=             None,
+            loglevel=           20,
+            hpmser_mode=        False):
 
         self._rlog = logger or get_pylogger(level=loglevel)
         self._rlog.info(f'*** RLTrainer *** initializes..')
@@ -98,8 +92,8 @@ class RLTrainer(ABC):
             intervals=  (10,50,100),
             tbwr=       self._tbwr) if not self.hpmser_mode else None
 
-    # updates Actor policy, returns dict with Actor "metrics" - loss etc.
-    def _update_actor(self, inspect=False) -> dict:
+    # updates Actor policy, returns dict with Actor "metrics" (check Actor.update_with_experience())
+    def _update_actor(self, inspect:bool=False) -> Dict[str,Any]:
         batch = self.memory.sample(self.batch_size)
         return self.actor.update_with_experience(
             batch=      batch,
@@ -134,7 +128,13 @@ class RLTrainer(ABC):
             break_terminal: bool,   # for True breaks play at terminal state
             exploration: float,
             sampled: float,
-            render: bool) -> Tuple[List[object], List[object], List[float], List[bool], List[bool]]:
+            render: bool
+    ) -> Tuple[
+        List[object],   # observation
+        List[object],   # action
+        List[float],    # reward
+        List[bool],     # terminal
+        List[bool]]:    # won
 
         self._rlog.log(5,f'playing for {steps} steps..')
 
@@ -207,7 +207,7 @@ class RLTrainer(ABC):
             sum_rewards += sum(rewards)
         return n_won/n_episodes, sum_rewards/n_episodes
 
-    # generic RL training procedure
+    # generic RL training procedure, returns dict with some training stats
     def train(
             self,
             num_updates: int,                       # number of training updates
@@ -260,8 +260,10 @@ class RLTrainer(ABC):
                 for o,a,r,n,t in zip(observations, actions, rewards, next_observations, terminals):
                     self.memory.append(dict(observation=o, action=a, reward=r, next_observation=n, terminal=t))
 
-                if terminals[-1]: n_terminals += 1 # ..may not be terminal when limit of new_actions reached
-                if wons[-1]: n_won += 1
+                if terminals[-1]:
+                    n_terminals += 1 # ..may not be terminal when limit of new_actions reached
+                if wons[-1]:
+                    n_won += 1
 
                 self._rlog.debug(f' >> Trainer gots {len(observations):3} observations after play and {len(self.memory):3} in memory, new_actions: {new_actions}' )
 

@@ -1,22 +1,14 @@
-"""
-
- 2022 (c) piteren
-
- QLearningActor
-    - supports only finite actions space environments (FiniteActionsRLEnvy)
-    - adds QLearning methods
-
-"""
-
 from abc import abstractmethod, ABC
 import numpy as np
-from typing import List
+from typing import List, Dict, Any
 
+from pypaq.R4C.helpers import extract_from_batch
 from pypaq.R4C.actor import TrainableActor
 from pypaq.R4C.envy import FiniteActionsRLEnvy
 from pypaq.lipytools.softmax import softmax
 
 
+# QLearningActor, supports finite actions space environments (FiniteActionsRLEnvy)
 class QLearningActor(TrainableActor, ABC):
 
     def __init__(
@@ -63,17 +55,23 @@ class QLearningActor(TrainableActor, ABC):
             action: int,
             new_qv: float) -> float: pass
 
-    # updates QV for given observations and actions batch, may be overridden with optimized version
+    # updates QV
     def update_with_experience(
             self,
-            observations: List[object], # batch of observations
-            actions: List[int],         # batch of selected actions for given observations (do not have to come from Actor policy!)
-            new_qvs: List[float],       # batch of QV to be updated (QV for selected action only)
-            inspect=    False) -> dict:
+            batch: List[Dict[str, Any]],
+            inspect: bool,
+    ) -> Dict[str, Any]:
+
         loss = 0.0
+
+        observations = extract_from_batch(batch, 'observation')
+        actions = extract_from_batch(batch, 'action')
+        new_qvs = extract_from_batch(batch, 'new_qvs')
+
         for ob, ac, nq in zip(observations, actions, new_qvs):
             loss += self._upd_QV(
                 observation=    ob,
                 action=         ac,
                 new_qv=         nq)
+
         return {'loss': loss}
