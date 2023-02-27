@@ -1,18 +1,11 @@
 import os
 import unittest
 
-from tests.envy import get_tmp_dir
-
-from pypaq.lipytools.files import prep_folder
+from tests.envy import flush_tmp_dir
 
 EXCLUDE_DIRS = [
     '__pycache__',
     #'mpython',
-    #'lipytools',
-    #'pms',
-    #'hpmser',
-    #'neuralmess',
-    #'neuralmess_duo'
 ]
 
 
@@ -23,7 +16,7 @@ if __name__ == '__main__':
     start_dirs = [d for d in start_dirs if d not in EXCLUDE_DIRS]
     print(f'\nTESTS starts for directories: {" | ".join(start_dirs)}')
 
-    prep_folder(get_tmp_dir(), flush_non_empty=True)
+    flush_tmp_dir()
 
     for start_dir in start_dirs:
         print(f'\n ************************ {start_dir} TESTS:')
