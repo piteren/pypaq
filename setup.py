@@ -13,7 +13,7 @@ setup(
     url=                'https://github.com/piteren/pypaq.git',
     author=             'Piotr Niewinski',
     author_email=       'pioniewinski@gmail.com',
-    description=        'python tools package (ML, NN, NLP, RL, MP)',
+    description=        'little python tools',
     packages=           find_packages(),
     install_requires=   get_requirements(),
     license=            'MIT')

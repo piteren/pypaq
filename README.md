@@ -1,10 +1,10 @@
 
-# pypaq - python tools package (ML, NN, NLP, MP)
+# pypaq - little python tools
 
 -----------------
 
 ## pypaq
-Package with some python tools, mainly related to Machine Learning tasks like Neural Networks, optimization.
+some python tools, useful for tasks related to Machine Learning etc.
 
 -----------------
 
