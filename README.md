@@ -1,9 +1,5 @@
 
 # pypaq - little python tools
-
------------------
-
-## pypaq
 some python tools, useful for tasks related to Machine Learning etc.
 
 -----------------
