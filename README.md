@@ -1,14 +1,14 @@
 
-# pypaq - python tools package (ML, NN, NLP, RL, MP)
+# pypaq - python tools package (ML, NN, NLP, MP)
 
 -----------------
 
 ## pypaq
-Package with some python tools.
-Tools are mainly related to Machine Learning tasks like Neural Networks, Reinforcement, Optimization, Hyperparameters Search.
-Package created by Piotr Niewinski while working on different projects.
+Package with some python tools, mainly related to Machine Learning tasks like Neural Networks, optimization.
 
-## Naming conventions
+-----------------
+
+### naming conventions
 
 Naming conventions used in pypaq code:
 
