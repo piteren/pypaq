@@ -53,7 +53,7 @@ class TestPlots(unittest.TestCase):
     """
     def test_three_dim(self):
 
-        from torchness.layers import PositionalEncoding
+        from pypaq.torchness.layers import PositionalEncoding
         import torch
 
         tns = torch.zeros(32,64)
@@ -65,4 +65,7 @@ class TestPlots(unittest.TestCase):
         xyz = []
         for rix in range(vals.shape[0]):
             for eix in range(vals.shape[1]):
-                xyz.append([rix, e
+                xyz.append([rix, eix, vals[rix, eix]])
+
+        three_dim(xyz)
+    """
