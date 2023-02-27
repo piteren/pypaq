@@ -6,8 +6,5 @@ pandas
 plotly
 psutil
 pyyaml
-sentence-transformers
-scikit-learn
 scipy
-tensorboard
 torch
