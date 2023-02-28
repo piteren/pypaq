@@ -1,8 +1,3 @@
-"""
-    Configuration Manager
-        - keeps configuration POINT {key: value}
-        - loads from and saves to file
-"""
 from copy import deepcopy
 from typing import Optional
 
@@ -10,6 +5,7 @@ from pypaq.lipytools.files import prep_folder, r_json, w_json
 from pypaq.pms.base import POINT
 
 
+# Configuration Manager, keeps configuration POINT {key: value}, loads from and saves to file
 class ConfigManager:
 
     def __init__(
@@ -73,28 +69,3 @@ class ConfigManager:
         if config_changed: self.__save_file()
 
         return config_changed if return_only_changed else self.get_config()
-
-
-def test_config(n_loops=10):
-
-    import time
-
-    config = {
-        'param_aaa':    15,
-        'beta':         20.45,
-        'do_it':        False,
-        'dont_do':      None}
-
-    cm = ConfigManager(
-        config= config,
-        file=   'config.file')
-    print(cm.get_config())
-
-    for _ in range(n_loops):
-        time.sleep(5)
-        newc = cm.load()
-        print(newc, cm.get_config())
-
-
-if __name__ == '__main__':
-    test_config()

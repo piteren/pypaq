@@ -1,22 +1,3 @@
-"""
-
- 2018 (c) piteren
-
-    PaSpa - Parameters Space
-
-        PaSpa is build from PSDD, it has:
-            - dim  - dimensionality (= number of axes)
-            - rdim - reduced dimensionality (rdim<=dim - since some axes are simpler(tuples, lists of ints))
-
-        each axis of space has:
-            - type (list - continuous, tuple - discrete)
-            - range (width)
-
-        PaSpa is a metric space (https://en.wikipedia.org/wiki/Metric_space)
-        PaSpa supports L1 and L2 distance calculations, normalized to 1 (1 is the longest diagonal of space)
-
-"""
-
 import math
 import random
 from typing import Optional
@@ -28,6 +9,20 @@ NO_REF = '__NO-REF__'
 
 # Parameters Space
 class PaSpa:
+    """
+    PaSpa - Parameters Space
+
+        PaSpa is build from PSDD, it has:
+            - dim  - dimensionality (= number of axes)
+            - rdim - reduced dimensionality (rdim<=dim - since some axes are simpler(tuples, lists of ints))
+
+        each axis of space has:
+            - type (list - continuous, tuple - discrete)
+            - range (width)
+
+        PaSpa is a metric space
+        PaSpa supports L1 and L2 distance calculations, normalized to 1 (the longest space diagonal)
+    """
 
     def __init__(
             self,

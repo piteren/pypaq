@@ -1,5 +1,6 @@
 from typing import Optional
 
+
 # moving average class, updates self.value with factor (given while init)
 class MovAvg:
 

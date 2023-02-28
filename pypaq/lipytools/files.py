@@ -9,13 +9,13 @@ import sys
 from typing import Union, Dict, List
 
 
-# ********************************************* for raise_exception=False each reader will return None if file not found
 
 # pickle read
 def r_pickle(
         file_path,
-        obj_type=           None, # if obj_type is given checks for compatibility with given type
-        raise_exception=    False):
+        obj_type=           None,   # if obj_type is given checks for compatibility with given type
+        raise_exception=    False,  # for False returns None if file not found
+):
     if not os.path.isfile(file_path):
         if raise_exception: raise FileNotFoundError(f'file {file_path} not exists!')
         return None
@@ -36,7 +36,8 @@ def w_pickle(
 # json read
 def r_json(
         file_path,
-        raise_exception=    False):
+        raise_exception=    False,  # for False returns None if file not found
+):
     if not os.path.isfile(file_path):
         if raise_exception: raise FileNotFoundError(f'file {file_path} not exists!')
         return None
@@ -53,7 +54,8 @@ def w_json(
 # jsonl read
 def r_jsonl(
         file_path,
-        raise_exception=False):
+        raise_exception=    False,  # for False returns None if file not found
+):
     if not os.path.isfile(file_path):
         if raise_exception: raise FileNotFoundError(f'file {file_path} not exists!')
         return None
@@ -72,7 +74,8 @@ def w_jsonl(
 # csv read
 def r_csv(
         file_path,
-        raise_exception=    False):
+        raise_exception=    False,  # for False returns None if file not found
+):
     if not os.path.isfile(file_path):
         if raise_exception: raise FileNotFoundError(f'file {file_path} not exists!')
         return None

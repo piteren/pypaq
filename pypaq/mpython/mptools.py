@@ -70,7 +70,7 @@ class ExSubprocess(Process, ABC):
             id: Optional[int or str]=   None,   # unique id to identify the subprocess, if not given takes from Process name
             raise_unk_exception=        True,   # raises exception other than KeyboardInterrupt
             logger=                     None,
-            loglevel=                   20):
+            loglevel=                   30):
 
         ABC.__init__(self)
         Process.__init__(self, target=self.__run)

@@ -1,22 +1,15 @@
-"""
-
- 2019 (c) piteren
-
-    stats methods
-
-"""
-
 import pandas as pd
 import numpy as np
+from typing import List, Union, Dict, Tuple
 
 
 # min, avg, max ..of num list
-def mam(vals: list):
-    if vals: return [min(vals), sum(vals) / len(vals), max(vals)]
-    else:    return [0,0,0]
+def mam(vals: list) -> Tuple[float,float,float]:
+    if vals: return min(vals), sum(vals) / len(vals), max(vals)
+    else:    return 0.0, 0.0, 0.0
 
 # mean, std, min, max (from given list of values or np.arr)
-def msmx(vals : list or np.array) -> dict:
+def msmx(vals: Union[List,np.ndarray]) -> Dict:
 
     arr = np.array(vals) if type(vals) is list else vals
     ret_dict = {
