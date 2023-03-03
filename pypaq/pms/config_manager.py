@@ -37,9 +37,7 @@ class ConfigManager:
         return deepcopy(self.__config)
 
     # loads configuration from file, updates self, returns new configuration (from file) or only keys that have changed values
-    def load(
-            self,
-            return_only_changed=    True) -> POINT:
+    def load(self, return_only_changed=True) -> POINT:
 
         file_config = self.__read_file() or {}
         config_changed = {}
