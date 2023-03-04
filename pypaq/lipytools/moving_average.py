@@ -7,7 +7,7 @@ class MovAvg:
     def __init__(
             self,
             factor=     0.1,
-            first_avg=  True,   # first 1/factor/2 values will be averaged
+            first_avg=  True,   # first (1/factor/2) values will be averaged
     ):
         self.value: Optional[float] = None
         self.factor = factor
