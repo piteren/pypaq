@@ -1,9 +1,8 @@
 import GPUtil
 import os
 import platform
-from typing import Optional, Union, List
-
 import torch
+from typing import Optional, Union, List
 
 from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.mpython.mptools import sys_res_nfo
@@ -42,10 +41,10 @@ DevicesPypaq: Union[int, None, float, str, torch.device, List[Union[int,None,flo
 def get_cuda_mem():
     devs = GPUtil.getGPUs()
     if devs: return devs[0].memoryTotal
-    else: return 12000 # safety return for no cuda devices case
+    else: return 0
 
 # returns list of available GPUs ids
-def get_available_cuda_id(max_mem=None) -> list: # None sets automatic, otherwise (0,1.1] (above 1 for all)
+def get_available_cuda_id(max_mem=None) -> List[int]: # None sets automatic, otherwise (0,1.1] (above 1 for all)
     if not max_mem:
         tot_mem = get_cuda_mem()
         if tot_mem < 5000:  max_mem=0.35 # small GPU case, probably system single GPU
@@ -59,8 +58,8 @@ def report_cuda() -> str:
         rp += f'\n > id: {device.id}, name: {device.name}, MEM: {int(device.memoryUsed)}/{int(device.memoryTotal)} (U/T)'
     return rp
 
-# returns dev_pypaq base form (list of int or None)
-def to_dev_pypaq_base(
+# returns pypaq representation of given devices
+def _get_devices_pypaq(
         devices: DevicesPypaq=  -1,
         logger=                 None,
         loglevel=               20,
@@ -71,6 +70,7 @@ def to_dev_pypaq_base(
     if type(devices) is not list: devices = [devices]  # first convert to list
 
     cpu_count = sys_res_nfo()['cpu_count']
+    logger.debug(f'got {cpu_count} CPU devices in a system')
 
     # look for available CUDA
     available_cuda_id = []
@@ -78,26 +78,23 @@ def to_dev_pypaq_base(
         logger.warning('no GPUs available for OSX, using only CPU')
     else:
         available_cuda_id = get_available_cuda_id()
-
-    if not available_cuda_id:
-        logger.debug('no GPUs available, using only CPU')
-        num = len(devices)
-        if num == 0: num = cpu_count
-        devices = [None] * num
-
-    devices_base = []
+    logger.debug(f'got available GPU devices: {available_cuda_id}')
 
     if devices == []:
-        devices_base = available_cuda_id
+        return available_cuda_id
 
+    devices_base = []
     for d in devices:
 
         known_device = False
 
         if type(d) is int:
             known_device = True
-            if d < 0: devices_base.append(available_cuda_id[d])
-            else:     devices_base.append(d)
+            if d >= 0:
+                devices_base.append(d)
+            else:
+                if available_cuda_id:
+                    devices_base.append(available_cuda_id[d])
 
         if d == []:
             known_device = True
@@ -149,13 +146,12 @@ def get_devices(
 
     if not logger: logger = get_pylogger(level=loglevel)
 
-    devices_base = to_dev_pypaq_base(devices=devices, logger=logger)
+    devices_base = _get_devices_pypaq(devices=devices, logger=logger)
 
     if not torch_namespace:
         return devices_base
     else:
         return [f'cuda:{dev}' if type(dev) is int else 'cpu' for dev in devices_base]
-
 
 # masks GPUs from given list of ids or single one
 def mask_cuda(ids: Optional[List[int] or int]=  None):
