@@ -4,7 +4,7 @@ from typing import Optional, List
 
 from pypaq.lipytools.printout import stamp
 from pypaq.lipytools.files import r_pickle, w_pickle, prep_folder
-from pypaq.lipytools.pylogger import get_pylogger, get_child
+from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.pms.base import POINT
 from pypaq.pms.subscriptable import SubGX
 
@@ -22,8 +22,7 @@ class ParaSave(SubGX):
 
     PARASAVE_DEFAULTS = {
         'gxable':   True,
-        'parents':  [], # list of parents names TODO: what is this for?
-    }
+        'parents':  []} # list of parents names
 
     SAVE_TOPDIR = None
     SAVE_FN_PFX = 'point'   # POINT file prefix

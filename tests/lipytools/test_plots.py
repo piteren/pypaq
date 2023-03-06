@@ -49,17 +49,10 @@ class TestPlots(unittest.TestCase):
             name=       'multi_save',
             save_FD=    PLOTS_FD)
 
-    # TODO: prepare without torchness
-    """
+
     def test_three_dim(self):
 
-        from pypaq.torchness.layers import PositionalEncoding
-        import torch
-
-        tns = torch.zeros(32,64)
-
-        pe = PositionalEncoding(64)
-        vals = pe(tns).cpu().numpy()
+        vals = np.random.random((32,64))
         print(vals.shape)
 
         xyz = []
@@ -68,4 +61,3 @@ class TestPlots(unittest.TestCase):
                 xyz.append([rix, eix, vals[rix, eix]])
 
         three_dim(xyz)
-    """

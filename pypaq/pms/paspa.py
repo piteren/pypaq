@@ -134,9 +134,8 @@ class PaSpa:
             ref_val: float or int,  # reference value (in range og L & R)
             noise_scale: float,     # <0.0;1.0> distance from ref_val as a factor of range where new val will be sampled
             rngL: float or int,     # range Left value
-            rngR: float or int      # range Right value
+            rngR: float or int,     # range Right value
     ) -> float:
-        assert rngL <= ref_val <= rngR, f'ERR: ref_val: {ref_val} not in range: [{rngL};{rngR}]' # TODO: safety check, remove later
         dist = noise_scale * (rngR-rngL)
         # left side of ref_val
         if random.random() < 0.5:
@@ -161,7 +160,6 @@ class PaSpa:
             if 'int' in axT: val = int(round(val))
         else: val = random.choice(psdd)
 
-        assert self.__value_in_axis(value=val, axis=axis) # TODO: safety check, remove later
         return val
 
     # gets random value for axis (algorithm ensures equal probability for both sides of ref_val)
@@ -215,7 +213,6 @@ class PaSpa:
                         rngR=           len(axis_psd)-1)
                 val = self.__closest(val_ix, axis)
 
-        assert self.__value_in_axis(value=val, axis=axis) # TODO: safety check, remove later
         return val
 
     # samples (random) point from whole space or from the surroundings of ref_point
