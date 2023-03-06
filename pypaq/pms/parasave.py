@@ -56,7 +56,6 @@ class ParaSave(SubGX):
         self.__log.debug(f'> save_topdir: {self.save_topdir}')
         self.__log.debug(f'> save_fn_pfx: {self.save_fn_pfx}')
 
-
         if assert_saved and not os.path.isfile(ParaSave.__obj_fn(name, self.save_topdir, self.save_fn_pfx)):
             ex_msg = f'ParaSave {self.name} does not exist!'
             self.__log.error(ex_msg)
