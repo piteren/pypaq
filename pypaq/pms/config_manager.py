@@ -5,19 +5,19 @@ from pypaq.lipytools.files import prep_folder, r_json, w_json
 from pypaq.pms.base import POINT
 
 
-# Configuration Manager, keeps configuration POINT {key: value}, loads from and saves to file
+# Configuration Manager, keeps configuration POINT {key: value}, loads from and saves to file (json)
 class ConfigManager:
 
     def __init__(
             self,
-            file: str,
+            file_FP: str,                       # full path to config file
             config: Optional[POINT]=    None,   # {param: value}
             try_to_load=                True):  # tries to load from file if file exists
 
-        self.__file = file
-        self.__config: POINT = config if config is not None else {}
+        self.__file = file_FP
+        self.__config: POINT = deepcopy(config) if config is not None else {}
 
-        prep_folder(file)
+        prep_folder(file_FP)
 
         if try_to_load:
             self.load()

@@ -137,10 +137,13 @@ class ExSubprocess(Process, ABC):
     def closed(self):
         return self._closed
 
+    # some process info
     def get_info(self) -> str:
-        pid = self.pid if not self.closed else '<pid:closed>'
+        pid = self.pid if not self.closed else None
+        pid_nfo = pid if pid is not None else '<pid:closed>'
+        mem_nfo = int(psutil.Process(pid).memory_info().rss / 1024 ** 2) if pid is not None else '-'
         exitcode = self.exitcode if not self.closed else '<exitcode:closed>'
-        nfo = f'{str(self)}, pid: {pid}, parent pid: {self._parent_pid}, alive: {self.alive}, exitcode: {exitcode}'
+        nfo = f'{str(self)}, pid: {pid_nfo}, mem:{mem_nfo}MB, parent pid: {self._parent_pid}, alive: {self.alive}, exitcode: {exitcode}'
         return nfo
 
 

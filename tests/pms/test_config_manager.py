@@ -33,5 +33,5 @@ class TestCM(unittest.TestCase):
             newc = cm.load()
             print(newc, cm.get_config())
 
-        cm = ConfigManager(file=f'{CONFIG_DIR}/config.file')
+        cm = ConfigManager(file_FP=f'{CONFIG_DIR}/config.file')
         print(cm.get_config())
