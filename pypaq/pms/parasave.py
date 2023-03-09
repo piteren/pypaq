@@ -2,6 +2,7 @@ import os
 import shutil
 from typing import Optional, List
 
+from pypaq.exception import PyPaqException
 from pypaq.lipytools.printout import stamp
 from pypaq.lipytools.files import r_pickle, w_pickle, prep_folder
 from pypaq.lipytools.pylogger import get_pylogger
@@ -9,7 +10,7 @@ from pypaq.pms.base import POINT
 from pypaq.pms.subscriptable import SubGX
 
 
-class ParaSaveException(Exception):
+class ParaSaveException(PyPaqException):
     pass
 
 

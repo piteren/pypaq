@@ -4,6 +4,7 @@ import platform
 import torch
 from typing import Optional, Union, List
 
+from pypaq.exception import PyPaqException
 from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.mpython.mptools import sys_res_nfo
 
@@ -132,7 +133,7 @@ def _get_devices_pypaq(
         if not known_device:
             msg = f'unknown (not valid?) device given: {d}'
             logger.error(msg)
-            raise Exception(msg)
+            raise PyPaqException(msg)
 
     return devices_base
 
