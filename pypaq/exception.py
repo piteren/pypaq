@@ -1,0 +1,2 @@
+class PyPaqException(Exception):
+    pass

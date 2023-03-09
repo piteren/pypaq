@@ -1,5 +1,7 @@
 from typing import Optional
 
+from pypaq.exception import PyPaqException
+
 
 # moving average class, updates self.value with factor (given while init)
 class MovAvg:
@@ -37,4 +39,6 @@ class MovAvg:
 
 
     def __call__(self) -> float:
+        if self.value is None:
+            raise PyPaqException('MovAvg not updated yet, value unknown')
         return self.value
