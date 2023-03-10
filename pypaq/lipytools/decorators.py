@@ -25,7 +25,7 @@ def args(f):
         no_val = '--'
 
         arL = ins.args
-        if arL[0] == 'self': arL = arL[1:]                  # simple, BUT not 100% accurate, ...but who names param 'self'?
+        if arL[0] == 'self': arL = arL[1:]                  # simple, BUT not 100% accurate, ..but who names param 'self'?
 
         defL = list(ins.defaults) if ins.defaults else []   # list of default values
         defL = [no_val]*(len(arL)-len(defL)) + defL         # pad them with no_val
