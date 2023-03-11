@@ -4,7 +4,7 @@ import os
 import pandas as pd
 import plotly.express as px
 import scipy
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from pypaq.lipytools.files import prep_folder
 from pypaq.lipytools.stats import stats_pd, msmx
@@ -12,7 +12,7 @@ from pypaq.lipytools.stats import stats_pd, msmx
 
 
 def histogram(
-        val_list: list or np.ndarray,
+        val_list: Union[List,np.ndarray],
         name=                   'values',
         rem_nstd: float=        0.0,    # removes values out of N*stddev
         msmx_stats=             True,   # prints minimal stats
@@ -60,15 +60,15 @@ def histogram(
 
 
 def two_dim(
-        y: list or np.array,            # two(yx) or one(y) dim list or np.array
-        x: list or np.array=    None,
-        name=                   'values',
-        save_FD: str =          None,
-        xlogscale=              False,
-        ylogscale=              False,
-        legend_loc=             'upper left'):
+        y: Union[List,np.ndarray],                  # two(yx) or one(y) dim list or np.array
+        x: Optional[Union[List,np.ndarray]]=    None,
+        name=                                   'values',
+        save_FD: str =                          None,
+        xlogscale=                              False,
+        ylogscale=                              False,
+        legend_loc=                             'upper left'):
 
-    if type(y) is list: y = np.array(y)
+    if type(y) is list: y = np.asarray(y)
     if x is None:
         if len(y.shape) < 2: x = np.arange(len(y))
         else:
@@ -89,7 +89,7 @@ def two_dim(
 
 
 def two_dim_multi(
-        ys: list,               # list of lists or np.arrays
+        ys: List[Union[List,np.ndarray]],
         names: Optional[List[str]]= None,
         name: Optional[str]=        None,
         save_FD: str=               None,

@@ -11,7 +11,7 @@ def mam(vals: list) -> Tuple[float,float,float]:
 # mean, std, min, max (from given list of values or np.arr)
 def msmx(vals: Union[List,np.ndarray]) -> Dict:
 
-    arr = np.array(vals) if type(vals) is list else vals
+    arr = np.asarray(vals) if type(vals) is list else vals
     ret_dict = {
         'mean': float(np.mean(arr)),
         'std':  float(np.std(arr)),
