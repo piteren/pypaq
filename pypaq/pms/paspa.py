@@ -360,7 +360,7 @@ class PaSpa:
             if len(axis)                > max_ax_l: max_ax_l = len(axis)
             if len(str(self.__psdd[axis])) > max_ps_l: max_ps_l = len(str(self.__psdd[axis]))
         if max_ax_l > 40: max_ax_l = 40
-        if max_ps_l > 40: max_ps_l = 40
+        if max_ps_l > 70: max_ps_l = 70
 
         for axis in self.axes:
             info += f' > {axis:{max_ax_l}s}  {str(self.__psdd[axis]):{max_ps_l}s}  {self.__axT[axis]:11s}  width: {self.__axW[axis]}\n'

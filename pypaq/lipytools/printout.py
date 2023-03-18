@@ -49,7 +49,7 @@ def list_str(ls: List[Any], limit:Optional[int]=200):
     return lstr
 
 # prints nested dict
-def print_nested_dict(dc: dict, ind_scale=2, line_limit=200):
+def print_nested_dict(dc: dict, ind_scale:int=2, line_limit:int=200):
 
     tpD = {
         dict:   'D',
@@ -57,11 +57,11 @@ def print_nested_dict(dc: dict, ind_scale=2, line_limit=200):
         tuple:  'T',
         str:    'S'}
 
-    def __prn_root(root: dict, ind, ind_scale=2, line_limit=line_limit):
+    def __prn_root(root:dict, ind, ind_scale:int=2, line_limit:int=line_limit):
 
         spacer = ' ' * ind * ind_scale
         for k in sorted(list(root.keys())):
-            tp = tpD.get(type(root[k]),'O')
+            tp = tpD.get(type(root[k]),'')
             ln = len(root[k]) if tp in tpD.values() else ''
 
             exmpl = ''
@@ -71,7 +71,8 @@ def print_nested_dict(dc: dict, ind_scale=2, line_limit=200):
                     if len(exmpl)>line_limit: exmpl = f'{exmpl[:line_limit]}..'
                 exmpl = f' : {exmpl}'
 
-            print(f'{spacer}{k} [{tp}.{ln}]{exmpl}')
+            type_len_nfo = f' [{tp}.{ln}]' if tp else ''
+            print(f'{spacer}{k}{type_len_nfo}{exmpl}')
 
             if type(root[k]) is dict: __prn_root(root[k],ind+1,ind_scale)
 
