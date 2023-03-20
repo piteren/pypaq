@@ -5,7 +5,12 @@ import psutil
 import time
 from typing import Any, Optional
 
+from pypaq.exception import PyPaqException
 from pypaq.lipytools.pylogger import get_pylogger
+
+
+class MPythonException(PyPaqException):
+    pass
 
 
 # message sent between processes via Ques (my que)
@@ -13,6 +18,7 @@ class QMessage:
     def __init__(self, type:str, data:Any):
         self.type = type
         self.data = data
+
 
 # https://github.com/vterron/lemon/commit/9ca6b4b1212228dbd4f69b88aaf88b12952d7d6f
 class SharedCounter:
@@ -28,6 +34,7 @@ class SharedCounter:
     def value(self) -> int:
         return self.count.value
 
+
 # my que
 class Que:
 
@@ -36,7 +43,8 @@ class Que:
         self.size = SharedCounter(0)
 
     def put(self, msg:QMessage, **kwargs):
-        assert isinstance(msg, QMessage)
+        if not isinstance(msg, QMessage):
+            raise MPythonException(f'\'msg\' should be type of QMessage, but is {type(msg)}')
         self.size.increment(1)
         self.q.put(msg, **kwargs)
 
@@ -48,7 +56,8 @@ class Que:
         try:
             msg = self.q.get(block=block, timeout=timeout)
             self.size.increment(-1)
-            assert isinstance(msg, QMessage)
+            if not isinstance(msg, QMessage):
+                raise MPythonException(f'\'msg\' should be type of QMessage, but is {type(msg)}')
             return msg
         except Empty:
             return None

@@ -2,7 +2,7 @@ from copy import deepcopy
 from typing import List, Optional, Union, Dict, Set, Tuple
 
 from pypaq.textools.text_metrics import lev_dist
-from pypaq.pms.base import POINT, PSDD
+from pypaq.pms.base import POINT, PSDD, PMSException
 from pypaq.pms.paspa import PaSpa
 
 
@@ -10,15 +10,17 @@ from pypaq.pms.paspa import PaSpa
 class Subscriptable:
     """
     Subscriptable
-        its (object) parameters of POINT may be accessed in dict-like style [], but are IS NOT a dict type
+        its (object) parameters (POINT) may be accessed in dict-like style [], but are IS NOT a dict type
         protected fields may also be accessed with [], but rather should not
     """
 
     def __getitem__(self, key):
         return getattr(self, key)
 
+
     def __setitem__(self, key, value):
         setattr(self, key, value)
+
 
     def __contains__(self, key):
         return key in vars(self)
@@ -72,8 +74,9 @@ class Subscriptable:
 
         return found or None
 
+
     def __str__(self):
-        s = f'\n(Subscriptable):\n'
+        s = f'{self.__class__.__name__} (Subscriptable):\n'
         pms = self.get_point()
         for k in sorted(pms.keys()):
             p = f'param: {k}'
@@ -81,10 +84,11 @@ class Subscriptable:
             s += f'{p:30s} {v:30s}\n'
         return s[:-1]
 
+
 # extends Subscriptable with GX on POINT
 class SubGX(Subscriptable):
     """
-    Subscriptable with GX (genetic crossing algorithm)
+    SubGX - Subscriptable with GX (genetic crossing algorithm)
         implements GX on parents POINTs
         GX algorithm builds child POINT from:
             - parameters of parents POINTs
@@ -94,23 +98,30 @@ class SubGX(Subscriptable):
 
     def __init__(
             self,
-            name: str,
+            name: Optional[str]=    None,
             family: Optional[str]=  None, # family of GXable
             psdd: Optional[PSDD]=   None, # PSDD of GXable
             **kwargs):
 
-
+        if not name:
+            name = self.__class__.__name__
         self.name = name
+
         self.family = family
         # INFO: all keys of self.psdd should be present in self
         #  - it is not checked now (while init) since self may be updated even after init, IT IS checked while GX
         self.psdd = psdd or {}
-        self.update(kwargs)
 
-    # returns self POINT limited to axes included in self.psdd
-    def get_gxable_point(self) -> POINT:
-        point_gxable = {k: self[k] for k in self.psdd}
-        return point_gxable
+        # sample kwargs from psdd
+        if not kwargs:
+
+            if not psdd:
+                raise PMSException('when SubGX \'kwargs\' not given, \'psdd\' must be given')
+
+            paspa = PaSpa(psdd=psdd)
+            kwargs = paspa.sample_point_GX()
+
+        self.update(kwargs)
 
     # checks for compatibility of families, True when are equal or when at least one family is None
     @staticmethod
@@ -145,7 +156,8 @@ class SubGX(Subscriptable):
             prob_diff_axis=                 0.3
     ) -> POINT:
 
-        assert SubGX.families_compatible(parent_main, parent_scnd), 'ERR: families not compatible'
+        if not SubGX.families_compatible(parent_main, parent_scnd):
+            raise PMSException('ERR: parents families not compatible')
 
         point_main = parent_main.get_point()
         point_scnd = parent_scnd.get_point() if parent_scnd else None
@@ -159,7 +171,8 @@ class SubGX(Subscriptable):
         paspa_merged = PaSpa(psdd=psdd_merged)
 
         paspa_axes_not_in_parent = [a for a in paspa_merged.axes if a not in point_main]
-        assert not paspa_axes_not_in_parent, f'ERR: paspa axes not in parent_main: {paspa_axes_not_in_parent}'
+        if paspa_axes_not_in_parent:
+            raise PMSException(f'ERR: paspa axes not in parent_main: {paspa_axes_not_in_parent}')
 
         # sub-points limited to axes of psdd_merged (PaSpa.sample_point_GX() does not accept other axes..)
         point_main_psdd = {k: point_main[k] for k in psdd_merged}
@@ -184,8 +197,14 @@ class SubGX(Subscriptable):
 
         return point_child
 
+    # gxable_point is a self POINT limited to axes of self.psdd
+    @property
+    def gxable_point(self) -> POINT:
+        return {k: self[k] for k in self.psdd}
+
+
     def __str__(self):
-        s = f'\n(Subscriptable) name: {self.name}, family: {self.family}\n'
+        s = f'{self.__class__.__name__} (SubGX) name: {self.name}, family: {self.family}\n'
         pms = self.get_point()
         for k in sorted(pms.keys()):
             p = f'param: {k}'

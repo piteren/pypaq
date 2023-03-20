@@ -8,6 +8,8 @@ from pathlib import Path
 import sys
 from typing import Union, Dict, List
 
+from pypaq.exception import PyPaqException
+
 
 
 # pickle read
@@ -23,7 +25,9 @@ def r_pickle(
     # obj = pickle.load(open(file_path, 'rb')) << replaced by:
     with open(file_path, 'rb') as file: obj = pickle.load(file)
 
-    if obj_type: assert type(obj) is obj_type, f'ERROR: obj from file is not {str(obj_type)} type !!!'
+    if obj_type:
+        if not type(obj) is obj_type:
+            raise PyPaqException(f'ERROR: obj from file is not {str(obj_type)} type')
     return obj
 
 # pickle write

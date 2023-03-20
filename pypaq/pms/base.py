@@ -1,6 +1,7 @@
 import inspect
 from typing import Any, Dict, List, Tuple, Callable, Optional
 
+from pypaq.exception import PyPaqException
 from pypaq.lipytools.printout import float_to_str
 
 AXIS =  str                                     # axis type (parameter name)
@@ -9,25 +10,27 @@ POINT = Dict[AXIS, P_VAL]                       # POINT ia a dict {parameter: va
 
 
 """
-    PSDD - Parameters Space Definition Dict
-        dictionary that defines space of POINTS {axis(parameter name): list or tuple or value}
-            - list of ints or floats defines continuous range
-            - tuple may contain elements of any type (even non-numeric), may have one
-            - any other type is considered to be a constant (single value)
+PSDD - Parameters Space Definition Dict
+    dictionary that defines space of POINTS {axis(parameter name): list or tuple or value}
+        - list of ints or floats defines continuous range
+        - tuple may contain elements of any type (even non-numeric), may have one
+        - any other type is considered to be a constant (single value)
 
-            example:
-            {   'a':    [0.0, 1],               # range of floats
-                'b':    (-1,-7,10,15.5,90,30),  # set of num(float) values, num will be sorted
-                'c':    ('tat','mam','kot'),    # set of diff values
-                'd':    [0,10],                 # range of ints
-                'e':    (-2.0,2,None)}          # set of diff values
-                'f':    (16.2,)}                # single value
-
+        example:
+        {   'a':    [0.0, 1],               # range of floats
+            'b':    (-1,-7,10,15.5,90,30),  # set of num(float) values, num will be sorted
+            'c':    ('tat','mam','kot'),    # set of diff values
+            'd':    [0,10],                 # range of ints
+            'e':    (-2.0,2,None)}          # set of diff values
+            'f':    (16.2,)}                # single value
 """
 
 RANGE = List[P_VAL] or Tuple[P_VAL] or P_VAL    # axis range type (range of parameter)
 PSDD  = Dict[AXIS, RANGE]                       # Parameters Space Definition Dict {parameter: range}}
 
+
+class PMSException(PyPaqException):
+    pass
 
 # prepares nice string of POINT
 def point_str(p: POINT) -> str:

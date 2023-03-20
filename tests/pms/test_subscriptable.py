@@ -54,24 +54,47 @@ class TestSubGX(unittest.TestCase):
 
     def test_base(self):
 
+        self.assertRaises(Exception, SubGX)
+
         sa = SubGX(name='sa', **_POINT)
         print(sa)
         self.assertTrue(sa['a'] == 1)
-        self.assertTrue(not sa.get_gxable_point())
+        self.assertTrue(not sa.gxable_point)
+
+
+    def test_psdd(self):
+
+        sa = SubGX(name='sa', psdd=_PSDD, **_POINT)
+        print(sa)
+        self.assertTrue(sa['a'] == 1)
+        p = sa.gxable_point
+        print(p)
+        self.assertTrue(len(p)==3)
+
+        sa = SubGX(psdd=_PSDD)
+        print(sa)
+        p = sa.gxable_point
+        print(p)
+        self.assertTrue(len(p)==3)
+
+
+    def test_more(self):
+
+        sa = SubGX(name='sa', **_POINT)
 
         sb_point = SubGX.gx_point(sa)
         sb = SubGX(**sb_point)
         print(sb)
         self.assertTrue(sb['name'] == 'sa_(sgxp)')
         self.assertTrue(sb['a'] == 1)
-        self.assertTrue(not sa.get_gxable_point())
+        self.assertTrue(not sa.gxable_point)
 
         sa['psdd'] = _PSDD
         sc_point = SubGX.gx_point(sa, sb)
         sc = SubGX(**sc_point)
         print(sc)
-        self.assertTrue(1<=sc['a']<=20 and 0<=sc['b']<=1 and sc['c'] in _PSDD['c'])
-        self.assertTrue(len(sc.get_gxable_point())==3)
+        self.assertTrue(20 >= sc['a'] >= 1 >= sc['b'] >= 0 and sc['c'] in _PSDD['c'])
+        self.assertTrue(len(sc.gxable_point)==3)
 
         sa['a'] = 1000
         self.assertRaises(AssertionError, SubGX.gx_point, sa)
@@ -94,5 +117,5 @@ class TestSubGX(unittest.TestCase):
             prob_diff_axis= 0.5)
         sd = SubGX(**sd_point)
         print(sd)
-        self.assertTrue(1<=sd['a']<=20 and 0<=sd['b']<=1 and sd['c'] in _PSDD['c'])
-        self.assertTrue(len(sd.get_gxable_point())==3)
+        self.assertTrue(20 >= sd['a'] >= 1 >= sd['b'] >= 0 and sd['c'] in _PSDD['c'])
+        self.assertTrue(len(sd.gxable_point)==3)
