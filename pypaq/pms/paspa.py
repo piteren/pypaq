@@ -13,15 +13,16 @@ class PaSpa:
     """
     PaSpa - Parameters Space
 
-        PaSpa is build from PSDD (Params Space Dictionary), it has:
-            - dim  - dimensionality (= number of axes)
-            - rdim - reduced dimensionality (rdim<=dim - since some axes are simpler(tuples, lists of ints))
+    PaSpa is build from PSDD (Params Space Definition Dictionary),
+    PaSpa has two properties that may describe its complexity:
+    - dim  - dimensionality (= number of axes)
+    - rdim - reduced dimensionality (rdim<=dim - since some axes are simpler(tuples, lists of ints))
 
-        each axis of space has:
-            - type (list - continuous, tuple - discrete)
-            - range (width)
+    Each axis of PaSpa has:
+    - type (list, tuple) of (float, int, diff)
+    - range (width)
 
-        PaSpa is a metric space, supports L2 distance calculations, normalized to 1 (the longest space diagonal)
+    PaSpa is a metric space, supports L2 distance calculations, normalized to 1 (the longest space diagonal)
     """
 
     def __init__(self, psdd:PSDD, seed=123, logger=None):
@@ -30,9 +31,8 @@ class PaSpa:
 
         self._psdd = psdd
         self.axes = sorted(list(self._psdd.keys()))
-        self.dim = len(self._psdd)
         if self.logger:
-            self.logger.info(f'*** PaSpa ***  inits..')
+            self.logger.info(f'*** PaSpa *** inits..')
             self.logger.info(f'> dim: {self.dim}')
 
         random.seed(seed)
@@ -63,7 +63,7 @@ class PaSpa:
             pdef = self._psdd[axis]
             tp = 'tuple' if type(pdef) is tuple else 'list'
             if tp == 'list' and len(set(pdef))!= 2:
-                raise PMSException('parameter definition with list should have two different elements: >{pdef}<!')
+                raise PMSException(f'parameter definition with list should have two different elements: >{pdef}<!')
 
             tpn = 'int' # default
             are_flt = False
@@ -346,9 +346,13 @@ class PaSpa:
     def psdd(self) -> PSDD:
         return deepcopy(self._psdd)
 
+    @property
+    def dim(self) -> int:
+        return len(self._psdd)
+
     # calculates reduced dimensionality of PaSpa
     @property
-    def rdim(self):
+    def rdim(self) -> float:
         """
         rdim = log10(∏ sq if sq<10 else 10) for all axes
             sq = 10 for list of floats (axis)
