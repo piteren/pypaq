@@ -8,10 +8,9 @@ class TestMovAvg(unittest.TestCase):
     def test_base(self):
 
         ma = MovAvg()
-        v = ma()
-        print(v)
-        self.assertTrue(v is None)
+        self.assertRaises(Exception, ma)
 
+        v = None
         for ix in range(5):
             v = ma.upd(10)
             print(v)

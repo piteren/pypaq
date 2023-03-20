@@ -58,7 +58,7 @@ class TestPaspa(unittest.TestCase):
             pc = paspa_b.sample_point_GX(pc, pd)
 
             if paspa_a != paspa_b:
-                self.assertRaises(AssertionError, paspa_a.sample_point_GX, pa, pc)
+                self.assertRaises(Exception, paspa_a.sample_point_GX, pa, pc)
             else: print(paspa_a.axes,paspa_b.axes)
 
 

@@ -97,13 +97,13 @@ class TestSubGX(unittest.TestCase):
         self.assertTrue(len(sc.gxable_point)==3)
 
         sa['a'] = 1000
-        self.assertRaises(AssertionError, SubGX.gx_point, sa)
+        self.assertRaises(Exception, SubGX.gx_point, sa)
         print('\nPoint out of space while GX!')
         sa['a'] = 1
 
         sa['family'] = 'fa'
         sc['family'] = 'fb'
-        self.assertRaises(AssertionError, SubGX.gx_point, sa, sc)
+        self.assertRaises(Exception, SubGX.gx_point, sa, sc)
         print('\nIncompatible families!')
 
         sc['family'] = 'fa'

@@ -1,11 +1,11 @@
 from copy import deepcopy
 import math
 import random
-from typing import Optional
+from typing import Optional, Dict, Tuple
 
 from pypaq.pms.base import P_VAL, POINT, PSDD, PMSException
 
-NO_REF = '__NO-REF__'
+NO_REF = '<<< NO-REF >>>' # since 'None' cannot be used
 
 
 # Parameters Space
@@ -13,7 +13,7 @@ class PaSpa:
     """
     PaSpa - Parameters Space
 
-        PaSpa is build from PSDD, it has:
+        PaSpa is build from PSDD (Params Space Dictionary), it has:
             - dim  - dimensionality (= number of axes)
             - rdim - reduced dimensionality (rdim<=dim - since some axes are simpler(tuples, lists of ints))
 
@@ -21,29 +21,41 @@ class PaSpa:
             - type (list - continuous, tuple - discrete)
             - range (width)
 
-        PaSpa is a metric space
-        PaSpa supports L1 and L2 distance calculations, normalized to 1 (the longest space diagonal)
+        PaSpa is a metric space, supports L2 distance calculations, normalized to 1 (the longest space diagonal)
     """
 
-    def __init__(
-            self,
-            psdd : PSDD,            # params space dictionary
-            distance_L2=    True,   # sets L1 or L2 distance for PaSpa
-            logger=         None):
+    def __init__(self, psdd:PSDD, seed=123, logger=None):
 
         self.logger = logger
 
         self._psdd = psdd
         self.axes = sorted(list(self._psdd.keys()))
-        self.L2 = distance_L2
         self.dim = len(self._psdd)
         if self.logger:
             self.logger.info(f'*** PaSpa ***  inits..')
-            self.logger.info(f'> (dim: {self.dim})')
+            self.logger.info(f'> dim: {self.dim}')
 
-        # resolve axis type and width and some safety checks
-        self._axT = {} # axis type, [list,tuple]_[float,int,diff] list_diff is not allowed
-        self._axW = {} # axis width
+        random.seed(seed)
+
+        self._axT, self._axW = self.__axes_type_width()
+
+        if self.logger: self.logger.info(f'> rdim: {self.rdim:.1f}')
+
+        # width of str(value) for axes, used for nice str formatting
+        self._str_width = {}
+        for axis in self.axes:
+            width = max([len(str(e)) for e in self._psdd[axis]])
+            if 'list_float' in self._axT[axis]: width = 7
+            self._str_width[axis] = width
+
+    ### *************************************************************************** axes / value_on_axis related methods
+
+    # prepares axes type and width + some safety checks
+    def __axes_type_width(self) -> Tuple[Dict,Dict]:
+
+        axT: Dict[str,str] = {}   # axis type, [list,tuple]_[float,int,diff] list_diff is not allowed
+        axW: Dict[str,float] = {} # axis width
+
         for axis in self.axes:
 
             if not type(self._psdd[axis]) in (list, tuple): self._psdd[axis] = (self._psdd[axis],) # replace P_VAL by (P_VAL,)
@@ -70,17 +82,10 @@ class PaSpa:
                 pdef = sorted(list(pdef))
                 self._psdd[axis] = pdef if tp == 'list' else tuple(pdef) # rollback type of sorted
 
-            self._axT[axis] = f'{tp}_{tpn}' # string like 'list_int'
-            self._axW[axis] = pdef[-1] - pdef[0] if tpn != 'diff' else len(pdef) - 1 # range, for diff_tuple - number of elements
+            axT[axis] = f'{tp}_{tpn}' # string like 'list_int'
+            axW[axis] = pdef[-1] - pdef[0] if tpn != 'diff' else len(pdef) - 1 # range, for diff_tuple - number of elements
 
-        if self.logger: self.logger.info(f'> rdim: {self.rdim:.1f}')
-
-        # width of str(value) for axes, used for str formatting
-        self._str_width = {}
-        for axis in self.axes:
-            width = max([len(str(e)) for e in self._psdd[axis]])
-            if 'list_float' in self._axT[axis]: width = 7
-            self._str_width[axis] = width
+        return axT, axW
 
     # select value from axis closest to given val
     def __closest(
@@ -92,7 +97,8 @@ class PaSpa:
 
         axT = self._axT[axis]
 
-        if axT == 'list_int': val = int(round(val))
+        if axT == 'list_int':
+            val = int(round(val))
 
         if 'tuple' in axT:
 
@@ -101,8 +107,12 @@ class PaSpa:
                 axis_dst = [(e, abs(e - ref_val)) for e in self._psdd[axis]]
                 axis_dst.sort(key=lambda x: x[1])
                 val = axis_dst[0][0]
-            # diff_tuple - value of closest index
+
+            # diff_tuple - value of the closest index
             else: val = self._psdd[axis][int(round(val))]
+
+        if not self.__value_in_axis(value=val, axis=axis):
+            raise PMSException(f'something went wrong since val {val} not in {axis}')
 
         return val
 
@@ -114,15 +124,19 @@ class PaSpa:
             rngL: float or int,     # range Left value
             rngR: float or int,     # range Right value
     ) -> float:
+
         dist = noise_scale * (rngR-rngL)
+
         # left side of ref_val
         if random.random() < 0.5:
             rng = ref_val - dist        # new left range
             if rng < rngL: rng = rngL   # limit to given range
+
         # right size
         else:
             rng = ref_val + dist        # new right range
             if rng > rngR: rng = rngR   # limit to given range
+
         return random.uniform(ref_val, rng)
 
     # samples random value from whole axis
@@ -151,7 +165,8 @@ class PaSpa:
             prob_diff_axis:float        # probability of value replacement by one sampled from whole axis (for diff_tuple)
     ) -> P_VAL:
 
-        if ref_val == NO_REF: return self.__random_value_noref(axis)
+        if ref_val == NO_REF:
+            return self.__random_value_noref(axis)
 
         axT = self._axT[axis]
         axis_psd = self._psdd[axis]
@@ -193,6 +208,19 @@ class PaSpa:
 
         return val
 
+    # checks if given value belongs to an axis of this space
+    def __value_in_axis(self, value:P_VAL, axis:str) -> bool:
+        if axis not in self._axT:                                      return False # axis not in a space
+        if 'list' in self._axT[axis]:
+            if type(value) is float and 'int' in self._axT[axis]:      return False # type mismatch
+            if self._psdd[axis][0] <= value <= self._psdd[axis][1]:   return True
+            else:                                                       return False # value not in a range
+        elif value not in self._psdd[axis]:                            return False # value not in a tuple
+        return True
+
+
+    ### *************************************************************************** "point in the space" related methods
+
     # samples (random) point from whole space or from the surroundings of ref_point
     def sample_point(
             self,
@@ -202,7 +230,8 @@ class PaSpa:
             prob_axis=                  0.1,    # probability of value replacement by one sampled from whole axis (for list or num_tuple)
             prob_diff_axis=             0.3     # probability of value replacement by one sampled from whole axis (for diff_tuple)
     ) -> POINT:
-        if ref_point == NO_REF: ref_point = {axis: NO_REF for axis in self.axes}
+        if ref_point == NO_REF:
+            ref_point = {axis: NO_REF for axis in self.axes}
         return {axis: self.__random_value(
             axis=           axis,
             ref_val=        ref_point[axis],
@@ -234,7 +263,7 @@ class PaSpa:
             # build ref_point with mix or select
             if point_scnd:
                 if not self.is_from_space(point_scnd):
-                    raise PMSException(f'ERR: point_scnd: {point_scnd} not from space: {self._psdd}')
+                    raise PMSException(f'point_scnd: {point_scnd} not from space: {self._psdd}')
 
                 ref_point = {}
                 ratio = 0.5 + random.random() / 2  # mix/select ratio of parent_main, rest from parent_scnd (at least half from parent_main)
@@ -268,7 +297,7 @@ class PaSpa:
             prob_axis=      prob_axis,
             prob_diff_axis= prob_diff_axis)
 
-    # samples 2 corner points with max distance
+    # samples 2 corner points with max distance (1 in normalized space)
     def sample_corners(self) -> (POINT, POINT):
         pa = {}
         pb = {}
@@ -284,16 +313,6 @@ class PaSpa:
                 pb[ax] = vl
         return pa, pb
 
-    # checks if given value belongs to an axis of this space
-    def __value_in_axis(self, value: P_VAL, axis: str) -> bool:
-        if axis not in self._axT:                                      return False # axis not in a space
-        if 'list' in self._axT[axis]:
-            if type(value) is float and 'int' in self._axT[axis]:      return False # type mismatch
-            if self._psdd[axis][0] <= value <= self._psdd[axis][1]:   return True
-            else:                                                       return False # value not in a range
-        elif value not in self._psdd[axis]:                            return False # value not in a tuple
-        return True
-
     # checks if point comes from a space (is built from same axes and is in space and)
     def is_from_space(self, point: POINT) -> bool:
         if set(point.keys()) != set(self.axes): return False
@@ -302,27 +321,18 @@ class PaSpa:
                 return False
         return True
 
-    # distance between two points in this space (normalized to 1 - divided by max space distance)
+    # distance (L2, in normalized space) between two points in this space
     def distance(self, pa: POINT, pb: POINT) -> float:
+        dist_pow_sum = 0
+        for axis in pa:
+            if self._axW[axis] > 0:
+                dist = self._psdd[axis].index(pa[axis]) - self._psdd[axis].index(pb[axis]) \
+                    if 'diff' in self._axT[axis] else \
+                    pa[axis] - pb[axis]
+                dist_pow_sum += (dist / self._axW[axis]) ** 2
+        return  math.sqrt(dist_pow_sum) / math.sqrt(self.dim)
 
-        if self.L2:
-            dist_pow_sum = 0
-            for axis in pa:
-                if self._axW[axis] > 0:
-                    dist = self._psdd[axis].index(pa[axis]) - self._psdd[axis].index(pb[axis]) \
-                        if 'diff' in self._axT[axis] else \
-                        pa[axis] - pb[axis]
-                    dist_pow_sum += (dist / self._axW[axis]) ** 2
-            return  math.sqrt(dist_pow_sum) / math.sqrt(self.dim)
-        else:
-            dist_abs_sum = 0
-            for axis in pa:
-                if self._axW[axis] > 0:
-                    dist = self._psdd[axis].index(pa[axis]) - self._psdd[axis].index(pb[axis]) \
-                        if 'diff' in self._axT[axis] else \
-                        pa[axis] - pb[axis]
-                    dist_abs_sum += abs(dist) / self._axW[axis]
-            return dist_abs_sum / self.dim
+    ### *********************************************************************************** space methods and properties
 
     # merges two PSDD
     @staticmethod
@@ -354,42 +364,26 @@ class PaSpa:
         for e in axd: mul *= e
         return math.log10(mul)
 
-    # returns info(string) about self
-    def __str__(self):
-        info = f'*** PaSpa *** (dim: {self.dim}, rdim: {self.rdim:.1f}) parameters space:\n'
-        max_ax_l = 0
-        max_ps_l = 0
-        for axis in self.axes:
-            if len(axis)                > max_ax_l: max_ax_l = len(axis)
-            if len(str(self._psdd[axis])) > max_ps_l: max_ps_l = len(str(self._psdd[axis]))
-        if max_ax_l > 40: max_ax_l = 40
-        if max_ps_l > 70: max_ps_l = 70
-
-        for axis in self.axes:
-            info += f' > {axis:{max_ax_l}s}  {str(self._psdd[axis]):{max_ps_l}s}  {self._axT[axis]:11s}  width: {self._axW[axis]}\n'
-        return info[:-1]
-
     # same axes, same definitions, same L
     def __eq__(self, other):
         if self.axes != other.axes: return False
         for k in self._psdd.keys():
             if self._psdd[k] != other._psdd[k]:
                 return False
-        if self.L2 != other.L2:
-            return False
         return True
 
-
-    def __add__(self, other: "PaSpa") -> "PaSpa":
+    # adds two PaSpa
+    def __add__(self, other:"PaSpa") -> "PaSpa":
         psdd_a = self.psdd
         psdd_b = other.psdd
         psdd_merged = {}
         psdd_merged.update(psdd_a)
         for ax in other.axes:
-            if ax not in psdd_merged: psdd_merged[ax] = psdd_b[ax]
+            if ax not in psdd_merged:
+                psdd_merged[ax] = psdd_b[ax]
             else:
                 if not type(psdd_merged[ax]) == type(psdd_b[ax]):
-                    raise PMSException(f'ERR: types of axes \'{ax}\' for PSDD in both PaSpa do not match!')
+                    raise PMSException(f'ERR: types of axes \'{ax}\' in both PaSpa differs')
                 if 'tuple' in other._axT[ax]:
                     # add new elements to the end
                     if 'diff' in other._axT[ax]:
@@ -404,3 +398,18 @@ class PaSpa:
                     ranges = psdd_merged[ax] + psdd_b[ax]
                     psdd_merged[ax] = [min(ranges), max(ranges)]
         return PaSpa(psdd_merged)
+
+    # returns info(string) about self
+    def __str__(self):
+        info = f'*** PaSpa *** (dim: {self.dim}, rdim: {self.rdim:.1f}) parameters space:\n'
+        max_ax_l = 0
+        max_ps_l = 0
+        for axis in self.axes:
+            if len(axis)                > max_ax_l: max_ax_l = len(axis)
+            if len(str(self._psdd[axis])) > max_ps_l: max_ps_l = len(str(self._psdd[axis]))
+        if max_ax_l > 40: max_ax_l = 40
+        if max_ps_l > 70: max_ps_l = 70
+
+        for axis in self.axes:
+            info += f' > {axis:{max_ax_l}s}  {str(self._psdd[axis]):{max_ps_l}s}  {self._axT[axis]:11s}  width: {self._axW[axis]}\n'
+        return info[:-1]
