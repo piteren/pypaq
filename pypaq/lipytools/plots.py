@@ -121,12 +121,15 @@ def two_dim_multi(
 
 
 def three_dim(
-    xyz: list, # list of (x,y,z) or (x,y,z,val)
+    xyz: Union[list, np.ndarray], # sequence of (x,y,val) or (x,y,z,val)
     name=               'values',
     x_name=             'x',
     y_name=             'y',
     z_name=             'z',
     val_name=           'val',
+    opacity=            0.7,
+    width=              700,
+    height=             700,
     save_FD: str =      None):
 
     # expand to 3 axes + val (3rd axis data)
@@ -153,9 +156,9 @@ def three_dim(
         z=              z_name,
         color=          val_name,
         range_color=    [cr_min,cr_max],
-        opacity=        0.7,
-        width=          700,
-        height=         700)
+        opacity=        opacity,
+        width=          width,
+        height=         height)
 
     if save_FD:
         file = f'{save_FD}/{name}_3Dplot.html'
