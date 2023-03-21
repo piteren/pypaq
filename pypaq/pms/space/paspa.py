@@ -52,9 +52,17 @@ class PaSpa:
 
     # prepares axes type and width + some safety checks
     def __axes_type_width(self) -> Tuple[Dict,Dict]:
+        """
+        possible axes types:
+        - list_float
+        - list_int
+        - tuple_float
+        - tuple_int
+        - tuple_diff
+        """
 
-        axT: Dict[str,str] = {}   # axis type, [list,tuple]_[float,int,diff] list_diff is not allowed
-        axW: Dict[str,float] = {} # axis width
+        axT: Dict[str, str] = {}   # axis type
+        axW: Dict[str, float] = {} # axis width, range (min <-> max), for diff_tuple - number of elements
 
         for axis in self.axes:
 
@@ -82,8 +90,8 @@ class PaSpa:
                 pdef = sorted(list(pdef))
                 self._psdd[axis] = pdef if tp == 'list' else tuple(pdef) # rollback type of sorted
 
-            axT[axis] = f'{tp}_{tpn}' # string like 'list_int'
-            axW[axis] = pdef[-1] - pdef[0] if tpn != 'diff' else len(pdef) - 1 # range, for diff_tuple - number of elements
+            axT[axis] = f'{tp}_{tpn}'
+            axW[axis] = pdef[-1] - pdef[0] if tpn != 'diff' else len(pdef) - 1
 
         return axT, axW
 
@@ -313,8 +321,8 @@ class PaSpa:
                 pb[ax] = vl
         return pa, pb
 
-    # checks if point comes from a space (is built from same axes and is in space and)
-    def is_from_space(self, point: POINT) -> bool:
+    # checks if given point comes from this space
+    def is_from_space(self, point:POINT) -> bool:
         if set(point.keys()) != set(self.axes): return False
         for axis in point:
             if not self.__value_in_axis(value=point[axis], axis=axis):
@@ -322,7 +330,7 @@ class PaSpa:
         return True
 
     # distance (L2, in normalized space) between two points in this space
-    def distance(self, pa: POINT, pb: POINT) -> float:
+    def distance(self, pa:POINT, pb:POINT) -> float:
         dist_pow_sum = 0
         for axis in pa:
             if self._axW[axis] > 0:
@@ -331,6 +339,31 @@ class PaSpa:
                     pa[axis] - pb[axis]
                 dist_pow_sum += (dist / self._axW[axis]) ** 2
         return  math.sqrt(dist_pow_sum) / math.sqrt(self.dim)
+
+    # prepares normalized point of p, where value of each axis is represented as a float <0.0;1.0>
+    def point_normalized(self, p:POINT) -> POINT:
+
+        pn: Dict[str,float] = {}
+
+        for axis in p:
+
+            if self._axT[axis] == 'list_float':
+                pn[axis] = (p[axis] - self._psdd[axis][0]) / self._axW[axis] # position in float range
+
+            else:
+
+                # |_._|_._|_._| <- each point is placed in the middle of _ _ (sub width)
+                if self._axT[axis] == 'list_int':
+                    num_elements = self._axW[axis] + 1
+                    v_ix = p[axis] = self._psdd[axis][0]
+                else:
+                    num_elements = len(self._psdd[axis])
+                    v_ix = self._psdd[axis].index(p[axis])
+
+                sw = 1 / num_elements # sub width
+                pn[axis] = sw / 2 + v_ix * sw # half of sw + 1/2 sw
+
+        return pn
 
     ### *********************************************************************************** space methods and properties
 

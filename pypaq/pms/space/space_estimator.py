@@ -1,11 +1,14 @@
 import numpy as np
 from sklearn.svm import SVR
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Tuple
+
+from pypaq.pms.space.space_point import SPoint
+from pypaq.pms.space.paspa import PaSpa
 
 NPL = Union[List, np.ndarray]
 
 
-# MSE average loss
+# MSE average loss for Estimators
 def loss(model, X_new:NPL, y_new:NPL) -> float:
     preds = model.predict(X=X_new)
     return sum([(a - b) ** 2 for a, b in zip(preds, y_new)]) / len(y_new)
@@ -13,14 +16,36 @@ def loss(model, X_new:NPL, y_new:NPL) -> float:
 
 class SpaceEstimator:
 
+    # extracts X & y from spoints ands space
+    @staticmethod
+    def _extract_Xy(spoints:List[SPoint], space:PaSpa) -> Tuple[np.ndarray, np.ndarray]:
+
+        points = [sp.point for sp in spoints]
+        points_normalized = [space.point_normalized(p) for p in points]
+        keys = sorted(list(points_normalized[0].keys()))
+        points_feats = [[pn[k] for k in keys] for pn in points_normalized]
+
+        scores = [sp.score for sp in spoints]
+
+        return np.asarray(points_feats), np.asarray(scores)
+
     # updates model with given data, returns loss of new model for given data
     def update(self, X_new:NPL, y_new:NPL) -> float:
         pass
+
+
+    def update_spoints(self, spoints:List[SPoint], space:PaSpa) -> float:
+        X, y = SpaceEstimator._extract_Xy(spoints, space)
+        return self.update(X, y)
 
     # predicts
     def predict(self, X:NPL) -> np.ndarray:
         pass
 
+
+    def predict_spoints(self, spoints:List[SPoint], space:PaSpa) -> np.ndarray:
+        X, y = SpaceEstimator._extract_Xy(spoints, space)
+        return self.predict(X)
 
 
 # SVR RBF based Space Estimator
