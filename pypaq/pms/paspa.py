@@ -99,7 +99,8 @@ class PaSpa:
     def __closest(
             self,
             ref_val: float or int,      # for diff_tuple it is index of value in self.__psdd[axis]
-            axis: str) -> float or int:
+            axis: str,
+    ) -> float or int:
 
         val = ref_val  # for list_float type
 
@@ -148,7 +149,7 @@ class PaSpa:
         return random.uniform(ref_val, rng)
 
     # samples random value from whole axis
-    def __random_value_noref(self, axis: str) -> P_VAL:
+    def __random_value_noref(self, axis:str) -> P_VAL:
 
         axT = self._axT[axis]
         psdd = self._psdd[axis]
@@ -166,11 +167,11 @@ class PaSpa:
     def __random_value(
             self,
             axis: str,
-            ref_val: P_VAL or NO_REF,   # reference value on axis
-            prob_noise: float,          # probability of shifting value with noise (for list or tuple_with_num)
-            noise_scale: float,         # max noise scale (axis width, for list or tuple_with_num)
-            prob_axis: float,           # probability of value replacement by one sampled from whole axis (for list or num_tuple)
-            prob_diff_axis:float        # probability of value replacement by one sampled from whole axis (for diff_tuple)
+            ref_val: P_VAL,         # reference value on axis, possible NO_REF
+            prob_noise: float,      # probability of shifting value with noise (for list or tuple_with_num)
+            noise_scale: float,     # max noise scale (axis width, for list or tuple_with_num)
+            prob_axis: float,       # probability of value replacement by one sampled from whole axis (for list or num_tuple)
+            prob_diff_axis:float    # probability of value replacement by one sampled from whole axis (for diff_tuple)
     ) -> P_VAL:
 
         if ref_val == NO_REF:
@@ -232,13 +233,13 @@ class PaSpa:
     # samples (random) point from whole space or from the surroundings of ref_point
     def sample_point(
             self,
-            ref_point: POINT or NO_REF,         # reference point
+            ref_point: Optional[POINT]= None,   # reference point
             prob_noise=                 0.3,    # probability of shifting value with noise (for list or num_tuple)
             noise_scale=                0.1,    # max noise scale (axis width)
             prob_axis=                  0.1,    # probability of value replacement by one sampled from whole axis (for list or num_tuple)
             prob_diff_axis=             0.3     # probability of value replacement by one sampled from whole axis (for diff_tuple)
     ) -> POINT:
-        if ref_point == NO_REF:
+        if ref_point is None:
             ref_point = {axis: NO_REF for axis in self.axes}
         return {axis: self.__random_value(
             axis=           axis,
@@ -401,6 +402,20 @@ class PaSpa:
         for e in axd: mul *= e
         return math.log10(mul)
 
+    # returns number of points for finite number or None
+    @property
+    def n_points(self) -> Optional[int]:
+        n = 1
+        for axis in self._axT:
+            if self._axT[axis] == 'list_float':
+                return None
+            else:
+                if self._axT[axis] == 'list_int':
+                    n *= self._axW[axis] + 1
+                else:
+                    n *= len(self._psdd[axis])
+        return n
+
     # same axes, same definitions, same L
     def __eq__(self, other):
         if self.axes != other.axes: return False
@@ -448,5 +463,9 @@ class PaSpa:
         if max_ps_l > 70: max_ps_l = 70
 
         for axis in self.axes:
-            info += f' > {axis:{max_ax_l}s}  {str(self._psdd[axis]):{max_ps_l}s}  {self._axT[axis]:11s}  width: {self._axW[axis]}\n'
+            info += f'> {axis:{max_ax_l}s}  {str(self._psdd[axis]):{max_ps_l}s}  {self._axT[axis]:11s}  width: {self._axW[axis]}\n'
+
+        if self.n_points:
+            info += f'number of points in space: {self.n_points}\n'
+
         return info[:-1]
