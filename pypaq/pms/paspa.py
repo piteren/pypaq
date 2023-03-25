@@ -356,13 +356,13 @@ class PaSpa:
                 # |_._|_._|_._| <- each point is placed in the middle of _ _ (sub width)
                 if self._axT[axis] == 'list_int':
                     num_elements = self._axW[axis] + 1
-                    v_ix = p[axis] = self._psdd[axis][0]
+                    v_ix = p[axis] - self._psdd[axis][0]
                 else:
                     num_elements = len(self._psdd[axis])
                     v_ix = self._psdd[axis].index(p[axis])
 
                 sw = 1 / num_elements # sub width
-                pn[axis] = sw / 2 + v_ix * sw # half of sw + 1/2 sw
+                pn[axis] = sw/2 + v_ix*sw # half of sw + 1/2 sw
 
         return pn
 
