@@ -5,7 +5,7 @@ from typing import Optional, Dict, Tuple
 
 from pypaq.pms.base import P_VAL, POINT, PSDD, PMSException
 
-NO_REF = '<<< NO-REF >>>' # since 'None' cannot be used
+NO_REF = '<<< NO-REF >>>' # axis value when no reference value given (since 'None' cannot be used)
 
 
 # Parameters Space
@@ -261,7 +261,7 @@ class PaSpa:
             prob_diff_axis=                 0.3     # probability of value replacement by one sampled from whole axis (for diff_tuple)
     ) -> POINT:
 
-        ref_point = NO_REF # for NO_REF samples from whole space
+        ref_point = None # when point_main nor point_scnd are given
 
         if point_main:
             if not self.is_from_space(point_main):
