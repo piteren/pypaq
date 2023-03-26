@@ -7,8 +7,8 @@ from pypaq.pytypes import NPL
 
 # min, avg, max ..of num list
 def mam(vals:NPL) -> Tuple[float,float,float]:
-    if vals: return min(vals), sum(vals) / len(vals), max(vals)
-    else:    return 0.0, 0.0, 0.0
+    if len(vals): return min(vals), sum(vals) / len(vals), max(vals)
+    else:         return 0.0, 0.0, 0.0
 
 # mean, std, min, max (from given list of values or np.arr)
 def msmx(vals:NPL) -> Dict:

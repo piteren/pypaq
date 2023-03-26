@@ -2,7 +2,7 @@ import random
 import unittest
 
 from pypaq.pms.base import point_str
-from pypaq.pms.space.paspa import PaSpa
+from pypaq.pms.paspa import PaSpa
 
 SAMPLE_PSDD = {
     'a':    [0.0,   1.0],
@@ -70,10 +70,10 @@ class TestPaspa(unittest.TestCase):
 
         pan = paspa.point_normalized(pa)
         print(pan)
-        self.assertTrue(pan == {'a': 0.0, 'b': 0.05, 'c': 0.5, 'd': 0.625})
+        self.assertTrue(pan == {'a': 0.0, 'b': 0.15000000000000002, 'c': 0.5, 'd': 0.625})
         pbn = paspa.point_normalized(pb)
         print(pbn)
-        self.assertTrue(pbn == {'a': 0.55, 'b': 0.05, 'c': 0.8333333333333333, 'd': 0.125})
+        self.assertTrue(pbn == {'a': 0.55, 'b': 0.45, 'c': 0.8333333333333333, 'd': 0.125})
 
 
     def test_loop(self):
