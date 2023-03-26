@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Optional, Union, Tuple
 
 from pypaq.lipytools.printout import stamp
 from pypaq.lipytools.files import prep_folder
@@ -7,17 +7,26 @@ from pypaq.lipytools.files import prep_folder
 
 # returns formatted Logger
 def get_pylogger(
-        name: Optional[str]=    None,
-        add_stamp=              True,   # to prevent merging loggers from one-class-many-objects
-        folder: Optional[str]=  None,   # if given then writes logfile
-        level=                  logging.INFO,
-        format: str=            '%(asctime)s {%(filename)20s:%(lineno)3d} p%(process)s %(levelname)s: %(message)s',
-        to_stdout=              True):
+        name: Optional[str]=                None,
+        add_stamp=                          True,
+        folder: Optional[str]=              None,
+        level=                              logging.INFO,
+        format: Union[Tuple[str,str],str]=  '%(asctime)s {%(filename)20s:%(lineno)3d} p%(process)s %(levelname)s: %(message)s',
+        to_stdout=                          True):
+
+    """
+    - add_stamp:    prevents merging loggers
+    - folder:       writes logfile to folder if given
+    - format:       may be given as a str or Tuple[str,str] (fmt,datefmt)
+    """
 
     if not name: name = 'logger'
     if add_stamp: name += '_' + stamp()
 
-    formatter = logging.Formatter(format)
+    if type(format) is not tuple:
+        format = (format,)
+
+    formatter = logging.Formatter(*format)
 
     # manage file handler
     fh = None
