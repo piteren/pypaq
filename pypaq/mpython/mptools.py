@@ -110,7 +110,7 @@ class ExSubprocess(Process, ABC):
         except KeyboardInterrupt:
             self.__exception_handle('KeyboardInterrupt')
         except Exception as e:
-            self.__exception_handle(f'other: {str(e)}')
+            self.__exception_handle(f'other: {e}')
             if self.raise_unk_exception: raise e
 
     # method run in subprocess, to be implemented
