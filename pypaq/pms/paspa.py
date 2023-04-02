@@ -25,7 +25,7 @@ class PaSpa:
     PaSpa is a metric space, supports L2 distance calculations, normalized to 1 (the longest space diagonal)
     """
 
-    def __init__(self, psdd:PSDD, seed=123, logger=None):
+    def __init__(self, psdd:PSDD, seed:Optional[int]=None, logger=None):
 
         self.logger = logger
 
@@ -35,7 +35,8 @@ class PaSpa:
             self.logger.info(f'*** PaSpa *** inits..')
             self.logger.info(f'> dim: {self.dim}')
 
-        random.seed(seed)
+        if seed is not None:
+            random.seed(seed)
 
         self._axT, self._axW = self.__axes_type_width()
 
