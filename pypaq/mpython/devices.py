@@ -73,13 +73,12 @@ def _get_devices_pypaq(
     cpu_count = sys_res_nfo()['cpu_count']
     logger.debug(f'got {cpu_count} CPU devices in a system')
 
-    # look for available CUDA
+    # try to get available CUDA
     available_cuda_id = []
-    if platform.system() == 'Darwin': # OSX
-        logger.warning('no GPUs available for OSX, using only CPU')
-    else:
+    try:
         available_cuda_id = get_available_cuda_id()
-    logger.debug(f'got available GPU devices: {available_cuda_id}')
+    except Exception as e:
+        logger.warning(f'could not get CUDA devices, got EXCEPTION: {e}')
 
     if devices == []:
         return available_cuda_id
