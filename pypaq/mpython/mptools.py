@@ -74,8 +74,8 @@ class ExSubprocess(Process, ABC):
 
     def __init__(
             self,
-            ique: Que,                          # input que
-            oque: Que,                          # output que
+            ique: Optional[Que]=        None,   # input que
+            oque: Optional[Que]=        None,   # output que
             id: Optional[int or str]=   None,   # unique id to identify the subprocess, if not given takes from Process name
             raise_unk_exception=        True,   # raises exception other than KeyboardInterrupt
             logger=                     None,
@@ -122,7 +122,8 @@ class ExSubprocess(Process, ABC):
         msg = QMessage(
             type=   f'ex_{name}, ExSubprocess id: {self.id}, pid: {self.pid}',
             data=   self.id) # returns ID here to allow process identification
-        self.oque.put(msg)
+        if self.oque is not None:
+            self.oque.put(msg)
         self.logger.warning(f'> ExSubprocess ({self.id}) halted by exception: {name}')
         self.after_exception_handle_run()
 
