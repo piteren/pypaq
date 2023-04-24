@@ -40,11 +40,9 @@ class ConfigManager(Subscriptable):
 
     # (eventually) loads new configuration from file
     def load(self):
-        self._logger.info(f'> loading config from file..')
         file_config = r_json(self._file)
-        if file_config is None:
-            self._logger.info(f'> config file not found')
-        else:
+        if file_config is not None:
+            self._logger.info(f'> loading config from file..')
             super().update(dct=file_config)
 
     # updates attribute and saves file
