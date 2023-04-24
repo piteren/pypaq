@@ -6,6 +6,42 @@ from pypaq.pms.base import POINT, PSDD, PMSException
 from pypaq.pms.paspa import PaSpa
 
 
+# returns nice str information about dict differences: db against da
+def dict_diff(da:Dict, db:Dict) -> str:
+
+    nfo = ''
+
+    missing_keys = []
+    for k in da:
+        if k not in db:
+            missing_keys.append(k)
+
+    if missing_keys:
+        nfo += f'missing keys: {missing_keys}\n'
+
+    new_keys = []
+    new_values = []
+    for k in db:
+        if k not in da:
+            new_keys.append(k)
+        else:
+            if da[k] != db[k]:
+                new_values.append(k)
+
+    if new_keys:
+        nfo += f'new keys: {new_keys}\n'
+        for k in new_keys:
+            nfo += f' > {k}: {db[k]}\n'
+
+    if new_values:
+        nfo += f'new values: {new_values}\n'
+        for k in new_values:
+            nfo += f' > {k}: {db[k]}\n'
+
+    if nfo: nfo = nfo[:-1]
+    return nfo
+
+
 # implements dict-like style access to its (self) parameters
 class Subscriptable:
     """
@@ -17,10 +53,8 @@ class Subscriptable:
     def __getitem__(self, key):
         return getattr(self, key)
 
-
     def __setitem__(self, key, value):
         setattr(self, key, value)
-
 
     def __contains__(self, key):
         return key in vars(self)
@@ -78,10 +112,11 @@ class Subscriptable:
     def __str__(self):
         s = f'{self.__class__.__name__} (Subscriptable):\n'
         pms = self.get_point()
-        for k in sorted(pms.keys()):
-            p = f'param: {k}'
-            v = f'value: {pms[k]}'
-            s += f'{p:30s} {v:30s}\n'
+        if pms:
+            for k in sorted(pms.keys()):
+                s += f' > {k:30s}: {pms[k]}\n'
+        else:
+            s += f'---empty---\n'
         return s[:-1]
 
 

@@ -256,10 +256,12 @@ class ParaSave(SubGX):
         not_gxable_parents = []
         if not pm['gxable']: not_gxable_parents.append(pm)
         if ps and not ps['gxable']: not_gxable_parents.append(ps)
+
         if not_gxable_parents:
             raise ParaSaveException('not gxable parents, cannot GX!')
+
+        # make pm a child and save
         else:
-            # make pm a child and save
             point_child = SubGX.gx_point(
                 parent_main=    pm,
                 parent_scnd=    ps,

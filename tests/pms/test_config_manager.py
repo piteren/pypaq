@@ -30,8 +30,29 @@ class TestCM(unittest.TestCase):
 
         for _ in range(n_loops):
             time.sleep(5)
-            newc = cm.load()
-            print(newc, cm.get_config())
+            cm.load()
+            print(cm.get_config())
 
         cm = ConfigManager(file_FP=f'{CONFIG_DIR}/config.file')
         print(cm.get_config())
+
+    def test_base_set(self):
+
+        # saves sample config file
+        config = {
+            'param_aaa':    15,
+            'beta':         20.45,
+            'do_it':        False,
+            'dont_do':      None}
+        cm = ConfigManager(f'{CONFIG_DIR}/config.file', config=config, loglevel=30)
+        print(cm)
+        self.assertTrue(cm.param_aaa == 15 and cm.beta == 20.45)
+
+        cm = ConfigManager(f'{CONFIG_DIR}/config.file')
+        print(cm)
+
+        cm.alfa = 13
+        cm.beta = 19.99
+        cm['gamma'] = 14
+        print(cm)
+        self.assertTrue(cm.alfa == 13 and cm.beta == 19.99 and cm.gamma == 14)

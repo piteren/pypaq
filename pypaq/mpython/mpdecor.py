@@ -1,6 +1,5 @@
 from multiprocessing import Process, Queue
 from functools import partial
-import time
 
 
 # non-blocking process, does not return anything

@@ -1,83 +1,64 @@
-from copy import deepcopy
 from typing import Optional
 
 from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.lipytools.files import prep_folder, r_json, w_json
 from pypaq.pms.base import POINT
+from pypaq.pms.subscriptable import Subscriptable
 
 
-# Configuration Manager, keeps configuration POINT {key: value}, loads from and saves to file (json)
-class ConfigManager:
+# Configuration Manager, keeps configuration in attributes of self - accessible as fields or dict style, manages config file (json)
+class ConfigManager(Subscriptable):
 
     def __init__(
             self,
             file_FP: str,                       # full path to config file
-            config: Optional[POINT]=    None,   # {param: value}
-            try_to_load=                True,   # tries to load from file if file exists
+            try_to_load: bool=          True,   # tries to load from file if file exists
+            config: Optional[POINT]=    None,   # {param: value}, overrides config from file if exists
             logger=                     None,
             loglevel=                   20):
 
         if not logger:
             logger = get_pylogger(name='ConfigManager', level=loglevel)
-        self.logger = logger
+        self._logger = logger
 
-        self.logger.info(f'*** ConfigManager *** inits, file: {file_FP}')
+        self._logger.info(f'*** ConfigManager *** inits, file: {file_FP}')
 
-        self.__file = file_FP
-        self.__config: POINT = {}
-        if config:
-            self.logger.info(f'> initial config: {config}')
-            self.__config = deepcopy(config)
-
+        self._file = file_FP
         prep_folder(file_FP)
 
-        if try_to_load:
+        # first try to load from file
+        if try_to_load and config is None:
+            self._logger.info(f'> loading config from file..')
             self.load()
 
-        self.__save_file()
+        if config is not None:
+            self._logger.info(f'> setting initial config: {config}')
+            self.update(**config)
 
     # saves configuration to file
     def __save_file(self):
-        w_json(self.__config, self.__file)
+        w_json(self.get_config(), self._file)
 
-    # returns (deepcopy of) config
+    # (eventually) loads new configuration from file
+    def load(self):
+        file_config = r_json(self._file) or {}
+        super().update(dct=file_config)
+
+    # updates attribute and saves file
+    def __setattr__(self, key, value):
+        new_attribute = key not in self
+        new_value = not new_attribute and self[key] != value
+        if new_attribute or new_value:
+            super().__setattr__(key, value)
+            if not key.startswith('_'):
+                if new_attribute:   self._logger.info(f'set new attribute: {key}: {value}')
+                if new_value:       self._logger.info(f'set new value:     {key}: {value}')
+                self.__save_file()
+
+    # alias to get_point of Subscriptable
     def get_config(self) -> POINT:
-        return deepcopy(self.__config)
+        return self.get_point()
 
-    # loads configuration from file
-    def load(self) -> POINT:
-
-        file_config = r_json(self.__file) or {}
-        config_changed = {}
-        for k in file_config:
-            if k not in self.__config or self.__config[k] != file_config[k]:
-                self.__config[k] = file_config[k]
-                config_changed[k] = file_config[k]
-
-        if config_changed:
-            self.logger.info(f'> loaded new config changes: {config_changed}')
-
-        return self.get_config()
-
-    # updates self with given kwargs, saves file if needed
-    def update(self, **kwargs) -> POINT:
-
-        config_changed = {}
-        for k in kwargs:
-            if k not in self.__config:
-                self.__config[k] = kwargs[k]
-                config_changed[k] = kwargs[k]
-            else:
-                if kwargs[k] != self.__config[k]:
-                    self.__config[k] = kwargs[k]
-                    config_changed[k] = kwargs[k]
-
-        if config_changed:
-            self.__save_file()
-            self.logger.info(f'> saved new config changes: {config_changed}')
-
-        return self.get_config()
-
-    # alias to get_config()
-    def __call__(self, *args, **kwargs):
-        return self.get_config()
+    # updates self (dict like update) with given kwargs
+    def update(self, **kwargs):
+        super().update(dct=kwargs)
