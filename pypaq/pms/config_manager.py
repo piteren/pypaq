@@ -28,7 +28,6 @@ class ConfigManager(Subscriptable):
 
         # first try to load from file
         if try_to_load and config is None:
-            self._logger.info(f'> loading config from file..')
             self.load()
 
         if config is not None:
@@ -41,8 +40,12 @@ class ConfigManager(Subscriptable):
 
     # (eventually) loads new configuration from file
     def load(self):
-        file_config = r_json(self._file) or {}
-        super().update(dct=file_config)
+        self._logger.info(f'> loading config from file..')
+        file_config = r_json(self._file)
+        if file_config is None:
+            self._logger.info(f'> config file not found')
+        else:
+            super().update(dct=file_config)
 
     # updates attribute and saves file
     def __setattr__(self, key, value):
