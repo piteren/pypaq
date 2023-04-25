@@ -11,28 +11,28 @@ class ConfigManager(Subscriptable):
 
     def __init__(
             self,
-            file_FP: str,                       # full path to config file
-            try_to_load: bool=          True,   # tries to load from file if file exists
-            config: Optional[POINT]=    None,   # {param: value}, overrides config from file if exists
-            logger=                     None,
-            loglevel=                   20):
+            file_FP: str,                           # full path to config file
+            config_init: Optional[POINT]=   None,
+            override_with_saved: bool=      True,   # file (if exists) will override given initial config
+            logger=                         None,
+            loglevel=                       20):
 
         if not logger:
             logger = get_pylogger(name='ConfigManager', level=loglevel)
         self._logger = logger
 
-        self._logger.info(f'*** ConfigManager *** inits, file: {file_FP}')
-
         self._file = file_FP
-        prep_folder(file_FP)
+        prep_folder(self._file)
+        self._logger.info(f'*** ConfigManager *** inits, file: {self._file}')
 
-        # first try to load from file
-        if try_to_load and config is None:
+        if config_init is not None:
+            self._logger.info(f'> setting initial config: {config_init}')
+            self.update(**config_init)
+
+        if override_with_saved:
             self.load()
 
-        if config is not None:
-            self._logger.info(f'> setting initial config: {config}')
-            self.update(**config)
+        self.__save_file()
 
     # saves configuration to file
     def __save_file(self):
