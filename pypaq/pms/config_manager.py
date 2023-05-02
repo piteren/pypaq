@@ -23,16 +23,23 @@ class ConfigManager(Subscriptable):
 
         self._file = file_FP
         prep_folder(self._file)
-        self._logger.info(f'*** ConfigManager *** inits, file: {self._file}')
+        self._logger.info(f'*** ConfigManager *** inits, config file: {self._file}')
+
+        file_config = r_json(self._file)
+        if file_config:
+            self._logger.info(f'> got file config:    {file_config}')
 
         if config_init is not None:
-            self._logger.info(f'> setting initial config: {config_init}')
-            self.update(**config_init)
+            self._logger.info(f'> got initial config: {config_init}')
 
-        if override_with_saved:
-            self.load()
+        start_config = {}
+        if config_init:
+            start_config.update(config_init)
 
-        self.__save_file()
+        if override_with_saved and file_config:
+            start_config.update(file_config)
+
+        self.update(**start_config)
 
     # saves configuration to file
     def __save_file(self):
@@ -55,10 +62,10 @@ class ConfigManager(Subscriptable):
                 if new_value:       self._logger.info(f'set new value:     {key}: {value}')
                 self.__save_file()
 
-    # alias to get_point of Subscriptable
-    def get_config(self) -> POINT:
-        return self.get_point()
-
     # updates self (dict like update) with given kwargs
     def update(self, **kwargs):
         super().update(dct=kwargs)
+
+    # alias to get_point of Subscriptable
+    def get_config(self) -> POINT:
+        return self.get_point()
