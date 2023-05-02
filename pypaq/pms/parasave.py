@@ -166,7 +166,7 @@ class ParaSave(SubGX):
 
         self.__log.debug(f'{self.__class__.__name__} {self.name} saved to {self.save_topdir}')
 
-    # loads, next overrides parameters from given kwargs and saves new ParaSave POINT
+    # loads, next overrides parameters from given kwargs and saves POINT
     @classmethod
     def oversave_point(
             cls,
