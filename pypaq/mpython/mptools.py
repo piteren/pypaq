@@ -113,7 +113,7 @@ class ExSubprocess(Process, ABC):
             self.__exception_handle(f'other: {e}')
             if self.raise_unk_exception: raise e
 
-    # method run in subprocess, to be implemented
+    # method run in a subprocess, to be implemented
     @abstractmethod
     def subprocess_method(self): pass
 
