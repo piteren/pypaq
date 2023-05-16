@@ -56,8 +56,9 @@ class ConfigManager(Subscriptable):
         new_attribute = key not in self
         new_value = not new_attribute and self[key] != value
         if new_attribute or new_value:
-            super().__setattr__(key, value)
             if not key.startswith('_'):
+                self.load()
+                super().__setattr__(key, value)
                 if new_attribute:   self._logger.info(f'set new attribute: {key}: {value}')
                 if new_value:       self._logger.info(f'set new value:     {key}: {value}')
                 self.__save_file()
