@@ -25,12 +25,11 @@ class TestCM(unittest.TestCase):
             'do_it':        False,
             'dont_do':      None}
 
-        cm = ConfigManager(f'{CONFIG_DIR}/config.file', config=config)
+        cm = ConfigManager(f'{CONFIG_DIR}/config.file', config_init=config)
         print(cm.get_config())
 
         for _ in range(n_loops):
             time.sleep(5)
-            cm.load()
             print(cm.get_config())
 
         cm = ConfigManager(file_FP=f'{CONFIG_DIR}/config.file')
@@ -44,7 +43,7 @@ class TestCM(unittest.TestCase):
             'beta':         20.45,
             'do_it':        False,
             'dont_do':      None}
-        cm = ConfigManager(f'{CONFIG_DIR}/config.file', config=config, loglevel=30)
+        cm = ConfigManager(f'{CONFIG_DIR}/config.file', config_init=config, loglevel=30)
         print(cm)
         self.assertTrue(cm.param_aaa == 15 and cm.beta == 20.45)
 
@@ -53,6 +52,10 @@ class TestCM(unittest.TestCase):
 
         cm.alfa = 13
         cm.beta = 19.99
-        cm['gamma'] = 14
+        cm.gamma = 14
         print(cm)
         self.assertTrue(cm.alfa == 13 and cm.beta == 19.99 and cm.gamma == 14)
+
+        cm.update_config({'something':111})
+        print(cm)
+        self.assertTrue(cm.get_config() == {'param_aaa': 15, 'beta': 19.99, 'do_it': False, 'dont_do': None, 'alfa': 13, 'gamma': 14, 'something': 111})
