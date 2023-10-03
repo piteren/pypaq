@@ -162,5 +162,6 @@ def sys_res_nfo():
     gb = 1024 ** 3
     return {
         'cpu_count':    cpu_count(),
+        'cpu_used_%':   psutil.cpu_percent(interval=5), # over last 5 sec
         'mem_total_GB': vm.total / gb,
         'mem_used_%':   vm.percent}
