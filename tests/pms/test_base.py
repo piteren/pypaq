@@ -95,14 +95,17 @@ class TestPOINT(unittest.TestCase):
 
     def test_point_trim(self):
 
-        def func(
-                a,
-                b,
-                c=10,
-                d=True):
+        def func(a, b, c=10, d=True):
             print(a,b,c,d)
+
+        class A:
+            def __init__(self, a, b, c=10, d=True):
+                print(a, b, c, d)
 
         point_wide = {'a':3, 'b':5, 'g':11, 'aa':0}
 
         print(point_trim(func, point_wide))
         self.assertTrue(point_trim(func, point_wide) == {'a': 3, 'b': 5})
+
+        print(point_trim(A, point_wide))
+        self.assertTrue(point_trim(A, point_wide) == {'a': 3, 'b': 5})

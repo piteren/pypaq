@@ -1,5 +1,5 @@
 import inspect
-from typing import Any, Dict, List, Tuple, Callable, Optional, Union
+from typing import Any, Dict, List, Tuple, Callable, Optional, Union, Type
 
 from pypaq.exception import PyPaqException
 from pypaq.lipytools.printout import float_to_str
@@ -33,7 +33,7 @@ class PMSException(PyPaqException):
     pass
 
 # prepares nice string of POINT
-def point_str(p: POINT) -> str:
+def point_str(p:POINT) -> str:
     s = '{'
     for axis in sorted(list(p.keys())):
         val = p[axis]
@@ -43,7 +43,7 @@ def point_str(p: POINT) -> str:
     return s
 
 # prepares function parameters dictionary
-def get_params(function: Callable) -> Dict:
+def get_params(function:Callable) -> Dict:
 
     params_dict = {
         'without_defaults': [],
@@ -70,7 +70,7 @@ def get_params(function: Callable) -> Dict:
     return params_dict
 
 # prepares class.__init__ parameters dictionary, including base classes
-def get_class_init_params(cl:type) -> Dict:
+def get_class_init_params(cl:Type) -> Dict:
 
     params_dict = {
         'without_defaults': [],
@@ -97,7 +97,7 @@ def get_class_init_params(cl:type) -> Dict:
 
 # prepares sub-POINT trimmed to function params (given wider POINT)
 def point_trim(
-        fc: Optional[Union[Callable,object]],
+        fc: Optional[Union[Callable,Type]],
         point: POINT,
         remove_self= True # removes self in case of methods (class)
 ) -> POINT:
@@ -105,7 +105,7 @@ def point_trim(
     if fc is None:
         return {}
 
-    pms = get_params(fc) if type(fc) is Callable else get_class_init_params(fc)
+    pms = get_params(fc) if inspect.isfunction(fc) else get_class_init_params(fc)
 
     valid_keys = pms['without_defaults'] + list(pms['with_defaults'].keys())
 

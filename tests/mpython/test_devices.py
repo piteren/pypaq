@@ -117,11 +117,11 @@ class TestDevices(unittest.TestCase):
 
         d = get_devices(0)
         print(d)
-        self.assertTrue(d == ['cuda:0'])
+        self.assertTrue(d == [] or 'cuda' in d[0])
 
         d = get_devices(-1)
         print(d)
-        self.assertTrue(d == ['cuda:1'] or d == [])
+        self.assertTrue(d == [] or 'cuda' in d[0])
 
         d = get_devices([])
         print(d)

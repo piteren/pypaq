@@ -6,6 +6,5 @@ pandas
 plotly
 psutil
 pyyaml
-scikit-learn
 scipy
 torch
