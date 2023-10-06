@@ -1,5 +1,5 @@
 import inspect
-from typing import Any, Dict, List, Tuple, Callable, Optional
+from typing import Any, Dict, List, Tuple, Callable, Optional, Union
 
 from pypaq.exception import PyPaqException
 from pypaq.lipytools.printout import float_to_str
@@ -69,15 +69,49 @@ def get_params(function: Callable) -> Dict:
 
     return params_dict
 
+# prepares class.__init__ parameters dictionary, including base classes
+def get_class_init_params(cl:type) -> Dict:
+
+    params_dict = {
+        'without_defaults': [],
+        'with_defaults':    {}}
+
+    bases = list(cl.__bases__)
+    if object in bases:
+        bases.remove(object)
+
+    for bcl in bases:
+        bcl_pd = get_class_init_params(bcl)
+        for p in bcl_pd['without_defaults']:
+            if p not in params_dict['without_defaults']:
+                params_dict['without_defaults'].append(p)
+        params_dict['with_defaults'].update(bcl_pd['with_defaults'])
+
+    cl_pd = get_params(cl.__init__)
+    for p in cl_pd['without_defaults']:
+        if p not in params_dict['without_defaults']:
+            params_dict['without_defaults'].append(p)
+    params_dict['with_defaults'].update(cl_pd['with_defaults'])
+
+    return params_dict
+
 # prepares sub-POINT trimmed to function params (given wider POINT)
 def point_trim(
-        func: Optional[Callable],
+        fc: Optional[Union[Callable,object]],
         point: POINT,
         remove_self= True # removes self in case of methods (class)
 ) -> POINT:
-    if func is None: return {}
-    pms = get_params(func)
+
+    if fc is None:
+        return {}
+
+    pms = get_params(fc) if type(fc) is Callable else get_class_init_params(fc)
+
     valid_keys = pms['without_defaults'] + list(pms['with_defaults'].keys())
-    if remove_self and 'self' in valid_keys: valid_keys.remove('self')
+
+    if remove_self and 'self' in valid_keys:
+        valid_keys.remove('self')
+
     func_dna = {k: point[k] for k in point if k in valid_keys} # filter to get only params accepted by func
+
     return func_dna

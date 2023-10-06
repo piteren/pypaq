@@ -1,6 +1,6 @@
 import unittest
 
-from pypaq.pms.base import POINT, point_str, get_params, point_trim
+from pypaq.pms.base import POINT, point_str, get_params, get_class_init_params, point_trim
 
 
 class TestPOINT(unittest.TestCase):
@@ -57,6 +57,41 @@ class TestPOINT(unittest.TestCase):
         print(get_params(func_d))
         self.assertTrue(get_params(func_d) == {'without_defaults': [], 'with_defaults': {'c': 10, 'd': True}})
 
+    def test_get_class_init_params(self):
+
+        class A:
+            pass
+
+        class B:
+            def __init__(
+                    self,
+                    a,
+                    b,
+                    c=10,
+                    d=True,
+                    **kwargs,
+            ):
+                pass
+
+        class C(B):
+            def __init__(
+                    self,
+                    e,
+                    f=False,
+                    **kwargs,
+            ):
+                B.__init__(self, **kwargs)
+                pass
+
+
+        print(get_class_init_params(A))
+        self.assertTrue(get_class_init_params(A) == {'without_defaults': ['self'], 'with_defaults': {}})
+
+        print(get_class_init_params(B))
+        self.assertTrue(get_class_init_params(B) == {'without_defaults': ['self', 'a', 'b'], 'with_defaults': {'c': 10, 'd': True}})
+
+        print(get_class_init_params(C))
+        self.assertTrue(get_class_init_params(C) == {'without_defaults': ['self', 'a', 'b', 'e'], 'with_defaults': {'c': 10, 'd': True, 'f': False}})
 
     def test_point_trim(self):
 
