@@ -5,17 +5,17 @@ from pypaq.lipytools.printout import stamp
 from pypaq.lipytools.files import prep_folder
 
 
-# returns formatted Logger
 def get_pylogger(
         name: Optional[str]=                None,
         add_stamp=                          True,
         folder: Optional[str]=              None,
         level=                              logging.INFO,
         format: Union[Tuple[str,str],str]=  '%(asctime)s {%(filename)20s:%(lineno)3d} p%(process)s %(levelname)s: %(message)s',
-        to_stdout=                          True):
-
+        to_stdout=                          True,
+) -> logging.Logger:
     """
-    - add_stamp:    prevents merging loggers
+    # returns formatted logging.Logger
+    - add_stamp:    prevents merging loggers of same name
     - folder:       writes logfile to folder if given
     - format:       may be given as a str or Tuple[str,str] (fmt,datefmt)
     """
