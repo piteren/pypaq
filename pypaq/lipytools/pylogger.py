@@ -10,6 +10,7 @@ def get_pylogger(
         add_stamp=                          True,
         folder: Optional[str]=              None,
         level=                              logging.INFO,
+        flat_child: bool=                   False,
         format: Union[Tuple[str,str],str]=  '%(asctime)s {%(filename)20s:%(lineno)3d} p%(process)s %(levelname)s: %(message)s',
         to_stdout=                          True,
 ) -> logging.Logger:
@@ -45,16 +46,19 @@ def get_pylogger(
     logger.setLevel(level)
     if fh: logger.addHandler(fh)
     if sh: logger.addHandler(sh)
+
+    logger.flat_child = flat_child
+
     return logger
 
-# returns child with higher level
+# returns child with optionally changed level
 def get_child(
         logger,
         name: Optional[str]=    None,
         change_level: int=      10):
     if not name: name = '_child'
     clogger = logger.getChild(name)
-    if change_level != 0:
+    if change_level != 0 and not logger.flat_child:
         lvl = clogger.getEffectiveLevel()
         clogger.setLevel(lvl + change_level)
     return clogger
