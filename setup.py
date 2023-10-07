@@ -13,7 +13,7 @@ setup(
     url=                'https://github.com/piteren/pypaq.git',
     author=             'Piotr Niewinski',
     author_email=       'pioniewinski@gmail.com',
-    description=        'little python tools',
+    description=        'little Python tools',
     packages=           find_packages(),
     install_requires=   get_requirements(),
     license=            'MIT')

@@ -1,20 +1,18 @@
 
 # pypaq
 
-little python tools, useful mainly for tasks related to Machine Learning, NLP, statistics, multiprocessing
+little Python tools, mainly useful for tasks related to machine learning, etc.
 
 -----------------
 
 #### naming conventions used
 
-
-| pattern      | description |
-|--------------| ---          
-| n_*          | number of * 
-| *L           | list      
-| *D           | dict
-| *_ix         | index (int)
-| *_id         | id (int or str) 
-| *_dir, *_DIR | directory, folder, relative or absolute
-| *_fn, *_FN   | file name (without dir)
-| *_fp, *_FP   | full path (dir + file_name), relative or absolute
+          
+`n_*` - number of *</br>
+`*L` - list</br>
+`*D` - dict</br>
+`*_ix` - index (int)</br>
+`*_id` - id (int or str)</br> 
+`*_dir` `*_DIR` - directory, folder, relative or absolute</br>
+`*_fn` `*_FN` - file name (without dir)</br>
+`*_fp` `*_FP` - full path (dir + file_name), relative or absolute</br>
