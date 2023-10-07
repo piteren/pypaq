@@ -56,9 +56,15 @@ def get_child(
         logger,
         name: Optional[str]=    None,
         change_level: int=      10):
-    if not name: name = '_child'
+
+    if not name:
+        name = '_child'
+
     clogger = logger.getChild(name)
+    clogger.flat_child = logger.flat_child
+
     if change_level != 0 and not logger.flat_child:
         lvl = clogger.getEffectiveLevel()
         clogger.setLevel(lvl + change_level)
+
     return clogger
