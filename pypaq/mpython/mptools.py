@@ -104,9 +104,9 @@ class ExSubprocess(Process, ABC):
     # process target method, wraps subprocess_method() with try / except
     def __run(self):
         try:
-            self.logger.info(f'> ExSubprocess ({self.id}, pid:{self.pid}) - starting subprocess_method()')
+            self.logger.debug(f'> ExSubprocess ({self.id}, pid:{self.pid}) - started subprocess_method()')
             self.subprocess_method()
-            self.logger.info(f'> ExSubprocess ({self.id}, pid:{self.pid}) - finished subprocess_method()')
+            self.logger.debug(f'> ExSubprocess ({self.id}, pid:{self.pid}) - finished subprocess_method()')
         except KeyboardInterrupt:
             self.__exception_handle('KeyboardInterrupt')
         except Exception as e:
