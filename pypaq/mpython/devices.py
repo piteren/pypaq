@@ -1,11 +1,12 @@
 import GPUtil
 import os
-import platform
+import time
 import torch
 from typing import Optional, Union, List
 
 from pypaq.exception import PyPaqException
 from pypaq.lipytools.pylogger import get_pylogger
+from pypaq.lipytools.printout import printover
 from pypaq.mpython.mptools import sys_res_nfo
 
 
@@ -169,3 +170,30 @@ def mask_cuda_devices(
     devices = get_devices(devices, torch_namespace=False, logger=logger)
     ids = [d for d in devices if type(d) is int]
     mask_cuda(ids)
+
+# monitors GPUs, in the loop
+def monitor(pause:float=0.1):
+    devs = GPUtil.getGPUs()
+    peaks_load = {d.id: 0.0 for d in devs}
+    peaks_mem =  {d.id: 0.0 for d in devs}
+    while True:
+        devs = GPUtil.getGPUs()
+        s = '*** GPUs monitor: '
+        for d in devs:
+
+            id = d.id
+            load = int(d.load*100)
+            mem = int(d.memoryUsed)
+
+            if peaks_load[id] < load:
+                peaks_load[id] = load
+
+            if peaks_mem[id] < mem:
+                peaks_mem[id] = mem
+
+            s += f'{id}->{load}%/{int(mem)}MB '
+        s += f'__peaks: '
+        for id in peaks_load:
+            s += f'{id}->{peaks_load[id]}%/{peaks_mem[id]}MB '
+        printover(s[:-1])
+        time.sleep(pause)
