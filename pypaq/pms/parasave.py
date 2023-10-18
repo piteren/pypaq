@@ -25,7 +25,7 @@ class ParaSave(SubGX):
         'gxable':   True,
         'parents':  []} # list of parents names
 
-    SAVE_TOPDIR = None
+    SAVE_TOPDIR = None      # save top directory
     SAVE_FN_PFX = 'point'   # POINT file prefix
     OBJ_SUFFIX = '.dct'     # POINT file suffix of obj(pickle)
     TXT_SUFFIX = '.txt'     # POINT file suffix of text

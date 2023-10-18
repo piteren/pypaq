@@ -46,7 +46,7 @@ def dict_diff(da:Dict, db:Dict) -> str:
 class Subscriptable:
     """
     Subscriptable
-        its (object) parameters (POINT) may be accessed in dict-like style [], but are IS NOT a dict type
+        its parameters (point) may be accessed in dict-like style [], but Subscriptable IS NOT a dict
         protected fields may also be accessed with [], but rather should not
     """
 

@@ -120,3 +120,9 @@ def list_dir(path: Union[str, Path]) -> Dict[str,List]:
     for e in ls:
         lsD['files' if os.path.isfile(f'{path}/{e}') else 'dirs'].append(e)
     return lsD
+
+# reads requirements
+def get_requirements(fileFP:str='requirements.txt') -> List[str]:
+    with open(fileFP) as file:
+        return [l.strip() for l in file]
+

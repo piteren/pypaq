@@ -1,10 +1,6 @@
 from setuptools import setup, find_packages
 
-# reads requirements
-def get_requirements():
-    with open('requirements.txt') as file:
-        lines = [l[:-1] if l[-1]=='\n' else l for l in file.readlines()]
-        return lines
+from pypaq.lipytools.files import get_requirements
 
 
 setup(
