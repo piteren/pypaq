@@ -3,6 +3,9 @@ import string
 import time
 from typing import List, Any, Optional
 
+LINE_UP = '\033[1A'
+LINE_CLEAR = '\x1b[2K'
+
 
 # short(compressed) scientific notation for floats
 def short_scin(
@@ -79,12 +82,14 @@ def print_nested_dict(dc: dict, ind_scale:int=2, line_limit:int=200):
     __prn_root(dc,ind=0,ind_scale=ind_scale)
 
 # prints line over line
-def printover(sth):
-    print(f'\r{sth}', end='', flush=True)
+def printover(sth, clear:int=10):
+    cls = '' + ' ' * clear
+    print(f'\r{sth}{cls}', end='', flush=True)
 
-# gets folder path from folder or file path
-
-# prepares folder, creates or flushes
+# prints line over line (terminal alternative)
+def printover_terminal(sth):
+    print(sth)
+    print(LINE_UP, end=LINE_CLEAR)
 
 # terminal progress bar
 def progress_ (
