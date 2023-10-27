@@ -1,6 +1,9 @@
+from pypaq.exception import PyPaqException
+from pypaq.pytypes import NUM
 from typing import Optional
 
-from pypaq.exception import PyPaqException
+
+
 
 
 # moving average class, updates self.value with factor (given while init)
@@ -8,17 +11,17 @@ class MovAvg:
 
     def __init__(
             self,
-            factor: float=      0.1,    # (0.0;1.0>
+            factor: NUM=        0.1,    # (0.0;1.0>
             first_avg: bool=    True,   # first (1/factor/2) values will be averaged
     ):
-        self.value: Optional[float] = None
+        self.value: Optional[NUM] = None
         self.factor = factor
         self.upd_ix = 0
         self.first_avg = first_avg
         self.firstL = []
 
 
-    def upd(self, val:float):
+    def upd(self, val:NUM):
 
         if self.first_avg and self.upd_ix < 1/self.factor/2:
             self.firstL.append(val)
@@ -32,13 +35,13 @@ class MovAvg:
         return self.value
 
 
-    def reset(self, val:Optional[float]=None):
+    def reset(self, val:Optional[NUM]=None):
         self.value = val
         self.upd_ix = 0
         self.firstL = []
 
 
-    def __call__(self) -> float:
+    def __call__(self) -> NUM:
         if self.value is None:
             raise PyPaqException('MovAvg not updated yet, value unknown')
         return self.value
