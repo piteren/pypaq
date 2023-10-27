@@ -31,17 +31,31 @@ def float_to_str(
 
 # returns timestamp string
 def stamp(
-        year=                   False,
-        date=                   True,
+        year: bool=             False,
+        month: bool=            True,
+        day: bool=              True,
+        hour: bool=             True,
+        minutes: bool=          True,
         letters: Optional[int]= 3):
+
     random.seed(time.time())
-    if date:
-        if year: stp = time.strftime('%y%m%d_%H%M')
-        else:    stp = time.strftime('%m%d_%H%M')
-    else:        stp = ''
+
+    time_format = ''
+    if year:            time_format += '%y'
+    if month:           time_format += '%m'
+    if day:             time_format += '%d'
+    if time_format:     time_format += '_'
+    if hour:            time_format += '%H'
+    if minutes:         time_format += '%M'
+
+    stp = ''
+    if time_format:
+        stp = time.strftime(time_format)
+
     if letters:
-        if date: stp += '_'
+        if stp: stp += '_'
         stp += ''.join([random.choice(string.ascii_letters) for _ in range(letters)])
+
     return stp
 
 # returns nice string of given list

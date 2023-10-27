@@ -9,6 +9,7 @@ class TestLittleMethods(unittest.TestCase):
         print(stamp())
         print(stamp(letters=None))
         print(stamp(year=True))
+        print(stamp(month=False, day=False))
 
     def test_print_nested_dict(self):
         dc = {
