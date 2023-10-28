@@ -4,17 +4,19 @@ from typing import Optional
 
 
 
-
-
 # moving average class, updates self.value with factor (given while init)
 class MovAvg:
 
     def __init__(
             self,
             factor: NUM=        0.1,    # (0.0;1.0>
-            first_avg: bool=    True,   # first (1/factor/2) values will be averaged
+            first_avg: bool=    True,   # first 1/factor values will be averaged
     ):
         self.value: Optional[NUM] = None
+
+        if not 0 < factor <= 1:
+            raise PyPaqException('factor should: 0 < factor <= 1')
+
         self.factor = factor
         self.upd_ix = 0
         self.first_avg = first_avg
@@ -23,7 +25,7 @@ class MovAvg:
 
     def upd(self, val:NUM):
 
-        if self.first_avg and self.upd_ix < 1/self.factor/2:
+        if self.first_avg and self.upd_ix < 1/self.factor:
             self.firstL.append(val)
             self.value = sum(self.firstL) / len(self.firstL)
         else:
