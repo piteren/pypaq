@@ -191,9 +191,9 @@ def monitor(pause:float=0.1):
             if peaks_mem[id] < mem:
                 peaks_mem[id] = mem
 
-            s += f'{id}->{load}%/{int(mem)}MB '
+            s += f'{id}:{load}%/{int(mem)}MB '
         s += f'__peaks: '
         for id in peaks_load:
-            s += f'{id}->{peaks_load[id]}%/{peaks_mem[id]}MB '
+            s += f'{id}:{peaks_load[id]}%/{peaks_mem[id]}MB '
         printover(s[:-1])
         time.sleep(pause)
