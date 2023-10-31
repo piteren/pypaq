@@ -39,33 +39,37 @@ devices: DevicesPypaq - parameter type
 DevicesPypaq: Union[int, None, float, str, torch.device, List[Union[int,None,float,str,torch.device]]] = -1
 
 
-# returns cuda memory size (system first device)
+
 def get_cuda_mem():
+    """ returns cuda memory size (system first device) """
     devs = GPUtil.getGPUs()
     if devs: return devs[0].memoryTotal
     else: return 0
 
-# returns list of available GPUs ids
+
 def get_available_cuda_id(max_mem=None) -> List[int]: # None sets automatic, otherwise (0,1.1] (above 1 for all)
+    """ returns list of available GPUs ids """
     if not max_mem:
         tot_mem = get_cuda_mem()
         if tot_mem < 5000:  max_mem=0.35 # small GPU case, probably system single GPU
         else:               max_mem=0.2
     return GPUtil.getAvailable(limit=20, maxMemory=max_mem)
 
-# prints report of system cuda devices
+
 def report_cuda() -> str:
+    """ prints report of system cuda devices """
     rp = 'System CUDA devices:'
     for device in GPUtil.getGPUs():
         rp += f'\n > id: {device.id}, name: {device.name}, MEM: {int(device.memoryUsed)}/{int(device.memoryTotal)} (U/T)'
     return rp
 
-# returns pypaq representation of given devices
+
 def _get_devices_pypaq(
         devices: DevicesPypaq=  -1,
         logger=                 None,
         loglevel=               20,
 ) -> List[Union[int,None]]:
+    """ returns pypaq representation of given devices """
 
     if not logger: logger = get_pylogger(level=loglevel)
 
@@ -137,15 +141,18 @@ def _get_devices_pypaq(
 
     return devices_base
 
-# resolves representation given with DevicesPypaq into dev_pypaq base form or List[str] in torch accepted namespace
+
 def get_devices(
         devices: DevicesPypaq=  -1,
         torch_namespace: bool=  True,
         logger=                 None,
         loglevel=               20,
 ) -> List[Union[int,None,str]]:
+    """ resolves representation given with DevicesPypaq
+    into dev_pypaq base form or List[str] (PyTorch namespace) """
 
-    if not logger: logger = get_pylogger(level=loglevel)
+    if not logger:
+        logger = get_pylogger(level=loglevel)
 
     devices_base = _get_devices_pypaq(devices=devices, logger=logger)
 
@@ -154,8 +161,9 @@ def get_devices(
     else:
         return [f'cuda:{dev}' if type(dev) is int else 'cpu' for dev in devices_base]
 
-# masks GPUs from given list of ids or single one
-def mask_cuda(ids: Optional[List[int] or int]=  None):
+
+def mask_cuda(ids: Optional[List[int] or int]=None):
+    """ masks GPUs from given list of ids or single one """
     if ids is None: ids = []
     if type(ids) is int: ids = [ids]
     mask = ''
@@ -163,19 +171,27 @@ def mask_cuda(ids: Optional[List[int] or int]=  None):
     if len(mask) > 1: mask = mask[:-1]
     os.environ["CUDA_VISIBLE_DEVICES"] = mask
 
-# wraps mask_cuda to hold DevicesPypaq
+
 def mask_cuda_devices(
         devices: DevicesPypaq=  -1,
         logger=                 None):
+    """ wraps mask_cuda to hold DevicesPypaq """
     devices = get_devices(devices, torch_namespace=False, logger=logger)
     ids = [d for d in devices if type(d) is int]
     mask_cuda(ids)
 
-# monitors GPUs, in the loop
-def monitor(pause:float=0.1):
+
+def monitor(pause:float=0.1, print_n:int=10):
+    """ monitors GPUs usage and memory in the loop
+    :param float pause: amount of time loop is paused
+    :param int print_n: prints report every N loops
+    """
+
     devs = GPUtil.getGPUs()
     peaks_load = {d.id: 0.0 for d in devs}
     peaks_mem =  {d.id: 0.0 for d in devs}
+
+    pnix = 0
     while True:
         devs = GPUtil.getGPUs()
         s = '*** GPUs monitor: '
@@ -192,8 +208,14 @@ def monitor(pause:float=0.1):
                 peaks_mem[id] = mem
 
             s += f'{id}:{load}%/{int(mem)}MB '
-        s += f'__peaks: '
+        s += f' >>> peak: '
         for id in peaks_load:
             s += f'{id}:{peaks_load[id]}%/{peaks_mem[id]}MB '
-        printover(s[:-1])
+
+
         time.sleep(pause)
+
+        pnix += 1
+        if pnix % print_n == 0:
+            pnix = 0
+            printover(s[:-1])
