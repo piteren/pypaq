@@ -4,8 +4,9 @@ from typing import Optional
 
 
 
-# moving average class, updates self.value with factor (given while init)
 class MovAvg:
+    """ moving average
+    updates self.value with factor (given while init) """
 
     def __init__(
             self,
