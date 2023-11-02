@@ -1,4 +1,3 @@
-GPUtil
 Levenshtein
 matplotlib
 numpy
@@ -7,4 +6,3 @@ plotly
 psutil
 pyyaml
 scipy
-torch
