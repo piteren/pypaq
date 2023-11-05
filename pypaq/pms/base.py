@@ -9,8 +9,8 @@ P_VAL = float or int or Any                     # point value (parameter value)
 POINT = Dict[AXIS, P_VAL]                       # POINT ia a dict {parameter: value}
 
 
-"""
-PSDD - Parameters Space Definition Dict
+""" 
+    PSDD - Parameters Space Definition Dict
     dictionary that defines space of POINTS {axis(parameter name): list or tuple or value}
         - list of ints or floats defines continuous range
         - tuple may contain elements of any type (even non-numeric), may have one
@@ -32,8 +32,9 @@ PSDD  = Dict[AXIS, RANGE]                       # Parameters Space Definition Di
 class PMSException(PyPaqException):
     pass
 
-# prepares nice string of POINT
+
 def point_str(p:POINT) -> str:
+    """ prepares nice string of POINT """
     s = '{'
     for axis in sorted(list(p.keys())):
         val = p[axis]
@@ -42,8 +43,9 @@ def point_str(p:POINT) -> str:
     s = s[:-1] + '}'
     return s
 
-# prepares function parameters dictionary
+
 def get_params(function:Callable) -> Dict:
+    """ prepares function parameters dictionary """
 
     params_dict = {
         'without_defaults': [],
@@ -69,8 +71,9 @@ def get_params(function:Callable) -> Dict:
 
     return params_dict
 
-# prepares class.__init__ parameters dictionary, including base classes
+
 def get_class_init_params(cl:Type) -> Dict:
+    """ repares class.__init__ parameters dictionary, including base classes """
 
     params_dict = {
         'without_defaults': [],
@@ -95,12 +98,13 @@ def get_class_init_params(cl:Type) -> Dict:
 
     return params_dict
 
-# prepares sub-POINT trimmed to function params (given wider POINT)
+
 def point_trim(
         fc: Optional[Union[Callable,Type]],
         point: POINT,
-        remove_self= True # removes self in case of methods (class)
+        remove_self= True,  # removes self in case of class methods
 ) -> POINT:
+    """ prepares sub-POINT trimmed to function params (given wider POINT) """
 
     if fc is None:
         return {}
