@@ -153,7 +153,7 @@ class SubGX(Subscriptable):
             if not psdd:
                 raise PMSException('when SubGX \'kwargs\' not given, \'psdd\' must be given')
 
-            paspa = PaSpa(psdd=psdd)
+            paspa = PaSpa(psdd=psdd, loglevel=30)
             kwargs = paspa.sample_point_GX()
 
         self.update(kwargs)
@@ -203,7 +203,7 @@ class SubGX(Subscriptable):
                 psdd_a= psdd_main,
                 psdd_b= psdd_scnd) if psdd_scnd is not None else psdd_main
 
-        paspa_merged = PaSpa(psdd=psdd_merged)
+        paspa_merged = PaSpa(psdd=psdd_merged, loglevel=30)
 
         paspa_axes_not_in_parent = [a for a in paspa_merged.axes if a not in point_main]
         if paspa_axes_not_in_parent:
