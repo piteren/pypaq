@@ -269,7 +269,8 @@ class ParaSave(SubGX):
             pm.update(point_child)
             pm['_save_topdir'] = save_topdir_child
             pm.parents = [name_parent_main]
-            if name_parent_scnd: pm.parents.append(name_parent_scnd)
+            if name_parent_scnd:
+                pm.parents.append(name_parent_scnd)
             pm.save_point()
 
     # adds gxable check
