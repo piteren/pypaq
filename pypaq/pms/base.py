@@ -35,13 +35,23 @@ class PMSException(PyPaqException):
 
 def point_str(p:POINT) -> str:
     """ prepares nice string of POINT """
-    s = '{'
+
+    avL = []
     for axis in sorted(list(p.keys())):
+
         val = p[axis]
-        vs = float_to_str(val) if type(val) is float else str(val)
-        s += f'{axis}:{vs} '
-    s = s[:-1] + '}'
-    return s
+
+        val_str = ''
+        if type(val) is float:
+            val_str = float_to_str(val)
+        if type(val) is bool:
+            val_str = f'{str(val):5}'
+        if not val_str:
+            val_str = str(val)
+
+        avL.append(f'{axis}:{val_str}')
+
+    return '{' + ' '.join(avL) + '}'
 
 
 def get_params(function:Callable) -> Dict:

@@ -7,10 +7,12 @@ LINE_UP = '\033[1A'
 LINE_CLEAR = '\x1b[2K'
 
 
-# short(compressed) scientific notation for floats
+
 def short_scin(
         fl: float,
-        precision:int=  1):
+        precision:int=  1,
+) -> str:
+    """ short (compressed) scientific notation for floats """
     sh = f'{fl:.{precision}E}'
     sh = sh.replace('+0','')
     sh = sh.replace('+','')
@@ -18,25 +20,36 @@ def short_scin(
     sh = sh.replace('E','e')
     return sh
 
-# returns sting from float, always of given width
+
 def float_to_str(
         num: float,
-        width: int= 7):
+        width: int=     7,
+        fill: bool=     True,
+) -> str:
+    """ returns nice sting from float, always of given width """
+
     if width < 5: width = 5
     scientific_decimals = width-6 if width>6 else 0
-    ff = f'{num:.{scientific_decimals}E}'
-    if 1000 > num > 0.0001: ff = str(num)[:width]
-    if len(ff)<width: ff += '0'*(width-len(ff))
-    return ff
 
-# returns timestamp string
+    fstr = f'{num:.{scientific_decimals}E}'
+    if 1000 > num > 0.0001 or num == 0.0:
+        fstr = str(num)[:width]
+
+    if fill and len(fstr)<width:
+        fstr += ' '*(width-len(fstr))
+
+    return fstr
+
+
 def stamp(
         year: bool=             False,
         month: bool=            True,
         day: bool=              True,
         hour: bool=             True,
         minutes: bool=          True,
-        letters: Optional[int]= 3):
+        letters: Optional[int]= 3,
+) -> str:
+    """ prepares timestamp string """
 
     random.seed(time.time())
 
@@ -58,15 +71,21 @@ def stamp(
 
     return stp
 
-# returns nice string of given list
-def list_str(ls: List[Any], limit:Optional[int]=200):
+
+def list_str(ls: List[Any], limit:Optional[int]=200) -> str:
+    """ nice string of given list """
     lstr = [str(e) for e in ls]
     lstr = '; '.join(lstr)
     if limit: lstr = lstr[:limit]
     return lstr
 
-# prints nested dict
-def print_nested_dict(dc: dict, ind_scale:int=2, line_limit:int=200):
+
+def print_nested_dict(
+        dc: dict,
+        ind_scale: int=     2,
+        line_limit: int=    200,
+) -> None:
+    """ prints nice string of nested dict """
 
     tpD = {
         dict:   'D',
@@ -95,24 +114,28 @@ def print_nested_dict(dc: dict, ind_scale:int=2, line_limit:int=200):
 
     __prn_root(dc,ind=0,ind_scale=ind_scale)
 
-# prints line over line
-def printover(sth, clear:int=10):
+
+def printover(sth, clear:int=10) -> None:
+    """ prints line over line """
     cls = '' + ' ' * clear
     print(f'\r{sth}{cls}', end='', flush=True)
 
-# prints line over line (terminal alternative)
-def printover_terminal(sth):
+
+def printover_terminal(sth) -> None:
+    """ prints line over line (terminal alternative) """
     print(sth)
     print(LINE_UP, end=LINE_CLEAR)
 
-# terminal progress bar
+
 def progress_ (
         current,                # current progress
         total,                  # total
         prefix: str=    '',     # prefix string
         suffix: str=    '',     # suffix string
         length: int=    20,
-        fill: str=      '█'):
+        fill: str=      '█',
+) -> None:
+    """ terminal progress bar """
     prog = current / total
     if prog > 1: prog = 1
     filled_length = int(length * prog)

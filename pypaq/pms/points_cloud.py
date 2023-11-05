@@ -4,6 +4,7 @@ from typing import Sized, List, Tuple, Optional, Dict, Union
 from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.lipytools.stats import mam
 from pypaq.lipytools.plots import three_dim
+from pypaq.lipytools.printout import float_to_str
 from pypaq.pms.base import POINT, point_str
 from pypaq.pms.paspa import PaSpa
 
@@ -15,16 +16,20 @@ class VPoint:
     def __init__(
             self,
             point: POINT,
-            id: Optional[int] =     None,
+            name: Optional[str]=    None,
+            id: Optional[int]=      None,
             value: Optional[float]= None,
     ):
         self.point = point
+        self.name = name
         self.id = id
         self.value = value
 
     def __str__(self):
-        id_nfo = f'#{self.id:4}' if self.id is not None else '_'
-        return f'{id_nfo} [val: {self.value:.8f}] {point_str(self.point)}'
+        nfo = self.name if self.name else ""
+        if not nfo:
+            nfo = f'#{self.id:4}' if self.id is not None else '#_'
+        return f'{nfo} [val: {self.value:.8f}] {point_str(self.point)}'
 
 
 class PointsCloud(Sized):
@@ -43,7 +48,7 @@ class PointsCloud(Sized):
 
         self.paspa = paspa
 
-        # those below are updated with each call to update_cloud()
+        # values below are updated with each call to update_cloud()
         self._vpointsD: Dict[int, VPoint] = {}          # {id: VPoint}
         self._nearest: Dict[int, Tuple[int,float]] = {} # {id: (id,dist)}
         self.min_nearest = math.sqrt(self.paspa.dim)
@@ -130,3 +135,52 @@ class PointsCloud(Sized):
     def __len__(self):
         """ number of VPoints in the Cloud """
         return len(self._vpointsD)
+
+    def __str__(self):
+
+        vpoints = self.vpoints
+        vpoints.sort(key=lambda x: x.value, reverse=True)
+        keys = sorted(list(vpoints[0].point.keys()))
+        kw = {k: len(k) for k in keys}
+        kw['_name'] = 0
+        kw['_value'] = 1
+
+        print_vals = []
+        for vp in vpoints:
+
+            pv = {}
+            print_vals.append(pv)
+            for k in keys:
+
+                val = vp.point[k]
+
+                val_str = ''
+                if type(val) is float:
+                    val_str = float_to_str(val, fill=False)
+                if type(val) is bool:
+                    val_str = f'{str(val):5}'
+                if not val_str:
+                    val_str = str(val)
+
+                pv[k] = val_str
+
+                lv = len(val_str)
+                if lv > kw[k]:
+                    kw[k] = lv
+
+            ln = len(vp.name) if vp.name else 0
+            if ln > kw['_name']:
+                kw['_name'] = ln
+
+            lv = len(float_to_str(vp.value, fill=False))
+            if lv > kw['_value']:
+                kw['_value'] = lv
+
+        s = ' ' * (kw['_name'] + 5 + kw['_value'] + 2)
+        s += ' '.join([f'{k:{kw[k]}}' for k in keys]) + '\n'
+        for vp,pv in zip(vpoints,print_vals):
+            val = f'{float_to_str(vp.value, fill=False):{kw["_value"]}}' if vp.value is not None else '-' * kw['_value']
+            s += f'{vp.name:{kw["_name"]}} val:{val}  '
+            s += ' '.join([f'{pv[k]:{kw[k]}}' for k in keys]) + '\n'
+
+        return s[:-1]
