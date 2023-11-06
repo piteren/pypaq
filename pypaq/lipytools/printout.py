@@ -26,7 +26,7 @@ def float_to_str(
         width: int=     7,
         fill: bool=     True,
 ) -> str:
-    """ returns nice sting from float, always of given width """
+    """ returns nice string from float, always of given width """
 
     if width < 5: width = 5
     scientific_decimals = width-6 if width>6 else 0

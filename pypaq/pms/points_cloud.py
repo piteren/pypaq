@@ -33,7 +33,7 @@ class VPoint:
 
 
 class PointsCloud(Sized):
-    """ cloud of Valued Points """
+    """ Points Cloud - cloud of Valued Points """
 
     def __init__(
             self,
