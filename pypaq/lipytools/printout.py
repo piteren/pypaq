@@ -81,38 +81,42 @@ def list_str(ls: List[Any], limit:Optional[int]=200) -> str:
 
 
 def print_nested_dict(
-        dc: dict,
+        d: dict,
         ind_scale: int=     2,
-        line_limit: int=    200,
+        line_limit: int=    100,
 ) -> None:
     """ prints nice string of nested dict """
 
-    tpD = {
+    types = {
         dict:   'D',
         list:   'L',
         tuple:  'T',
         str:    'S'}
 
-    def __prn_root(root:dict, ind, ind_scale:int=2, line_limit:int=line_limit):
+    def __prn_root(root:dict, ind:int):
 
         spacer = ' ' * ind * ind_scale
-        for k in sorted(list(root.keys())):
-            tp = tpD.get(type(root[k]),'')
-            ln = len(root[k]) if tp in tpD.values() else ''
 
-            exmpl = ''
-            if tp!='D':
-                exmpl = str(root[k])
-                if line_limit:
-                    if len(exmpl)>line_limit: exmpl = f'{exmpl[:line_limit]}..'
-                exmpl = f' : {exmpl}'
+        for key in sorted(list(root.keys())):
 
-            type_len_nfo = f' [{tp}.{ln}]' if tp else ''
-            print(f'{spacer}{k}{type_len_nfo}{exmpl}')
+            value = root[key]
+            tp = types.get(type(value),'')
+            value_len_str = str(len(value)) if tp in types.values() else ''
 
-            if type(root[k]) is dict: __prn_root(root[k],ind+1,ind_scale)
+            line = ''
+            if tp != 'D':
+                line = repr(value)
+                if line_limit and len(line)>line_limit:
+                    line = f'{line[:line_limit]} ..'
+                line = f' : {line}'
 
-    __prn_root(dc,ind=0,ind_scale=ind_scale)
+            type_len_nfo = f' [{tp}.{value_len_str}]' if tp else ''
+            print(f'{spacer}{key}{type_len_nfo}{line}')
+
+            if type(value) is dict:
+                __prn_root(root=root[key], ind=ind+1)
+
+    __prn_root(root=d, ind=0)
 
 
 def printover(sth, clear:int=10) -> None:
