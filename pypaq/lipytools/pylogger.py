@@ -29,23 +29,28 @@ def get_pylogger(
 
     formatter = logging.Formatter(*format)
 
-    # manage file handler
-    fh = None
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+
+    ### manage handlers
+
+    # if logger has handlers new handlers of existing type won't be added
+    for h in logger.handlers:
+        if type(h) is logging.FileHandler:
+            folder = None
+        if type(h) is logging.StreamHandler:
+            to_stdout = False
+
     if folder:
         prep_folder(folder)
         fh = logging.FileHandler(f'{folder}/{name}.log')
         fh.setFormatter(formatter)
+        logger.addHandler(fh)
 
-    # manage stream handler
-    sh = None
     if to_stdout:
         sh = logging.StreamHandler()
         sh.setFormatter(formatter)
-
-    logger = logging.getLogger(name)
-    logger.setLevel(level)
-    if fh: logger.addHandler(fh)
-    if sh: logger.addHandler(sh)
+        logger.addHandler(sh)
 
     logger.flat_child = flat_child
 
