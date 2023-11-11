@@ -76,10 +76,10 @@ class Para:
 
     # *************************************************************************************************** update & check
 
-    def update(self, dct:dict) -> None:
+    def update(self, d:dict) -> None:
         """ update in dict-like style """
-        for key in dct:
-            self.__setitem__(key, dct[key])
+        for key in d:
+            self.__setitem__(key, d[key])
 
     def check_params_sim(
             self,
@@ -234,9 +234,9 @@ class ParaGX(Para):
 
         return point_child
 
-    # gxable_point is a self POINT limited to axes of self.psdd
     @property
     def gxable_point(self) -> POINT:
+        """ gxable_point is a self POINT limited to axes of self.psdd """
         return {k: self[k] for k in self.psdd}
 
 

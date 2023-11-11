@@ -7,22 +7,35 @@ from pypaq.lipytools.printout import stamp
 from pypaq.lipytools.files import r_pickle, w_pickle, prep_folder
 from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.pms.base import POINT
-from pypaq.pms.subscriptable import SubGX
+from pypaq.pms.para import ParaGX
 
 
 class ParaSaveException(PyPaqException):
     pass
 
 
-class ParaSave(SubGX):
+class ParaSave(ParaGX):
     """ Parameters Save
     saves/loads POINT (self params) from save_topdir
     implements GX for saved
-    """
+
+    folders functionality (load, save ..) is disabled for save_topdir / SAVE_TOPDIR == None
+
+    ParaSave defaults are stored in PARASAVE_DEFAULTS dict and cannot be placed in __init__ defaults.
+    This is a consequence of the params resolution mechanism in ParaSave,
+    where parameters may come from three sources, and each subsequent source overrides the previous ones:
+        1. __init__ defaults
+        2. saved in the folder
+        3. provided through kwargs in __init__
+    If all ParaSave parameters were set with __init__ defaults,
+    it would not be possible to distinguish between sources 1 and 3.
+
+    @DynamicAttrs <-- disables warning for unresolved attributes references """
 
     PARASAVE_DEFAULTS = {
         'gxable':   True,
-        'parents':  []} # list of parents names
+        'parents':  [],     # list (nested) of parents names
+    }
 
     SAVE_TOPDIR = None      # save top directory
     SAVE_FN_PFX = 'point'   # POINT file prefix
@@ -31,14 +44,20 @@ class ParaSave(SubGX):
 
     def __init__(
             self,
-            name:str,
-            save_topdir: Optional[str]= None,   # ParaSave top directory, when not given folders functionality (load, save ..) is disabled
+            name: str,
+            save_topdir: Optional[str]= None,   # ParaSave top directory
             save_fn_pfx: Optional[str]= None,   # ParaSave POINT file prefix
             assert_saved=               False,  # for True asserts that ParaSave has been already saved in save_topdir
             lock_managed_params=        False,  # locks _managed_params to only those known while init
             logger=                     None,
             loglevel=                   20,
-            **kwargs):
+            **kwargs,
+    ):
+        """ name, save_topdir, save_fn_pfx -> if given -> always override saved values """
+
+        # _managed_params allows to lock ParaSave managed params
+        # only to those resolved while __init__
+        self._managed_params: Optional[List[str]] = None
 
         self.name = name
         self.save_topdir = save_topdir or self.SAVE_TOPDIR
@@ -67,56 +86,50 @@ class ParaSave(SubGX):
             save_fn_pfx=    self.save_fn_pfx)
 
         # update in proper order
-        self.update(self.PARASAVE_DEFAULTS)
-        self.update(point_saved)
-        self.update(kwargs)
-
-        # _managed_params allows to lock managed params only to those given here
-        self._managed_params: Optional[List[str]] = None
-        if lock_managed_params: self._managed_params = self.get_managed_params()
-
-        point = self.get_point()
+        _self_point = {}
+        _self_point.update(self.PARASAVE_DEFAULTS)
+        _self_point.update(point_saved)
+        _self_point.update(self.get_point()) # params added up to now to self
+        _self_point.update(kwargs)
 
         self.__log.debug(f'> ParaSave POINT sources:')
         self.__log.debug(f'>> PARASAVE_DEFAULTS:    {self.PARASAVE_DEFAULTS}')
         self.__log.debug(f'>> POINT saved:          {point_saved}')
         self.__log.debug(f'>> given kwargs:         {kwargs}')
-        self.__log.debug(f'>> managed params:       {self.get_managed_params()}')
-        self.__log.debug(f'ParaSave complete POINT: {point}')
+        self.__log.debug(f'ParaSave complete POINT: {_self_point}')
 
-        SubGX.__init__(self, **point)
+        ParaGX.__init__(self, **_self_point)
+
+        if lock_managed_params:
+            self._managed_params = self.get_managed_params()
+            self.__log.debug(f'locked managed params: {self._managed_params}')
 
 
     def get_managed_params(self) -> List[str]:
         if self._managed_params is not None:
             return self._managed_params
-        return SubGX.get_managed_params(self)
+        return ParaGX.get_managed_params(self)
+
+    def __setitem__(self, key, value):
+        if self._managed_params is not None:
+            msg = f'ParaSave (managed_params locked) asked to self set with: >{key}:{value}< self will be updated, but managed_params not!'
+            self.__log.warning(msg)
+        setattr(self, key, value)
 
     # ************************************************************************************************ folder management
 
     @staticmethod
-    def __full_dir(
-            name: str,
-            save_topdir: str):
+    def __full_dir(name:str, save_topdir:str):
         return f'{save_topdir}/{name}'
 
     @classmethod
-    def __obj_fn(
-            cls,
-            name: str,
-            save_topdir: str,
-            save_fn_pfx: str):
+    def __obj_fn(cls, name:str, save_topdir:str, save_fn_pfx:str):
         return f'{cls.__full_dir(name, save_topdir)}/{save_fn_pfx}{cls.OBJ_SUFFIX}'
 
     @classmethod
-    def __txt_fn(
-            cls,
-            name: str,
-            save_topdir: str,
-            save_fn_pfx: str):
+    def __txt_fn(cls, name:str, save_topdir:str, save_fn_pfx:str):
         return f'{cls.__full_dir(name, save_topdir)}/{save_fn_pfx}{cls.TXT_SUFFIX}'
 
-    # loads POINT from folder
     @classmethod
     def load_point(
             cls,
@@ -124,6 +137,7 @@ class ParaSave(SubGX):
             save_topdir: Optional[str]= None,
             save_fn_pfx: Optional[str]= None
     ) -> POINT:
+        """ loads POINT from folder """
         obj_FN = cls.__obj_fn(
             name=           name,
             save_topdir=    save_topdir or cls.SAVE_TOPDIR,
@@ -133,8 +147,8 @@ class ParaSave(SubGX):
             return point
         return {}
 
-    # saves self POINT to folder (with preview in txt)
     def save_point(self):
+        """ saves self POINT to folder (with preview in txt) """
 
         if not self.save_topdir:
             msg = 'cannot save ParaSave, if save directory was not given, aborting'
@@ -166,14 +180,15 @@ class ParaSave(SubGX):
 
         self.__log.debug(f'{self.__class__.__name__} {self.name} saved to {self.save_topdir}')
 
-    # loads, next overrides parameters from given kwargs and saves POINT
     @classmethod
     def oversave_point(
             cls,
             name: str,
             save_topdir: Optional[str]= None,
             save_fn_pfx: Optional[str]= None,
-            **kwargs):
+            **kwargs,
+    ):
+        """ loads, next overrides parameters from given kwargs and saves POINT """
         psc = cls(
             name=           name,
             save_topdir=    save_topdir or cls.SAVE_TOPDIR,
@@ -182,7 +197,6 @@ class ParaSave(SubGX):
         psc.update(kwargs)
         psc.save_point()
 
-    # copies saved ParaSave POINT from one folder to another
     @classmethod
     def copy_saved_point(
             cls,
@@ -192,8 +206,9 @@ class ParaSave(SubGX):
             save_topdir_trg: Optional[str]= None,
             save_fn_pfx: Optional[str]=     None,
             logger=                         None,
-            loglevel=                       20
+            loglevel=                       20,
     ) -> None:
+        """ copies saved ParaSave POINT from one folder to another """
 
         if not save_topdir_src: save_topdir_src = cls.SAVE_TOPDIR
         if not save_fn_pfx: save_fn_pfx = cls.SAVE_FN_PFX
@@ -218,86 +233,95 @@ class ParaSave(SubGX):
         ps_trg.update(point_src)
         ps_trg.save_point()
 
-    # performs GX on saved ParaSave POINT (without even building child objects)
+    @staticmethod
+    def _gxable_check(
+            parentA: "ParaSave",
+            parentB: Optional["ParaSave"],
+    ) -> bool:
+
+        not_gxable_parents = []
+        if not parentA['gxable']:
+            not_gxable_parents.append(parentA)
+        if parentB and not parentB['gxable']:
+            not_gxable_parents.append(parentB)
+
+        if not_gxable_parents:
+            return False
+        return True
+
     @classmethod
     def gx_saved_point(
             cls,
-            name_parent_main: str,
-            name_parent_scnd: Optional[str],                # if not given makes GX only with main parent
+            name_parentA: str,
+            name_parentB: Optional[str],                # if not given makes GX only with parent A
             name_child: str,
-            save_topdir_parent_main: Optional[str]= None,   # ParaSave top directory
-            save_topdir_parent_scnd: Optional[str]= None,   # ParaSave top directory of parent scnd
-            save_topdir_child: Optional[str]=       None,   # ParaSave top directory of child
-            save_fn_pfx: Optional[str]=             None,   # ParaSave POINT file prefix
-            logger=                                 None,
-            loglevel=                               20,
+            save_topdir_parentA: Optional[str]= None,   # ParaSave top directory of parent A
+            save_topdir_parentB: Optional[str]= None,   # ParaSave top directory of parent B
+            save_topdir_child: Optional[str]=   None,   # ParaSave top directory of child
+            save_fn_pfx: Optional[str]=         None,   # ParaSave POINT file prefix
+            logger=                             None,
+            loglevel=                           20,
     ) -> None:
+        """ performs GX on saved ParaSave POINT """
 
-        if not save_topdir_parent_main: save_topdir_parent_main = cls.SAVE_TOPDIR
-        if not save_topdir_parent_scnd: save_topdir_parent_scnd = save_topdir_parent_main
-        if not save_topdir_child: save_topdir_child = save_topdir_parent_main
+        if not save_topdir_parentA: save_topdir_parentA = cls.SAVE_TOPDIR
+        if not save_topdir_parentB: save_topdir_parentB = save_topdir_parentA
+        if not save_topdir_child: save_topdir_child = save_topdir_parentA
         if not save_fn_pfx: save_fn_pfx = cls.SAVE_FN_PFX
 
-        pm = cls(
-            name=           name_parent_main,
-            save_topdir=    save_topdir_parent_main,
+        parentA = cls(
+            name=           name_parentA,
+            save_topdir=    save_topdir_parentA,
             save_fn_pfx=    save_fn_pfx,
             assert_saved=   True,
             logger=         logger,
             loglevel=       loglevel)
 
-        ps = cls(
-            name=           name_parent_scnd,
-            save_topdir=    save_topdir_parent_scnd,
+        parentB = cls(
+            name=           name_parentB,
+            save_topdir=    save_topdir_parentB,
             save_fn_pfx=    save_fn_pfx,
             logger=         logger,
-            loglevel=       loglevel) if name_parent_scnd else None
+            loglevel=       loglevel) if name_parentB else None
 
-        not_gxable_parents = []
-        if not pm['gxable']: not_gxable_parents.append(pm)
-        if ps and not ps['gxable']: not_gxable_parents.append(ps)
-
-        if not_gxable_parents:
+        if not cls._gxable_check(parentA, parentB):
             raise ParaSaveException('not gxable parents, cannot GX!')
 
-        # make pm a child and save
+        # make child and save
         else:
-            point_child = SubGX.gx_point(
-                parent_main=    pm,
-                parent_scnd=    ps,
-                name_child=     name_child)
-            pm.update(point_child)
-            pm['_save_topdir'] = save_topdir_child
-            pm.parents = [name_parent_main]
-            if name_parent_scnd:
-                pm.parents.append(name_parent_scnd)
-            pm.save_point()
+            point_child = ParaGX.gx_point(
+                parentA=    parentA,
+                parentB=    parentB,
+                name_child= name_child)
+            child = parentA
+            child.update(point_child)
+            child['_save_topdir'] = save_topdir_child
 
-    # adds gxable check
+            child.parents = [parentA.parents if parentA.parents else name_parentA]
+            if parentB:
+                child.parents.append(parentB.parents if parentB.parents else name_parentA)
+
+            child.save_point()
+
     @staticmethod
     def gx_point(
-            parent_main: "ParaSave",
-            parent_scnd: Optional["ParaSave"]=  None,
-            name_child: Optional[str]=          None,
-            prob_mix=                           0.5,
-            prob_noise=                         0.3,
-            noise_scale=                        0.1,
-            prob_axis=                          0.1,
-            prob_diff_axis=                     0.3,
+            parentA: "ParaSave",
+            parentB: Optional["ParaSave"]=  None,
+            name_child: Optional[str]=      None,
+            prob_mix=                       0.5,
+            prob_noise=                     0.3,
+            noise_scale=                    0.1,
+            prob_axis=                      0.1,
+            prob_diff_axis=                 0.3,
     ) -> POINT:
+        """ adds gxable check """
 
-        not_gxable_parents = []
-        if not parent_main['gxable']:
-            not_gxable_parents.append(parent_main)
-        if parent_scnd and not parent_scnd['gxable']:
-            not_gxable_parents.append(parent_scnd)
-
-        if not_gxable_parents:
+        if not ParaSave._gxable_check(parentA, parentB):
             raise ParaSaveException('not gxable parents, cannot GX')
 
-        return SubGX.gx_point(
-            parent_main=    parent_main,
-            parent_scnd=    parent_scnd,
+        return ParaGX.gx_point(
+            parentA=        parentA,
+            parentB=        parentB,
             name_child=     name_child,
             prob_mix=       prob_mix,
             prob_noise=     prob_noise,
@@ -305,9 +329,9 @@ class ParaSave(SubGX):
             prob_axis=      prob_axis,
             prob_diff_axis= prob_diff_axis)
 
-    # returns nice string of given dict (mostly for .txt preview save)
     @staticmethod
     def dict_2str(d: dict) -> str:
+        """ returns nice string of given dict (mostly for .txt preview save) """
         if d:
             s = ''
             max_len_sk = max([len(k) for k in d.keys()])

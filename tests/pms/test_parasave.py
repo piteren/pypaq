@@ -9,14 +9,8 @@ PARASAVE_TOPDIR = f'{flush_tmp_dir()}/parasave'
 ParaSave.SAVE_TOPDIR = PARASAVE_TOPDIR
 
 
-POINT = {
-    'name': 'pio',
-    'a':    1,
-    'b':    2,
-    'c':    'nap'}
-PSDD = {
-    'a':    [0,100],
-    'b':    [0.0,10]}
+_POINT = {'name':'pio', 'a':1, 'b':2, 'c':'nap'}
+_PSDD = {'a':[0, 100], 'b':[0.0, 10]}
 
 
 class TestParaSave(unittest.TestCase):
@@ -25,19 +19,22 @@ class TestParaSave(unittest.TestCase):
         print(f'setting up folder for tests: {PARASAVE_TOPDIR}')
         prep_folder(PARASAVE_TOPDIR, flush_non_empty=True)
 
-
     def test_init(self):
+        ps = ParaSave(name='ps_test', loglevel=10)
+        print(ps)
+
+    def test_save_raises(self):
         ParaSave.SAVE_TOPDIR = None
         ps = ParaSave(name='ps_test')
         print(ps)
         self.assertRaises(ParaSaveException, ps.save_point)
         ParaSave.SAVE_TOPDIR = PARASAVE_TOPDIR
 
-
     def test_init_save_load(self):
 
         ps = ParaSave(name='ps_testA', param='any')
         print(ps)
+        # TODO: ps.save() ?
         ps.save_point()
         self.assertTrue(ps.save_topdir == PARASAVE_TOPDIR)
 
@@ -69,13 +66,29 @@ class TestParaSave(unittest.TestCase):
             loglevel=       10)
         print(psb)
 
+    def test_update(self):
+
+        ps = ParaSave(name='ps_testA', param='any')
+        print(ps)
+        ps.update({'another':'many'})
+        print(ps)
+        self.assertTrue(ps.another == 'many')
+
+    def test_update_locked(self):
+
+        ps = ParaSave(name='ps_testA', lock_managed_params=True, param='any', loglevel=10)
+        print(ps)
+        ps.update({'another':'many'})
+        print(ps)
+        self.assertTrue(ps.another == 'many')
+        self.assertTrue('another' not in ps.get_point())
 
     def test_more(self):
 
         # build A and try to save
         ParaSave.SAVE_TOPDIR = None
         ps_point = {}
-        ps_point.update(POINT)
+        ps_point.update(_POINT)
         ps_point['name'] = 'ps'
         ps = ParaSave(**ps_point)
         print(ps.get_point())
@@ -87,9 +100,9 @@ class TestParaSave(unittest.TestCase):
 
         # build and save A
         ps_point = {}
-        ps_point.update(POINT)
+        ps_point.update(_POINT)
         ps_point['name'] = 'ps'
-        ps = ParaSave(**ps_point)
+        ps = ParaSave(**ps_point, family='s')
         print(ps.get_point())
         self.assertTrue(ps['a'] == 1)
         ps['a'] = 2
@@ -99,32 +112,32 @@ class TestParaSave(unittest.TestCase):
         ps = ParaSave(name='ps')
         print(ps.get_point())
         self.assertTrue(ps['a'] == 2)
-        ps['psdd'].update(PSDD)
+        ps['psdd'].update(_PSDD)
         print(ps.get_point())
         ps.save_point()
 
         # make copy of A to B
         ParaSave.copy_saved_point(
-            name_src=           'ps',
-            name_trg=           'psb')
+            name_src=   'ps',
+            name_trg=   'psb')
         psb = ParaSave(name='psb')
         print(psb.get_point())
         self.assertTrue(psb['a'] == 2)
 
         # GX saved C from B
         ParaSave.gx_saved_point(
-            name_parent_main=           'psb',
-            name_parent_scnd=           None,
-            name_child=                 'psc')
+            name_parentA=   'psb',
+            name_parentB=   None,
+            name_child=     'psc')
         psc = ParaSave(name='psc')
         print(psc.get_point())
         self.assertTrue(0<=psc['a']<=100 and 0<=psc['b']<=10)
 
         # GX saved D from B & C
         ParaSave.gx_saved_point(
-            name_parent_main=           'psb',
-            name_parent_scnd=           'psc',
-            name_child=                 'psd')
+            name_parentA=   'psb',
+            name_parentB=   'psc',
+            name_child=     'psd')
         psd = ParaSave(name='psd')
         print(psd.get_point())
         self.assertTrue(0<=psd['a']<=100 and 0<=psd['b']<=10)
