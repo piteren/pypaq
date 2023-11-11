@@ -1,6 +1,7 @@
 import unittest
 
-from pypaq.pms.subscriptable import Subscriptable, SubGX
+from pypaq.pms.para import Para, ParaGX
+from pypaq.pms.base import PMSException
 
 _PSDD = {
     'a': [1,    20],
@@ -13,18 +14,18 @@ _POINT = {
     'c': 'sth'}
 
 
-class TestSubscriptable(unittest.TestCase):
+class TestPara(unittest.TestCase):
 
     def test_base(self):
 
-        sa = Subscriptable()
+        sa = Para()
         sa['a'] = 1
         sa['_b'] = 2
         self.assertTrue('a' in sa)
         self.assertTrue('_b' in sa)
-        self.assertTrue('a' in sa.get_all_fields())
-        self.assertTrue('_b' not in sa.get_all_fields())
-        self.assertTrue('_b' in sa.get_all_fields(protected=True) and len(sa.get_all_fields(protected=True))==2)
+        self.assertTrue('a' in sa.get_all_params())
+        self.assertTrue('_b' not in sa.get_all_params())
+        self.assertTrue('_b' in sa.get_all_params(protected=True) and len(sa.get_all_params(protected=True)) == 2)
         self.assertTrue('a' in sa.get_managed_params() and len(sa.get_managed_params())==1)
         self.assertTrue('a' in sa.get_point() and len(sa.get_point())==1)
         self.assertTrue(sa['a']==1)
@@ -37,7 +38,7 @@ class TestSubscriptable(unittest.TestCase):
             'alpha':    1,
             'beta':     2,
             'alpha_0':  3}
-        sa = Subscriptable()
+        sa = Para()
         sa.update(init_dict)
         #print(sa)
 
@@ -50,13 +51,13 @@ class TestSubscriptable(unittest.TestCase):
         self.assertTrue(sa.check_params_sim(params=list(more_dict.keys())))
 
 
-class TestSubGX(unittest.TestCase):
+class TestParaGX(unittest.TestCase):
 
     def test_base(self):
 
-        self.assertRaises(Exception, SubGX)
+        self.assertRaises(Exception, ParaGX)
 
-        sa = SubGX(name='sa', **_POINT)
+        sa = ParaGX(name='sa', **_POINT)
         print(sa)
         self.assertTrue(sa['a'] == 1)
         self.assertTrue(not sa.gxable_point)
@@ -64,14 +65,14 @@ class TestSubGX(unittest.TestCase):
 
     def test_psdd(self):
 
-        sa = SubGX(name='sa', psdd=_PSDD, **_POINT)
+        sa = ParaGX(name='sa', psdd=_PSDD, **_POINT)
         print(sa)
         self.assertTrue(sa['a'] == 1)
         p = sa.gxable_point
         print(p)
         self.assertTrue(len(p)==3)
 
-        sa = SubGX(psdd=_PSDD)
+        sa = ParaGX(psdd=_PSDD)
         print(sa)
         p = sa.gxable_point
         print(p)
@@ -80,42 +81,45 @@ class TestSubGX(unittest.TestCase):
 
     def test_more(self):
 
-        sa = SubGX(name='sa', **_POINT)
+        sa = ParaGX(name='sa', **_POINT)
+        self.assertRaises(PMSException, ParaGX.gx_point, sa)
 
-        sb_point = SubGX.gx_point(sa)
-        sb = SubGX(**sb_point)
+        sa = ParaGX(name='sa', family='c', **_POINT)
+        sb_point = ParaGX.gx_point(sa)
+        sb = ParaGX(**sb_point)
         print(sb)
         self.assertTrue(sb['name'] == 'sa_(sgxp)')
+        self.assertTrue(sb['family'] == 'c')
         self.assertTrue(sb['a'] == 1)
         self.assertTrue(not sa.gxable_point)
 
         sa['psdd'] = _PSDD
-        sc_point = SubGX.gx_point(sa, sb)
-        sc = SubGX(**sc_point)
+        sc_point = ParaGX.gx_point(sa, sb)
+        sc = ParaGX(**sc_point)
         print(sc)
         self.assertTrue(20 >= sc['a'] >= 1 >= sc['b'] >= 0 and sc['c'] in _PSDD['c'])
         self.assertTrue(len(sc.gxable_point)==3)
 
         sa['a'] = 1000
-        self.assertRaises(Exception, SubGX.gx_point, sa)
+        self.assertRaises(Exception, ParaGX.gx_point, sa)
         print('\nPoint out of space while GX!')
         sa['a'] = 1
 
         sa['family'] = 'fa'
         sc['family'] = 'fb'
-        self.assertRaises(Exception, SubGX.gx_point, sa, sc)
+        self.assertRaises(Exception, ParaGX.gx_point, sa, sc)
         print('\nIncompatible families!')
 
         sc['family'] = 'fa'
-        sd_point = SubGX.gx_point(
-            parent_main=    sa,
-            parent_scnd=    sc,
+        sd_point = ParaGX.gx_point(
+            parentA=    sa,
+            parentB=    sc,
             name_child=     'sd',
             prob_mix=       0.3,
             prob_noise=     0.9,
             noise_scale=    0.5,
             prob_diff_axis= 0.5)
-        sd = SubGX(**sd_point)
+        sd = ParaGX(**sd_point)
         print(sd)
         self.assertTrue(20 >= sd['a'] >= 1 >= sd['b'] >= 0 and sd['c'] in _PSDD['c'])
         self.assertTrue(len(sd.gxable_point)==3)

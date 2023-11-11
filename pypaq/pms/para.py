@@ -6,8 +6,8 @@ from pypaq.pms.base import POINT, PSDD, PMSException
 from pypaq.pms.paspa import PaSpa
 
 
-# returns nice str information about dict differences: db against da
 def dict_diff(da:Dict, db:Dict) -> str:
+    """ returns nice str information about dict differences: db against da """
 
     nfo = ''
 
@@ -42,13 +42,11 @@ def dict_diff(da:Dict, db:Dict) -> str:
     return nfo
 
 
-# implements dict-like style access to its (self) parameters
-class Subscriptable:
-    """
-    Subscriptable
-        its parameters (point) may be accessed in dict-like style [], but Subscriptable IS NOT a dict
-        protected fields may also be accessed with [], but rather should not
-    """
+class Para:
+    """ Parameters Access
+    its parameters (point) may be accessed in dict-like style []
+    but Para IS NOT a dict
+    protected fields may also be accessed with [], but rather should not """
 
     def __getitem__(self, key):
         return getattr(self, key)
@@ -61,37 +59,40 @@ class Subscriptable:
 
     # ********************************************************************************************************** getters
 
-    # returns list of all object fields
-    def get_all_fields(self, protected=False) -> List[str]:
-        fields = [pm for pm in vars(self) if not pm.startswith('_Subscriptable__')]
+    def get_all_params(self, protected=False) -> List[str]:
+        """ returns list of all self parameters """
+        fields = [pm for pm in vars(self) if not pm.startswith('_Para__')]
         if not protected:
             fields = [pm for pm in fields if not pm.startswith('_')]
         return fields
 
-    # prepares list of params managed by Subscriptable (all but private and protected)
     def get_managed_params(self) -> List[str]:
-        return self.get_all_fields(protected=False)
+        """ prepares list of parameters managed by Para (all but private and protected) """
+        return self.get_all_params(protected=False)
 
-    # returns dict of params managed by Subscriptable (POINT of ALL object fields)
     def get_point(self) -> POINT:
+        """ returns POINT of parameters managed by Para """
         return {k: self[k] for k in self.get_managed_params()}
 
     # *************************************************************************************************** update & check
 
-    # update in dict-like style
     def update(self, dct:dict) -> None:
+        """ update in dict-like style """
         for key in dct:
             self.__setitem__(key, dct[key])
 
-    # checks for self.params + params for similarity, returns True if already got similar
     def check_params_sim(
             self,
             params: Optional[Union[Dict,List]]= None,
-            lev_dist_diff: int=                 1
+            lev_dist_diff: int=                 1,
     ) -> Optional[Set[Tuple[str,str]]]:
+        """ checks self.params + params for similarity against given
+        returns True if already got similar """
 
-        if params is None: params = []
+        if params is None:
+            params = []
         paramsL = params if type(params) is list else list(params.keys())
+
         self_paramsL = list(self.get_point().keys())
         diff_paramsL = [par for par in paramsL if par not in self_paramsL]
 
@@ -110,7 +111,7 @@ class Subscriptable:
 
 
     def __str__(self):
-        s = f'{self.__class__.__name__} (Subscriptable):\n'
+        s = f'{self.__class__.__name__} (Para):\n'
         pms = self.get_point()
         if pms:
             for k in sorted(pms.keys()):
@@ -120,15 +121,14 @@ class Subscriptable:
         return s[:-1]
 
 
-# extends Subscriptable with GX on POINT
-class SubGX(Subscriptable):
-    """
-    SubGX - Subscriptable with GX (genetic crossing algorithm)
-        implements GX on parents POINTs
-        GX algorithm builds child POINT from:
-            - parameters of parents POINTs
-            - and parameters sampled from merged both parents PSDD
-        it is also possible to preform GX of SINGLE parent
+class ParaGX(Para):
+    """ ParaGX - Para with GX (genetic crossing algorithm)
+    implements GX on parents POINTs
+
+    GX algorithm builds child POINT from:
+        - parameters of parents POINTs
+        - parameters sampled from merged both parents PSDD
+    it is also possible to preform GX of SINGLE parent
     """
 
     def __init__(
@@ -151,38 +151,39 @@ class SubGX(Subscriptable):
         if not kwargs:
 
             if not psdd:
-                raise PMSException('when SubGX \'kwargs\' not given, \'psdd\' must be given')
+                raise PMSException('when ParaGX \'kwargs\' not given, \'psdd\' must be given')
 
             paspa = PaSpa(psdd=psdd, loglevel=30)
             kwargs = paspa.sample_point_GX()
 
         self.update(kwargs)
 
-    # checks for compatibility of families, True when are equal or when at least one family is None
     @staticmethod
     def families_compatible(
-            parent_main: "SubGX",
-            parent_scnd: Optional["SubGX"]= None
+            parentA: "ParaGX",
+            parentB: Optional["ParaGX"]= None
     ) -> bool:
+        """ checks for compatibility of families
+        returns True when families match and are not None """
 
-        point_main = parent_main.get_point()
-        point_scnd = parent_scnd.get_point() if parent_scnd else None
+        pointA = parentA.get_point()
+        fmA = pointA.get('family', None)
+        pointB = parentB.get_point() if parentB else None
 
-        if point_scnd is None: return True
+        if not pointB:
+            return fmA is not None
 
-        if not point_scnd: point_scnd = {}
-        fmm = point_main.get('family', None)
-        fms = point_scnd.get('family', None)
+        else:
+            if fmA is None:
+                return False
 
-        if fmm is not None and fms is not None and fmm != fms: return False
+            fmB = pointB.get('family', None)
+            return fmA == fmB
 
-        return True
-
-    # GX on SubGX POINTs
     @staticmethod
     def gx_point(
-            parent_main: "SubGX",
-            parent_scnd: Optional["SubGX"]= None,
+            parentA: "ParaGX",
+            parentB: Optional["ParaGX"]=    None,
             name_child: Optional[str]=      None,
             prob_mix=                       0.5,
             prob_noise=                     0.3,
@@ -190,32 +191,33 @@ class SubGX(Subscriptable):
             prob_axis=                      0.1,
             prob_diff_axis=                 0.3
     ) -> POINT:
+        """ GX on ParaGX POINTs """
 
-        if not SubGX.families_compatible(parent_main, parent_scnd):
+        if not ParaGX.families_compatible(parentA, parentB):
             raise PMSException('ERR: parents families not compatible')
 
-        point_main = parent_main.get_point()
-        point_scnd = parent_scnd.get_point() if parent_scnd else None
+        pointA = parentA.get_point()
+        pointB = parentB.get_point() if parentB else None
 
-        psdd_main = point_main.get('psdd', {})
-        psdd_scnd = point_scnd.get('psdd', {}) if point_scnd is not None else None
+        psddA = pointA.get('psdd', {})
+        psddB = pointB.get('psdd', {}) if pointB is not None else None
         psdd_merged = PaSpa.merge_psdd(
-                psdd_a= psdd_main,
-                psdd_b= psdd_scnd) if psdd_scnd is not None else psdd_main
+                psdd_a= psddA,
+                psdd_b= psddB) if psddB is not None else psddA
 
         paspa_merged = PaSpa(psdd=psdd_merged, loglevel=30)
 
-        paspa_axes_not_in_parent = [a for a in paspa_merged.axes if a not in point_main]
+        paspa_axes_not_in_parent = [a for a in paspa_merged.axes if a not in pointA]
         if paspa_axes_not_in_parent:
-            raise PMSException(f'ERR: paspa axes not in parent_main: {paspa_axes_not_in_parent}')
+            raise PMSException(f'ERR: PaSpa axes not in parent_main: {paspa_axes_not_in_parent}')
 
         # sub-points limited to axes of psdd_merged (PaSpa.sample_point_GX() does not accept other axes..)
-        point_main_psdd = {k: point_main[k] for k in psdd_merged}
-        point_scnd_psdd = {k: point_scnd[k] for k in psdd_merged} if point_scnd is not None else None
+        pointA_psdd = {k: pointA[k] for k in psdd_merged}
+        pointB_psdd = {k: pointB[k] for k in psdd_merged} if pointB is not None else None
 
         point_gx = paspa_merged.sample_point_GX(
-            point_main=     point_main_psdd,
-            point_scnd=     point_scnd_psdd,
+            pointA=         pointA_psdd,
+            pointB=         pointB_psdd,
             prob_mix=       prob_mix,
             prob_noise=     prob_noise,
             noise_scale=    noise_scale,
@@ -223,11 +225,11 @@ class SubGX(Subscriptable):
             prob_diff_axis= prob_diff_axis)
 
         # point_child is based on parent_main with updated values of point_gx
-        point_child: POINT = deepcopy(point_main)
+        point_child: POINT = deepcopy(pointA)
         point_child.update(point_gx)
         point_child['psdd'] = psdd_merged # update psdd to psdd_merged
 
-        name_merged = f'{parent_main.name}+{parent_scnd.name}_(gxp)' if parent_scnd else f'{parent_main.name}_(sgxp)'
+        name_merged = f'{parentA.name}+{parentB.name}_(gxp)' if parentB else f'{parentA.name}_(sgxp)'
         point_child['name'] = name_child or name_merged
 
         return point_child
@@ -239,7 +241,7 @@ class SubGX(Subscriptable):
 
 
     def __str__(self):
-        s = f'{self.__class__.__name__} (SubGX) name: {self.name}, family: {self.family}\n'
+        s = f'{self.__class__.__name__} (ParaGX) name: {self.name}, family: {self.family}\n'
         pms = self.get_point()
         for k in sorted(pms.keys()):
             p = f'param: {k}'
