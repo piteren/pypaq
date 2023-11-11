@@ -55,16 +55,14 @@ class PaSpa:
 
     ### *************************************************************************** axes / value_on_axis related methods
 
-    # prepares axes type and width + some safety checks
     def __axes_type_width(self) -> Tuple[Dict,Dict]:
-        """
+        """ prepares axes type and width + some safety checks
         possible axes types:
         - list_float
         - list_int
         - tuple_float
         - tuple_int
-        - tuple_diff
-        """
+        - tuple_diff """
 
         axT: Dict[str, str] = {}   # axis type
         axW: Dict[str, float] = {} # axis width, range (min <-> max), for diff_tuple - number of elements
@@ -100,7 +98,6 @@ class PaSpa:
 
         return axT, axW
 
-
     def __closest(
             self,
             ref_val: Union[float, int],      # for diff_tuple it is index of value in self.__psdd[axis]
@@ -131,7 +128,6 @@ class PaSpa:
 
         return val
 
-
     @staticmethod
     def __apply_noise(
             ref_val: Union[float, int], # reference value (in range og L & R)
@@ -156,7 +152,6 @@ class PaSpa:
 
         return random.uniform(ref_val, rng)
 
-
     def __random_value_noref(self, axis:str) -> P_VAL:
         """ samples random value from whole axis """
 
@@ -171,7 +166,6 @@ class PaSpa:
         else: val = random.choice(psdd)
 
         return val
-
 
     def __random_value(
             self,
@@ -239,10 +233,8 @@ class PaSpa:
         elif value not in self._psdd[axis]:                            return False # value not in a tuple
         return True
 
-
     ### *************************************************************************** "point in the space" related methods
 
-    # samples (random) point from whole space or from the surroundings of ref_point
     def sample_point(
             self,
             ref_point: Optional[POINT]= None,   # reference point
@@ -251,6 +243,7 @@ class PaSpa:
             prob_axis=                  0.1,    # probability of value replacement by one sampled from whole axis (for list or num_tuple)
             prob_diff_axis=             0.3     # probability of value replacement by one sampled from whole axis (for diff_tuple)
     ) -> POINT:
+        """ samples (random) point from whole space or from the surroundings of ref_point """
         if ref_point is None:
             ref_point = {axis: NO_REF for axis in self.axes}
         return {axis: self.__random_value(
@@ -261,31 +254,30 @@ class PaSpa:
             prob_axis=      prob_axis,
             prob_diff_axis= prob_diff_axis) for axis in self.axes}
 
-
     def sample_point_GX(
             self,
-            point_main: Optional[POINT]=    None,   # main parent, when not given > samples from the whole space
-            point_scnd: Optional[POINT]=    None,   # scnd parent, when not given > samples from the surroundings of point_main
-            prob_mix=                       0.5,    # probability of mixing two values (for list or num_tuple - but only when both parents are given)
-            prob_noise=                     0.3,    # probability of shifting value with noise (for list or num_tuple)
-            noise_scale=                    0.2,    # max noise scale (axis width)
-            prob_axis=                      0.1,    # probability of value replacement by one sampled from whole axis (for list or num_tuple)
-            prob_diff_axis=                 0.3     # probability of value replacement by one sampled from whole axis (for diff_tuple)
+            pointA: Optional[POINT]=    None,   # parent A, when not given > samples from the whole space
+            pointB: Optional[POINT]=    None,   # parent B, when not given > samples from the surroundings of point_main
+            prob_mix=                   0.5,    # probability of mixing two values (for list or num_tuple - but only when both parents are given)
+            prob_noise=                 0.3,    # probability of shifting value with noise (for list or num_tuple)
+            noise_scale=                0.2,    # max noise scale (axis width)
+            prob_axis=                  0.1,    # probability of value replacement by one sampled from whole axis (for list or num_tuple)
+            prob_diff_axis=             0.3     # probability of value replacement by one sampled from whole axis (for diff_tuple)
     ) -> POINT:
         """ samples GX point from given None, one or two """
 
         ref_point = None # when point_main nor point_scnd are given
 
-        if point_main:
-            if not self.is_from_space(point_main):
-                raise PMSException(f'ERR: point_main: {point_main} not from space: {self._psdd}')
+        if pointA:
+            if not self.is_from_space(pointA):
+                raise PMSException(f'ERR: point_main: {pointA} not from space: {self._psdd}')
 
-            ref_point = point_main  # select main parent
+            ref_point = pointA  # select main parent
 
             # build ref_point with mix or select
-            if point_scnd:
-                if not self.is_from_space(point_scnd):
-                    raise PMSException(f'point_scnd: {point_scnd} not from space: {self._psdd}')
+            if pointB:
+                if not self.is_from_space(pointB):
+                    raise PMSException(f'point_scnd: {pointB} not from space: {self._psdd}')
 
                 ref_point = {}
                 ratio = 0.5 + random.random() / 2  # mix/select ratio of parent_main, rest from parent_scnd (at least half from parent_main)
@@ -297,17 +289,17 @@ class PaSpa:
 
                         # num
                         if 'diff' not in self._axT[axis]:
-                            val = point_main[axis] * ratio + point_scnd[axis] * (1-ratio)
+                            val = pointA[axis] * ratio + pointB[axis] * (1 - ratio)
                             val = self.__closest(val, axis)
                         # diff_tuple - mix on indexes
                         else:
-                            pm_ix = self._psdd[axis].index(point_main[axis])
-                            ps_ix = self._psdd[axis].index(point_scnd[axis])
+                            pm_ix = self._psdd[axis].index(pointA[axis])
+                            ps_ix = self._psdd[axis].index(pointB[axis])
                             val_ix = pm_ix * ratio + ps_ix * (1-ratio)
                             val = self.__closest(val_ix, axis)
                     
                     # select
-                    else: val = point_main[axis] if random.random() < ratio else point_scnd[axis]
+                    else: val = pointA[axis] if random.random() < ratio else pointB[axis]
 
                     ref_point[axis] = val
 
@@ -318,7 +310,6 @@ class PaSpa:
             noise_scale=    noise_scale,
             prob_axis=      prob_axis,
             prob_diff_axis= prob_diff_axis)
-
 
     def sample_corners(self) -> Tuple[POINT, POINT]:
         """ samples 2 corner points with max distance (1 in normalized space) """
@@ -336,7 +327,6 @@ class PaSpa:
                 pb[ax] = vl
         return pa, pb
 
-
     def is_from_space(self, point:POINT) -> bool:
         """ checks if given point comes from this space """
         if set(point.keys()) != set(self.axes): return False
@@ -344,7 +334,6 @@ class PaSpa:
             if not self.__value_in_axis(value=point[axis], axis=axis):
                 return False
         return True
-
 
     def distance(self, pa:POINT, pb:POINT) -> float:
         """ L2 distance between two points of this space (normalized) """
@@ -356,7 +345,6 @@ class PaSpa:
                     pa[axis] - pb[axis]
                 dist_pow_sum += (dist / self._axW[axis]) ** 2
         return  math.sqrt(dist_pow_sum) / math.sqrt(self.dim)
-
 
     def point_normalized(self, p:POINT) -> POINT:
         """ prepares normalized point of p
