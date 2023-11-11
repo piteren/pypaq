@@ -161,7 +161,7 @@ class TestPaspa(unittest.TestCase):
             point_a = points[ix]
             ax_dst = random.random()
             point_b = paspa.sample_point_GX(
-                point_main=     point_a,
+                pointA=         point_a,
                 prob_noise=     1,
                 noise_scale=    ax_dst,
                 prob_axis=      0.0,
@@ -209,7 +209,7 @@ class TestPaspa(unittest.TestCase):
 
         ld = 1
         while ld > 0:
-            nref_pt = paspa.sample_point_GX(point_main=ref_pt, noise_scale=0.1)
+            nref_pt = paspa.sample_point_GX(pointA=ref_pt, noise_scale=0.1)
             ld = nref_pt['ldrt_drop']
             if ld < ref_pt['ldrt_drop']:
                 ref_pt = nref_pt
