@@ -151,7 +151,7 @@ class ParaSave(ParaGX):
         """ saves self POINT to folder (with preview in txt) """
 
         if not self.save_topdir:
-            msg = 'cannot save ParaSave, if save directory was not given, aborting'
+            msg = f'cannot save {self.__class__.__name__}, if save directory was not given, aborting'
             self.__log.error(msg)
             raise ParaSaveException(msg)
 
