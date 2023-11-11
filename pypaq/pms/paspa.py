@@ -257,7 +257,7 @@ class PaSpa:
     def sample_point_GX(
             self,
             pointA: Optional[POINT]=    None,   # parent A, when not given > samples from the whole space
-            pointB: Optional[POINT]=    None,   # parent B, when not given > samples from the surroundings of point_main
+            pointB: Optional[POINT]=    None,   # parent B, when not given > samples from the surroundings of pointA
             prob_mix=                   0.5,    # probability of mixing two values (for list or num_tuple - but only when both parents are given)
             prob_noise=                 0.3,    # probability of shifting value with noise (for list or num_tuple)
             noise_scale=                0.2,    # max noise scale (axis width)
@@ -266,21 +266,21 @@ class PaSpa:
     ) -> POINT:
         """ samples GX point from given None, one or two """
 
-        ref_point = None # when point_main nor point_scnd are given
+        ref_point = None # when pointA nor pointB are given
 
         if pointA:
             if not self.is_from_space(pointA):
-                raise PMSException(f'ERR: point_main: {pointA} not from space: {self._psdd}')
+                raise PMSException(f'ERR: pointA: {pointA} not from space: {self._psdd}')
 
             ref_point = pointA  # select main parent
 
             # build ref_point with mix or select
             if pointB:
                 if not self.is_from_space(pointB):
-                    raise PMSException(f'point_scnd: {pointB} not from space: {self._psdd}')
+                    raise PMSException(f'pointB: {pointB} not from space: {self._psdd}')
 
                 ref_point = {}
-                ratio = 0.5 + random.random() / 2  # mix/select ratio of parent_main, rest from parent_scnd (at least half from parent_main)
+                ratio = 0.5 + random.random() / 2  # mix/select ratio of parentA, rest from parentB (at least half from parentA)
 
                 for axis in self.axes:
 

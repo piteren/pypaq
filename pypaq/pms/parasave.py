@@ -340,7 +340,7 @@ class ParaSave(ParaGX):
         return '--empty point--'
 
     def __str__(self):
-        s = f'(ParaSave) name: {self.name}, family: {self.family}\n'
+        s = f'{self.__class__.__name__} (ParaSave)\n'
         s += self.dict_2str(self.get_point())
         return s
 

@@ -209,7 +209,7 @@ class ParaGX(Para):
 
         paspa_axes_not_in_parent = [a for a in paspa_merged.axes if a not in pointA]
         if paspa_axes_not_in_parent:
-            raise PMSException(f'ERR: PaSpa axes not in parent_main: {paspa_axes_not_in_parent}')
+            raise PMSException(f'ERR: PaSpa axes not in parentA: {paspa_axes_not_in_parent}')
 
         # sub-points limited to axes of psdd_merged (PaSpa.sample_point_GX() does not accept other axes..)
         pointA_psdd = {k: pointA[k] for k in psdd_merged}
@@ -224,7 +224,7 @@ class ParaGX(Para):
             prob_axis=      prob_axis,
             prob_diff_axis= prob_diff_axis)
 
-        # point_child is based on parent_main with updated values of point_gx
+        # point_child is based on parentA with updated values of point_gx
         point_child: POINT = deepcopy(pointA)
         point_child.update(point_gx)
         point_child['psdd'] = psdd_merged # update psdd to psdd_merged

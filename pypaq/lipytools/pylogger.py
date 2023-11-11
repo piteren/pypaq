@@ -11,7 +11,7 @@ def get_pylogger(
         folder: Optional[str]=              None,
         level=                              logging.INFO,
         flat_child: bool=                   False,
-        format: Union[Tuple[str,str],str]=  '%(asctime)s {%(filename)20s:%(lineno)3d} p%(process)s %(levelname)s: %(message)s',
+        format: Union[Tuple[str,str],str]=  '%(asctime)s {%(filename)20s:%(lineno)4d} p%(process)s %(levelname)s: %(message)s',
         to_stdout=                          True,
 ) -> logging.Logger:
     """
