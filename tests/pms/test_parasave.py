@@ -141,3 +141,38 @@ class TestParaSave(unittest.TestCase):
         psd = ParaSave(name='psd')
         print(psd.get_point())
         self.assertTrue(0<=psd['a']<=100 and 0<=psd['b']<=10)
+
+    def test_parents_GX(self):
+
+        # build and save A
+        pa_point = {}
+        pa_point.update(_POINT)
+        pa_point.update({
+            'name':     'pa',
+            'family':   'a',
+            'psdd':     _PSDD})
+        pa = ParaSave(**pa_point)
+        pa.save_point()
+
+        # build and save B
+        pb_point = {}
+        pb_point.update(_POINT)
+        pb_point.update({
+            'name':     'pb',
+            'family':   'a',
+            'psdd':     _PSDD})
+        pb = ParaSave(**pb_point)
+        pb.save_point()
+
+        pc_point = ParaSave.gx_point(parentA=pa, parentB=pb)
+        self.assertTrue(pc_point['parents'] == ['pa', 'pb'])
+        pc = ParaSave(**pc_point)
+        pc.save_point()
+
+        ParaSave.gx_saved_point(
+            name_parentA=   'pa',
+            name_parentB=   pc.name,
+            name_child=     'pd')
+        pd = ParaSave(name='pd')
+        print(pd)
+        self.assertTrue(pd.parents == ['pa', ['pa', 'pb']])

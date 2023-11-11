@@ -288,20 +288,14 @@ class ParaSave(ParaGX):
             raise ParaSaveException('not gxable parents, cannot GX!')
 
         # make child and save
-        else:
-            point_child = ParaGX.gx_point(
-                parentA=    parentA,
-                parentB=    parentB,
-                name_child= name_child)
-            child = parentA
-            child.update(point_child)
-            child['_save_topdir'] = save_topdir_child
-
-            child.parents = [parentA.parents if parentA.parents else name_parentA]
-            if parentB:
-                child.parents.append(parentB.parents if parentB.parents else name_parentA)
-
-            child.save_point()
+        point_child = cls.gx_point(
+            parentA=    parentA,
+            parentB=    parentB,
+            name_child= name_child)
+        child = parentA
+        child.update(point_child)
+        child['_save_topdir'] = save_topdir_child
+        child.save_point()
 
     @staticmethod
     def gx_point(
@@ -319,7 +313,7 @@ class ParaSave(ParaGX):
         if not ParaSave._gxable_check(parentA, parentB):
             raise ParaSaveException('not gxable parents, cannot GX')
 
-        return ParaGX.gx_point(
+        child_point = ParaGX.gx_point(
             parentA=        parentA,
             parentB=        parentB,
             name_child=     name_child,
@@ -329,8 +323,14 @@ class ParaSave(ParaGX):
             prob_axis=      prob_axis,
             prob_diff_axis= prob_diff_axis)
 
+        child_point['parents'] = [parentA.parents if parentA.parents else parentA.name]
+        if parentB:
+            child_point['parents'].append(parentB.parents if parentB.parents else parentB.name)
+
+        return child_point
+
     @staticmethod
-    def dict_2str(d: dict) -> str:
+    def dict_2str(d:dict) -> str:
         """ returns nice string of given dict (mostly for .txt preview save) """
         if d:
             s = ''

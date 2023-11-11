@@ -62,7 +62,6 @@ class TestParaGX(unittest.TestCase):
         self.assertTrue(sa['a'] == 1)
         self.assertTrue(not sa.gxable_point)
 
-
     def test_psdd(self):
 
         sa = ParaGX(name='sa', psdd=_PSDD, **_POINT)
@@ -77,7 +76,6 @@ class TestParaGX(unittest.TestCase):
         p = sa.gxable_point
         print(p)
         self.assertTrue(len(p)==3)
-
 
     def test_more(self):
 
@@ -112,8 +110,8 @@ class TestParaGX(unittest.TestCase):
 
         sc['family'] = 'fa'
         sd_point = ParaGX.gx_point(
-            parentA=    sa,
-            parentB=    sc,
+            parentA=        sa,
+            parentB=        sc,
             name_child=     'sd',
             prob_mix=       0.3,
             prob_noise=     0.9,
