@@ -294,7 +294,7 @@ class ParaSave(ParaGX):
             name_child= name_child)
         child = parentA
         child.update(point_child)
-        child['_save_topdir'] = save_topdir_child
+        child.save_topdir = save_topdir_child
         child.save_point()
 
     @staticmethod
