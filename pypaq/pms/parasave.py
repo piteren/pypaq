@@ -221,17 +221,11 @@ class ParaSave(ParaGX):
             logger=         logger,
             loglevel=       loglevel)
 
-        ps_trg = cls(
-            name=           name_trg,
-            save_topdir=    save_topdir_trg or save_topdir_src,
-            save_fn_pfx=    save_fn_pfx,
-            logger=         logger,
-            loglevel=       loglevel)
+        ps_src.name = name_trg
+        if save_topdir_trg:
+            ps_src.save_topdir = save_topdir_trg
 
-        point_src = ps_src.get_point()
-        for k in ['name','save_topdir']: point_src.pop(k)
-        ps_trg.update(point_src)
-        ps_trg.save_point()
+        ps_src.save_point()
 
     @staticmethod
     def _gxable_check(

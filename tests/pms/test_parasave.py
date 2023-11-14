@@ -102,9 +102,9 @@ class TestParaSave(unittest.TestCase):
         ps_point = {}
         ps_point.update(_POINT)
         ps_point['name'] = 'ps'
-        ps = ParaSave(**ps_point, family='s')
+        ps = ParaSave(**ps_point)
         print(ps.get_point())
-        self.assertTrue(ps['a'] == 1)
+        self.assertTrue(ps['a'] == 1, ps['family'] == '__gx-fam__')
         ps['a'] = 2
         ps.save_point()
 

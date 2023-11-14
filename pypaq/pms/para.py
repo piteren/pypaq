@@ -134,7 +134,7 @@ class ParaGX(Para):
     def __init__(
             self,
             name: Optional[str]=    None,
-            family: Optional[str]=  None, # family of GXable
+            family: Optional[str]=  '__gx-fam__', # family of GXable, here default, for GX functionality family needs to be given
             psdd: Optional[PSDD]=   None, # PSDD of GXable
             **kwargs):
 

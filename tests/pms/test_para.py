@@ -79,15 +79,15 @@ class TestParaGX(unittest.TestCase):
 
     def test_more(self):
 
-        sa = ParaGX(name='sa', **_POINT)
+        sa = ParaGX(name='sa', family=None,  **_POINT)
         self.assertRaises(PMSException, ParaGX.gx_point, sa)
 
-        sa = ParaGX(name='sa', family='c', **_POINT)
+        sa = ParaGX(name='sa', **_POINT)
         sb_point = ParaGX.gx_point(sa)
         sb = ParaGX(**sb_point)
         print(sb)
         self.assertTrue(sb['name'] == 'sa_(sgxp)')
-        self.assertTrue(sb['family'] == 'c')
+        self.assertTrue(sb['family'] == '__gx-fam__')
         self.assertTrue(sb['a'] == 1)
         self.assertTrue(not sa.gxable_point)
 
