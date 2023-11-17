@@ -1,14 +1,31 @@
 import logging
 import unittest
 
+from pypaq.lipytools.files import prep_folder
 from pypaq.lipytools.pylogger import get_pylogger, get_child
+
+from tests.envy import flush_tmp_dir
+
+TEMP_FD = f'{flush_tmp_dir()}/hpmser'
 
 
 class TestPylogger(unittest.TestCase):
 
+    def setUp(self) -> None:
+        prep_folder(TEMP_FD, flush_non_empty=True)
+
     def test_base(self):
         logger = get_pylogger()
         self.assertTrue(type(logger) is logging.Logger)
+
+    def test_name(self):
+        logger = get_pylogger()
+        print(logger.name)
+        self.assertTrue(logger.name == 'root')
+
+        logger = get_pylogger(folder=f'{TEMP_FD}/logger')
+        print(logger.name)
+        self.assertTrue(logger.name.startswith('pylogger_'))
 
     def test_flat_child(self):
 

@@ -21,8 +21,10 @@ def get_pylogger(
     - format:       may be given as a str or Tuple[str,str] (fmt,datefmt)
     """
 
-    if not name: name = 'logger'
-    if add_stamp: name += '_' + stamp()
+    if not name and folder:
+        name = 'pylogger'
+    if name and add_stamp:
+        name += '_' + stamp()
 
     if type(format) is not tuple:
         format = (format,)
