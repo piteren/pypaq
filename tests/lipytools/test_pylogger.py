@@ -16,7 +16,11 @@ class TestPylogger(unittest.TestCase):
 
     def test_base(self):
         logger = get_pylogger()
-        self.assertTrue(type(logger) is logging.Logger)
+        print(logger)
+        self.assertTrue(type(logger) is logging.RootLogger and logger.level == 20 and logger.getEffectiveLevel() == 20)
+        logger = get_pylogger(level=30)
+        print(logger)
+        self.assertTrue(type(logger) is logging.RootLogger and logger.level == 30 and logger.getEffectiveLevel() == 30)
 
     def test_name(self):
         logger = get_pylogger()

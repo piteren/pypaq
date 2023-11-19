@@ -42,7 +42,7 @@ class PointsCloud(Sized):
             loglevel=   20):
 
         if not logger:
-            logger = get_pylogger(level=loglevel)
+            logger = get_pylogger(name=self.__class__.__name__, level=loglevel)
         self.logger = logger
         self.logger.info('*** PointsCloud *** initializing..')
 

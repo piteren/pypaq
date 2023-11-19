@@ -39,6 +39,7 @@ class TestPaspa(unittest.TestCase):
     def test_base(self):
         paspa = PaSpa(SAMPLE_PSDD)
         print(paspa)
+        print(paspa.logger)
 
 
     def test_point_normalized(self):
