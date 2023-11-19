@@ -309,6 +309,7 @@ class ParaSave(ParaGX):
             name=           name_parentB,
             save_topdir=    save_topdir_parentB,
             save_fn_pfx=    save_fn_pfx,
+            assert_saved=   True,
             logger=         logger,
             loglevel=       loglevel) if name_parentB else None
 
