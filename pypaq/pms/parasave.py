@@ -67,7 +67,7 @@ class ParaSave(ParaGX):
             logger = get_pylogger(
                 name=       self.name,
                 add_stamp=  False,
-                folder=     ParaSave.__full_dir(name=self.name, save_topdir=self.save_topdir) if self.save_topdir else None,
+                folder=     ParaSave._full_dir(name=self.name, save_topdir=self.save_topdir) if self.save_topdir else None,
                 level=      loglevel)
         self.__log = logger
 
@@ -75,7 +75,10 @@ class ParaSave(ParaGX):
         self.__log.debug(f'> save_topdir: {self.save_topdir}')
         self.__log.debug(f'> save_fn_pfx: {self.save_fn_pfx}')
 
-        if assert_saved and not os.path.isfile(ParaSave.__obj_fn(name, self.save_topdir, self.save_fn_pfx)):
+        if assert_saved and not self.is_saved(
+                name=           self.name,
+                save_topdir=    self.save_topdir,
+                save_fn_pfx=    self.save_fn_pfx):
             ex_msg = f'ParaSave {self.name} does not exist, but should!'
             self.__log.error(ex_msg)
             raise ParaSaveException(ex_msg)
@@ -118,30 +121,61 @@ class ParaSave(ParaGX):
 
     # ************************************************************************************************ folder management
 
-    @staticmethod
-    def __full_dir(name:str, save_topdir:str):
+    @classmethod
+    def _full_dir(
+            cls,
+            name: str,
+            save_topdir: Optional[str]= None,
+    ):
+        if not save_topdir: save_topdir = cls.SAVE_TOPDIR
         return f'{save_topdir}/{name}'
 
     @classmethod
-    def __obj_fn(cls, name:str, save_topdir:str, save_fn_pfx:str):
-        return f'{cls.__full_dir(name, save_topdir)}/{save_fn_pfx}{cls.OBJ_SUFFIX}'
+    def _obj_fn(
+            cls,
+            name: str,
+            save_topdir: Optional[str]= None,
+            save_fn_pfx: Optional[str]= None,
+    ):
+        if not save_topdir: save_topdir = cls.SAVE_TOPDIR
+        if not save_fn_pfx: save_fn_pfx = cls.SAVE_FN_PFX
+        return f'{cls._full_dir(name=name, save_topdir=save_topdir)}/{save_fn_pfx}{cls.OBJ_SUFFIX}'
 
     @classmethod
-    def __txt_fn(cls, name:str, save_topdir:str, save_fn_pfx:str):
-        return f'{cls.__full_dir(name, save_topdir)}/{save_fn_pfx}{cls.TXT_SUFFIX}'
+    def _txt_fn(
+            cls,
+            name: str,
+            save_topdir: Optional[str]= None,
+            save_fn_pfx: Optional[str]= None,
+    ):
+        if not save_topdir: save_topdir = cls.SAVE_TOPDIR
+        if not save_fn_pfx: save_fn_pfx = cls.SAVE_FN_PFX
+        return f'{cls._full_dir(name=name, save_topdir=save_topdir)}/{save_fn_pfx}{cls.TXT_SUFFIX}'
+
+    @classmethod
+    def is_saved(
+            cls,
+            name: str,
+            save_topdir: Optional[str]= None,
+            save_fn_pfx: Optional[str]= None,
+    ) -> bool:
+        """ checks if given ParaSave name is already saved (..has been created before) """
+        if not save_topdir: save_topdir = cls.SAVE_TOPDIR
+        if not save_fn_pfx: save_fn_pfx = cls.SAVE_FN_PFX
+        return os.path.isfile(cls._obj_fn(name=name, save_topdir=save_topdir, save_fn_pfx=save_fn_pfx))
 
     @classmethod
     def load_point(
             cls,
             name: str,
             save_topdir: Optional[str]= None,
-            save_fn_pfx: Optional[str]= None
+            save_fn_pfx: Optional[str]= None,
     ) -> POINT:
         """ loads POINT from folder """
-        obj_FN = cls.__obj_fn(
+        obj_FN = cls._obj_fn(
             name=           name,
-            save_topdir=    save_topdir or cls.SAVE_TOPDIR,
-            save_fn_pfx=    save_fn_pfx or cls.SAVE_FN_PFX)
+            save_topdir=    save_topdir,
+            save_fn_pfx=    save_fn_pfx)
         if os.path.isfile(obj_FN):
             point: POINT = r_pickle(obj_FN)
             return point
@@ -155,16 +189,16 @@ class ParaSave(ParaGX):
             self.__log.error(msg)
             raise ParaSaveException(msg)
 
-        obj_FN = self.__obj_fn(
+        obj_FN = self._obj_fn(
             name=           self.name,
             save_topdir=    self.save_topdir,
             save_fn_pfx=    self.save_fn_pfx)
-        txt_FN = self.__txt_fn(
+        txt_FN = self._txt_fn(
             name=           self.name,
             save_topdir=    self.save_topdir,
             save_fn_pfx=    self.save_fn_pfx)
 
-        prep_folder(self.__full_dir(
+        prep_folder(self._full_dir(
             name=           self.name,
             save_topdir=    self.save_topdir))
 
@@ -191,8 +225,8 @@ class ParaSave(ParaGX):
         """ loads, next overrides parameters from given kwargs and saves POINT """
         psc = cls(
             name=           name,
-            save_topdir=    save_topdir or cls.SAVE_TOPDIR,
-            save_fn_pfx=    save_fn_pfx or cls.SAVE_FN_PFX,
+            save_topdir=    save_topdir,
+            save_fn_pfx=    save_fn_pfx,
             loglevel=       30)
         psc.update(kwargs)
         psc.save_point()
@@ -323,6 +357,10 @@ class ParaSave(ParaGX):
 
         return child_point
 
+    @property
+    def logger(self):
+        return self.__log
+
     @staticmethod
     def dict_2str(d:dict) -> str:
         """ returns nice string of given dict (mostly for .txt preview save) """
@@ -337,7 +375,3 @@ class ParaSave(ParaGX):
         s = f'{self.__class__.__name__} (ParaSave)\n'
         s += self.dict_2str(self.get_point())
         return s
-
-    @property
-    def logger(self):
-        return self.__log
