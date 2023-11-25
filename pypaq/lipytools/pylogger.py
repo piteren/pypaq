@@ -72,6 +72,7 @@ def get_child(
 
     if change_level != 0 and not logger.flat_child:
         lvl = clogger.getEffectiveLevel()
-        clogger.setLevel(lvl + change_level)
+        lvl_child = min(lvl + change_level, logging.WARNING)
+        clogger.setLevel(lvl_child)
 
     return clogger
