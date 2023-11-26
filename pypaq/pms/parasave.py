@@ -95,10 +95,10 @@ class ParaSave(ParaGX):
         _self_point.update(self.get_point()) # params added up to now to self
         _self_point.update(kwargs)
 
-        self.__log.debug(f'> ParaSave POINT sources:')
-        self.__log.debug(f'>> PARASAVE_DEFAULTS:    {self.PARASAVE_DEFAULTS}')
-        self.__log.debug(f'>> POINT saved:          {point_saved}')
-        self.__log.debug(f'>> given kwargs:         {kwargs}')
+        self.__log.debug(f'ParaSave POINT sources:')
+        self.__log.debug(f'> PARASAVE_DEFAULTS:     {self.PARASAVE_DEFAULTS}')
+        self.__log.debug(f'> POINT saved:           {point_saved}')
+        self.__log.debug(f'> given kwargs:          {kwargs}')
         self.__log.debug(f'ParaSave complete POINT: {_self_point}')
 
         ParaGX.__init__(self, **_self_point)
