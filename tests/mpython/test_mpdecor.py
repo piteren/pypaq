@@ -30,7 +30,6 @@ class Test_mpdecor(unittest.TestCase):
         print(f'returned {calc(3)}')
         print(f'returned {calc(4)}')
 
-
     def test_proc_wait(self):
 
         @proc_wait
@@ -43,7 +42,6 @@ class Test_mpdecor(unittest.TestCase):
         task(10)
         task(10)
 
-
     def test_return(self):
 
         @proc_return
@@ -54,7 +52,6 @@ class Test_mpdecor(unittest.TestCase):
 
         print(f'returned {calc(3)}')
         print(f'returned {calc(4)}')
-
 
     def test_proc_que(self):
 
@@ -80,7 +77,6 @@ class Test_mpdecor(unittest.TestCase):
         self.assertTrue(len(res) == n_tasks)
         self.assertTrue(res[0]<=res[-1])
         self.assertTrue(res[-1] <= t_time <= res[-1]+1)
-
 
     def test_proc_que_more(self):
 
