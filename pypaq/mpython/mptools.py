@@ -19,6 +19,9 @@ class QMessage:
         self.type = type
         self.data = data
 
+    def __str__(self):
+        return f'{self.__class__.__name__}, type:{self.type}, data:{self.data}'
+
 
 # https://github.com/vterron/lemon/commit/9ca6b4b1212228dbd4f69b88aaf88b12952d7d6f
 class SharedCounter:
