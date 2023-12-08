@@ -29,7 +29,7 @@ class PaSpa:
             psdd:PSDD,
             seed:Optional[int]= None,
             logger=             None,
-            loglevel=           20,
+            loglevel=           30,
     ):
 
         if not logger:

@@ -29,7 +29,76 @@ class VPoint:
         nfo = self.name if self.name else ""
         if not nfo:
             nfo = f'#{self.id:4}' if self.id is not None else '#_'
-        return f'{nfo} [val: {self.value:.8f}] {point_str(self.point)}'
+        val_nfo = f' [val: {self.value:.8f}] ' if self.value is not None else ''
+        return f'{nfo}{val_nfo}{point_str(self.point)}'
+
+
+def points_nice_table(
+        vpoints: List[VPoint],
+        do_name: bool=  True,
+        do_val: bool=   True,
+) -> List[str]:
+    """ prepares list of str with nice formatted VPoints params and values
+    points may come from different spaces, their given order is kept in returned list """
+
+    keys = []
+    for vp in vpoints:
+        keys += list(vp.point.keys())
+    keys = sorted(list(set(keys)))
+
+    # key width
+    kw = {k: len(k) for k in keys}
+    kw['_name'] = 4
+    kw['_val'] = 3
+
+    print_vals = []
+    for vp in vpoints:
+
+        pv = {}
+        print_vals.append(pv)
+        for k in keys:
+
+            val = vp.point[k] if k in vp.point else ''
+
+            val_str = ''
+            if type(val) is float:
+                val_str = float_to_str(val, fill=False)
+            if type(val) is bool:
+                val_str = f'{str(val):5}'
+            if not val_str:
+                val_str = str(val)
+
+            pv[k] = val_str
+
+            lv = len(val_str)
+            if lv > kw[k]:
+                kw[k] = lv
+
+        if vp.name:
+            ln = len(vp.name) if vp.name else 0
+            if ln > kw['_name']:
+                kw['_name'] = ln
+
+        if vp.value:
+            lv = len(float_to_str(vp.value, fill=False))
+            if lv > kw['_val']:
+                kw['_val'] = lv
+
+    s = ''
+    if do_name: s += 'name' + ' ' * (kw['_name']-3)
+    if do_val:  s += 'val'  + ' ' * (kw['_val']-2)
+    s += ' '.join([f'{k:{kw[k]}}' for k in keys])
+    table = [s]
+    for vp,pv in zip(vpoints,print_vals):
+        name = f'{vp.name:{kw["_name"]}}' if vp.name else ' ' * kw["_name"]
+        val = f'{float_to_str(vp.value, fill=False):{kw["_val"]}}' if vp.value is not None else ' ' * kw["_val"]
+        s = ''
+        if do_name: s += f'{name} '
+        if do_val:  s += f'{val} '
+        s += ' '.join([f'{pv[k]:{kw[k]}}' for k in keys])
+        table.append(s)
+
+    return table
 
 
 class PointsCloud(Sized):
@@ -93,7 +162,7 @@ class PointsCloud(Sized):
                 if his_nearest is not None:
                     self._nearest[vp_id] = his_nearest, his_nearest_dist
 
-                if vpoint.value > 0.01: self.prec = 4
+                if vpoint.value is not None and vpoint.value > 0.01: self.prec = 4
 
             self.min_nearest, self.avg_nearest, self.max_nearest = mam([v[1] for v in self._nearest.values()])
 
@@ -137,50 +206,7 @@ class PointsCloud(Sized):
         return len(self._vpointsD)
 
     def __str__(self):
-
         vpoints = self.vpoints
-        vpoints.sort(key=lambda x: x.value, reverse=True)
-        keys = sorted(list(vpoints[0].point.keys()))
-        kw = {k: len(k) for k in keys}
-        kw['_name'] = 0
-        kw['_value'] = 1
-
-        print_vals = []
-        for vp in vpoints:
-
-            pv = {}
-            print_vals.append(pv)
-            for k in keys:
-
-                val = vp.point[k]
-
-                val_str = ''
-                if type(val) is float:
-                    val_str = float_to_str(val, fill=False)
-                if type(val) is bool:
-                    val_str = f'{str(val):5}'
-                if not val_str:
-                    val_str = str(val)
-
-                pv[k] = val_str
-
-                lv = len(val_str)
-                if lv > kw[k]:
-                    kw[k] = lv
-
-            ln = len(vp.name) if vp.name else 0
-            if ln > kw['_name']:
-                kw['_name'] = ln
-
-            lv = len(float_to_str(vp.value, fill=False))
-            if lv > kw['_value']:
-                kw['_value'] = lv
-
-        s = ' ' * (kw['_name'] + 5 + kw['_value'] + 2)
-        s += ' '.join([f'{k:{kw[k]}}' for k in keys]) + '\n'
-        for vp,pv in zip(vpoints,print_vals):
-            val = f'{float_to_str(vp.value, fill=False):{kw["_value"]}}' if vp.value is not None else '-' * kw['_value']
-            s += f'{vp.name:{kw["_name"]}} val:{val}  '
-            s += ' '.join([f'{pv[k]:{kw[k]}}' for k in keys]) + '\n'
-
-        return s[:-1]
+        if None not in [vp.value for vp in vpoints]:
+            vpoints.sort(key=lambda x: x.value, reverse=True)
+        return '\n'.join(points_nice_table(vpoints))
