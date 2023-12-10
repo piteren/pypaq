@@ -71,6 +71,7 @@ class TestParaSave(unittest.TestCase):
             #loglevel=       10,
         )
         print(psb)
+        self.assertTrue(psb.family == 'a' and psb.param_a == 'aa' and psb.param_b == 'b' and psb.param_c == 'c')
 
     def test_update(self):
 
