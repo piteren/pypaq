@@ -24,9 +24,9 @@ class ParaSave(ParaGX):
     ParaSave defaults are stored in PARASAVE_DEFAULTS dict and cannot be placed in __init__ defaults.
     This is a consequence of the params resolution mechanism in ParaSave,
     where parameters may come from three sources, and each subsequent source overrides the previous ones:
-        1. __init__ defaults
+        1. class __init__ defaults
         2. saved in the folder
-        3. provided through kwargs in __init__
+        3. given with kwargs in __init__
     If all ParaSave parameters were set with __init__ defaults,
     it would not be possible to distinguish between sources 1 and 3.
 
@@ -55,8 +55,7 @@ class ParaSave(ParaGX):
     ):
         """ name, save_topdir, save_fn_pfx -> if given -> always override saved values """
 
-        # _managed_params allows to lock ParaSave managed params
-        # only to those resolved while __init__
+        # _managed_params allows to lock ParaSave managed params only to those resolved here (while __init__)
         self._managed_params: Optional[List[str]] = None
 
         self.name = name
@@ -106,7 +105,6 @@ class ParaSave(ParaGX):
         if lock_managed_params:
             self._managed_params = self.get_managed_params()
             self.__log.debug(f'locked managed params: {self._managed_params}')
-
 
     def get_managed_params(self) -> List[str]:
         if self._managed_params is not None:

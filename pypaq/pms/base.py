@@ -83,7 +83,26 @@ def get_params(function:Callable) -> Dict:
 
 
 def get_class_init_params(cl:Type) -> Dict:
-    """ repares class.__init__ parameters dictionary, including base classes """
+    """ prepares class.__init__ parameters dictionary
+    recurrently goes down to base classes """
+
+    def _update_params_dict(
+            without_defaults: List,
+            with_defaults: Dict):
+        """ in-place updates current params_dict """
+
+        # cross-remove
+        for k in without_defaults:
+            if k in params_dict['with_defaults']:
+                params_dict['with_defaults'].pop(k)
+        for k in with_defaults:
+            if k in params_dict['without_defaults']:
+                params_dict['without_defaults'].remove(k)
+
+        for p in without_defaults:
+            if p not in params_dict['without_defaults']:
+                params_dict['without_defaults'].append(p)
+        params_dict['with_defaults'].update(with_defaults)
 
     params_dict = {
         'without_defaults': [],
@@ -95,16 +114,14 @@ def get_class_init_params(cl:Type) -> Dict:
 
     for bcl in bases:
         bcl_pd = get_class_init_params(bcl)
-        for p in bcl_pd['without_defaults']:
-            if p not in params_dict['without_defaults']:
-                params_dict['without_defaults'].append(p)
-        params_dict['with_defaults'].update(bcl_pd['with_defaults'])
+        _update_params_dict(
+            without_defaults=   bcl_pd['without_defaults'],
+            with_defaults=      bcl_pd['with_defaults'])
 
     cl_pd = get_params(cl.__init__)
-    for p in cl_pd['without_defaults']:
-        if p not in params_dict['without_defaults']:
-            params_dict['without_defaults'].append(p)
-    params_dict['with_defaults'].update(cl_pd['with_defaults'])
+    _update_params_dict(
+        without_defaults=   cl_pd['without_defaults'],
+        with_defaults=      cl_pd['with_defaults'])
 
     return params_dict
 

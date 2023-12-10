@@ -48,22 +48,28 @@ class TestParaSave(unittest.TestCase):
         print(ps)
         self.assertTrue(ps['param'] == 'any')
 
-    def test_saved_params_resolution(self):
+    def test_params_resolution(self):
 
-        ps = ParaSave(
-            name=           'ps_test',
-            param_a=        'a',
-            param_b=        'b',
-            loglevel=       10)
-        print(ps)
-        ps.save_point()
+        psa = ParaSave(
+            name=       'ps_test',
+            family=     'a',
+            param_a=    'a',
+            param_b=    'b',
+            gxable=     False,
+            #loglevel=   10,
+        )
+        print(psa)
+        psa.save_point()
+        self.assertTrue(psa.family == 'a' and psa.param_a == 'a' and psa.param_b == 'b')
 
         psb = ParaSave(
             name=           'ps_test',
             assert_saved=   True,
             param_a=        'aa',
             param_c=        'c',
-            loglevel=       10)
+            gxable=         True,
+            #loglevel=       10,
+        )
         print(psb)
 
     def test_update(self):
