@@ -6,10 +6,9 @@ import shutil
 import yaml
 from pathlib import Path
 import sys
-from typing import Union, Dict, List
+from typing import Union, Dict, List, Optional
 
 from pypaq.exception import PyPaqException
-
 
 
 def r_pickle(file_path, obj_type=None, raise_exception=False):
@@ -33,7 +32,7 @@ def w_pickle(obj, file_path):
         pickle.dump(obj, file)
 
 
-def r_json(file_path, raise_exception=False):
+def r_json(file_path, raise_exception=False) -> Optional[Union[Dict,List]]:
     if not os.path.isfile(file_path):
         if raise_exception: raise FileNotFoundError(f'file {file_path} not exists!')
         return None
@@ -46,7 +45,7 @@ def w_json(data:Union[Dict,List], file_path):
         json.dump(data, file, indent=4, ensure_ascii=False)
 
 
-def r_jsonl(file_path, raise_exception=False):
+def r_jsonl(file_path, raise_exception=False) -> Optional[List]:
     if not os.path.isfile(file_path):
         if raise_exception: raise FileNotFoundError(f'file {file_path} not exists!')
         return None
@@ -54,14 +53,14 @@ def r_jsonl(file_path, raise_exception=False):
         return [json.loads(line) for line in file]
 
 
-def w_jsonl(data:List[dict], file_path):
+def w_jsonl(data:List, file_path):
     with open(file_path, 'w', encoding='utf-8') as file:
         for d in data:
             json.dump(d, file, ensure_ascii=False)
             file.write('\n')
 
 
-def r_csv(file_path, raise_exception=False):
+def r_csv(file_path, raise_exception=False) -> Optional[List]:
     if not os.path.isfile(file_path):
         if raise_exception: raise FileNotFoundError(f'file {file_path} not exists!')
         return None
