@@ -15,7 +15,7 @@ class MPythonException(PyPaqException):
 
 # message sent between processes via Ques (my que)
 class QMessage:
-    def __init__(self, type:str, data:Any):
+    def __init__(self, type:str, data:Optional[Any]=None):
         self.type = type
         self.data = data
 

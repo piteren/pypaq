@@ -62,7 +62,8 @@ def get_pylogger(
 def get_child(
         logger,
         name: Optional[str]=    None,
-        change_level: int=      10):
+        change_level: int=      10,
+) -> logging.Logger:
 
     if not name:
         name = '_child'
