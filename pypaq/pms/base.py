@@ -4,9 +4,9 @@ from typing import Any, Dict, List, Tuple, Callable, Optional, Union, Type
 from pypaq.exception import PyPaqException
 from pypaq.lipytools.printout import float_to_str
 
-AXIS =  str                                     # axis type (parameter name)
-P_VAL = float or int or Any                     # point value (parameter value)
-POINT = Dict[AXIS, P_VAL]                       # POINT ia a dict {parameter: value}
+AXIS =  str                     # axis type (parameter name)
+P_VAL = Union[float, int, Any]  # point value (parameter value)
+POINT = Dict[AXIS, P_VAL]       # POINT ia a dict {parameter: value}
 
 
 """ 
