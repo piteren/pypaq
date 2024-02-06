@@ -18,6 +18,7 @@ def get_pylogger(
     # returns formatted logging.Logger
     - add_stamp:    prevents merging loggers of same name
     - folder:       writes logfile to folder if given
+    - flat_child:   forces child of this logger created with get_child() to be same level
     - format:       may be given as a str or Tuple[str,str] (fmt,datefmt)
     """
 
