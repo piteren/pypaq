@@ -1,22 +1,22 @@
 import time
-from typing import Dict
+from typing import Dict, List, Tuple, Optional
 
-# time reporting helper
+
 class TimeRep:
+    """ time reporting helper """
 
     def __init__(self):
-        self.tr: Dict[str,float] = {}
-        self.stime: float = time.time()
-        self.stime_init = self.stime
+        self.start_now()
 
-    # resets and starts
     def start_now(self):
-        self.tr = {}
+        """ resets and starts """
+        self.tr: Dict[str, Tuple[float, Optional[TimeRep]]] = {}
         self.stime = time.time()
+        self.stime_start = self.stime
 
-    def log(self, past_interval_name:str):
+    def log(self, interval_name:str, interval_tr:Optional["TimeRep"]=None):
         ct = time.time()
-        self.tr[past_interval_name] = ct - self.stime
+        self.tr[interval_name] = (ct - self.stime, interval_tr)
         self.stime = ct
 
     def get_report(self) -> Dict[str,float]:
@@ -24,7 +24,18 @@ class TimeRep:
         rep.update(self.tr)
         return rep
 
+    @staticmethod
+    def _get_line(n,t):
+        return f'{n:30}: {t:9.3f}s'
+
+    def _get_report_lines(self) -> List[str]:
+        rl = []
+        for n,(t, itr) in self.tr.items():
+            rl.append(self._get_line(n,t))
+            if itr:
+                rl += [f'---{l}' for l in itr._get_report_lines()]
+        return rl
+
     def __str__(self):
-        rep = self.get_report()
-        rep['___total time'] = time.time() - self.stime_init
-        return "\n".join([f'{k:30}: {v:9.3f}s' for k,v in rep.items()])
+        s = "\n".join(self._get_report_lines())
+        return s + f"\n{self._get_line('___total time', time.time() - self.stime_start)}"

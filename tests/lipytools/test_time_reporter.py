@@ -11,13 +11,22 @@ class TestTimeRep (unittest.TestCase):
 
         tr = TimeRep()
 
-        s = 0
-        for ix in range(5):
-            stime = random.random()*3
-            s += stime
-            time.sleep(stime)
-            print(f'{ix} --> {stime}')
-            tr.log(f'phase {ix}')
-        print(s)
+        for ph in range(5):
+            print(f'ph:{ph}')
+
+            sub_tr = None
+            # sub-phase
+            if random.random() < 0.5:
+                sub_tr = TimeRep()
+                for sph in range(random.randint(1,4)):
+                    print(f'sph:{sph}')
+                    stime = random.random()
+                    time.sleep(stime)
+                    sub_tr.log(f'sub-phase {sph}')
+            else:
+                stime = random.random()*3
+                time.sleep(stime)
+
+            tr.log(f'phase {ph}', interval_tr=sub_tr)
 
         print(tr)
