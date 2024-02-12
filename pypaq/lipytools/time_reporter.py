@@ -20,9 +20,7 @@ class TimeRep:
         self.stime = ct
 
     def get_report(self) -> Dict[str,float]:
-        rep = {}
-        rep.update(self.tr)
-        return rep
+        return {k: self.tr[k][0] for k in self.tr}
 
     @staticmethod
     def _get_line(n,t):
