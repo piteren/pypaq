@@ -28,7 +28,7 @@ class TimeRep:
 
     def _get_report_lines(self) -> List[str]:
         rl = []
-        for n,(t, itr) in self.tr.items():
+        for n,(t,itr) in self.tr.items():
             rl.append(self._get_line(n,t))
             if itr:
                 rl += [f'---{l}' for l in itr._get_report_lines()]
