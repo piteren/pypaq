@@ -30,7 +30,7 @@ class TimeRep:
         self.tr[interval_name] = (ct - self.stime, interval_tr)
         self.stime = ct
 
-    def get_report(self, sub=False) -> Dict[str,float]:
+    def get_report(self, sub=False, total=False) -> Dict[str,float]:
         rep = {}
         for k in self.tr:
             rep[k] = self.tr[k][0]
@@ -38,6 +38,8 @@ class TimeRep:
                 sub_rep = self.tr[k][1].get_report(sub=True)
                 for sk in sub_rep:
                     rep[f'---{sk}'] = sub_rep[sk]
+        if total:
+            rep['___total time'] = time.time() - self.stime_start
         return rep
 
     @staticmethod

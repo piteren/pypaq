@@ -31,6 +31,12 @@ class TestTimeRep (unittest.TestCase):
 
         print(tr)
 
+        print()
         rep = tr.get_report(sub=True)
+        for k in rep:
+            print(f'{k}: {rep[k]}')
+
+        print()
+        rep = tr.get_report(total=True)
         for k in rep:
             print(f'{k}: {rep[k]}')
