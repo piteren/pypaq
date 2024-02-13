@@ -22,7 +22,7 @@ class TestTimeRep (unittest.TestCase):
                     print(f'sph:{sph}')
                     stime = random.random()
                     time.sleep(stime)
-                    sub_tr.log(f'sub-phase {sph}')
+                    sub_tr.log(f'sub-phase {ph}_{sph}')
             else:
                 stime = random.random()*3
                 time.sleep(stime)
@@ -30,3 +30,7 @@ class TestTimeRep (unittest.TestCase):
             tr.log(f'phase {ph}', interval_tr=sub_tr)
 
         print(tr)
+
+        rep = tr.get_report(sub=True)
+        for k in rep:
+            print(f'{k}: {rep[k]}')

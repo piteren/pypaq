@@ -1,6 +1,8 @@
 import time
 from typing import Dict, List, Tuple, Optional
 
+from pypaq.exception import PyPaqException
+
 
 class TimeRep:
     """ time reporting helper """
@@ -13,14 +15,30 @@ class TimeRep:
         self.tr: Dict[str, Tuple[float, Optional[TimeRep]]] = {}
         self.stime = time.time()
         self.stime_start = self.stime
+        self.sub_tr_keys = []
 
     def log(self, interval_name:str, interval_tr:Optional["TimeRep"]=None):
         ct = time.time()
+        if interval_name in self.tr:
+            raise PyPaqException(f'interval_name {interval_name} already reported')
+        if interval_tr:
+            irep = interval_tr.get_report(sub=True)
+            for k in irep:
+                if k in self.sub_tr_keys:
+                    raise PyPaqException(f'sub interval_name {k} already reported')
+                self.sub_tr_keys.append(k)
         self.tr[interval_name] = (ct - self.stime, interval_tr)
         self.stime = ct
 
-    def get_report(self) -> Dict[str,float]:
-        return {k: self.tr[k][0] for k in self.tr}
+    def get_report(self, sub=False) -> Dict[str,float]:
+        rep = {}
+        for k in self.tr:
+            rep[k] = self.tr[k][0]
+            if sub and self.tr[k][1]:
+                sub_rep = self.tr[k][1].get_report(sub=True)
+                for sk in sub_rep:
+                    rep[f'---{sk}'] = sub_rep[sk]
+        return rep
 
     @staticmethod
     def _get_line(n,t):
