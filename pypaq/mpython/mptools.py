@@ -84,10 +84,10 @@ class ExSubprocess(Process, ABC):
             logger=                     None,
             loglevel=                   30):
 
-        ABC.__init__(self)
-        Process.__init__(self, target=self.__run)
-        if id is None: id = self.name
+        super().__init__(target=self.__run)
 
+        if id is None:
+            id = self.name
         self.id = id
 
         if not logger:

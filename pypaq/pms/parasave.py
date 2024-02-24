@@ -100,7 +100,7 @@ class ParaSave(ParaGX):
         self.__log.debug(f'> given kwargs:          {kwargs}')
         self.__log.debug(f'ParaSave complete POINT: {_self_point}')
 
-        ParaGX.__init__(self, **_self_point)
+        super().__init__(**_self_point)
 
         if lock_managed_params:
             self._managed_params = self.get_managed_params()
