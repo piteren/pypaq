@@ -89,8 +89,10 @@ def prep_folder(path:Union[str,Path], flush_non_empty=False):
     """ prepares folder
     path may be a file path -> folder path is extracted """
     folder_path = get_dir(path)
-    if flush_non_empty and os.path.isdir(folder_path): shutil.rmtree(folder_path)
-    os.makedirs(folder_path, exist_ok=True)
+    if folder_path: # in case folder_path == ''
+        if flush_non_empty and os.path.isdir(folder_path):
+            shutil.rmtree(folder_path)
+        os.makedirs(folder_path, exist_ok=True)
 
 
 def list_dir(path: Union[str, Path]) -> Dict[str,List]:
