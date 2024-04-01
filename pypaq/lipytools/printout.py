@@ -132,17 +132,19 @@ def printover_terminal(sth) -> None:
 
 
 def progress_ (
-        current,                # current progress
-        total,                  # total
-        prefix: str=    '',     # prefix string
-        suffix: str=    '',     # suffix string
-        length: int=    20,
-        fill: str=      '█',
+        current,                    # current progress
+        total,                      # total
+        prefix: str=        '',     # prefix string
+        suffix: str=        '',     # suffix string
+        length: int=        20,
+        fill: str=          '█',
+        show_fract :bool=   False,
 ) -> None:
     """ terminal progress bar """
     prog = current / total
     if prog > 1: prog = 1
     filled_length = int(length * prog)
     bar = fill * filled_length + '-' * (length - filled_length)
-    printover(f'{prefix} |{bar}| {prog*100:.1f}% {suffix}')
+    fract = f'({current}/{total}) ' if show_fract else ''
+    printover(f'{prefix} |{bar}| {prog*100:.1f}% {fract}{suffix}')
     if prog == 1: print()
