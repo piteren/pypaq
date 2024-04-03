@@ -1,6 +1,8 @@
+import random
+import time
 import unittest
 
-from pypaq.lipytools.printout import stamp, print_nested_dict
+from pypaq.lipytools.printout import stamp, print_nested_dict, ProgBar
 
 
 class TestLittleMethods(unittest.TestCase):
@@ -21,3 +23,10 @@ class TestLittleMethods(unittest.TestCase):
             'b0': ['el1','el2','el3']
         }
         print_nested_dict(dc)
+
+    def test_ProgBar(self):
+        tot = 100
+        pb = ProgBar(total=tot, length=30, fill='X', show_fract=True, show_speed=True, show_eta=True)
+        for ix in range(tot):
+            time.sleep(random.random()/5)
+            pb(ix, prefix='test:', suffix=':ok')
