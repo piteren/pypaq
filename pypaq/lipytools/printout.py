@@ -3,6 +3,9 @@ import string
 import time
 from typing import List, Any, Optional
 
+from pypaq.pytypes import NUM
+from pypaq.lipytools.moving_average import MovAvg
+
 LINE_UP = '\033[1A'
 LINE_CLEAR = '\x1b[2K'
 
@@ -131,20 +134,70 @@ def printover_terminal(sth) -> None:
     print(LINE_UP, end=LINE_CLEAR)
 
 
-def progress_ (
-        current,                    # current progress
-        total,                      # total
-        prefix: str=        '',     # prefix string
-        suffix: str=        '',     # suffix string
-        length: int=        20,
-        fill: str=          '█',
-        show_fract :bool=   False,
-) -> None:
+class ProgBar:
     """ terminal progress bar """
-    prog = current / total
-    if prog > 1: prog = 1
-    filled_length = int(length * prog)
-    bar = fill * filled_length + '-' * (length - filled_length)
-    fract = f'({current}/{total}) ' if show_fract else ''
-    printover(f'{prefix} |{bar}| {prog*100:.1f}% {fract}{suffix}')
-    if prog == 1: print()
+
+    def __init__(
+            self,
+            total: NUM,
+            length: int=        20,
+            fill: str=          '█',
+            show_fract: bool=   False,
+            show_speed: bool=   False,
+            show_eta: bool=     False,
+    ):
+        self.total = total
+        self.length = length
+        self.fill = fill
+        self.show_fract = show_fract
+        self.show_speed =show_speed
+        self.show_eta = show_eta
+
+        self._prev = 0
+        self._ptime = time.time()
+        self.speed = MovAvg()
+
+    def __call__(self, current:NUM, prefix:str='', suffix:str=''):
+        prog = current / self.total
+        if prog > 1:
+            prog = 1
+
+        diff_n = current - self._prev
+        ctime = time.time()
+        diff_time = ctime - self._ptime
+        self._prev = current
+        self._ptime = ctime
+
+        filled_length = int(self.length * prog)
+        bar = self.fill * filled_length + '-' * (self.length - filled_length)
+
+        fract = f'{current}/{self.total}' if self.show_fract else ''
+
+        speed_str = ''
+        self.speed.upd(diff_n / diff_time)
+        speed = self.speed()
+        if self.show_speed:
+            if speed > 1:
+                if speed > 100: speed_str = f'{int(speed)}/s'
+                else:           speed_str = f'{speed:.1f}/s'
+            else:               speed_str = f'{speed:.3f}/s'
+
+        eta_str = ''
+        if self.show_eta:
+            if speed > 0:
+                eta = (self.total - current) / speed
+                if eta > 1000:    eta_str = f'{eta/60/60:.1f}h'
+                else:
+                    if eta > 100: eta_str = f'{eta/60:.1f}m'
+                    else:         eta_str = f'{eta:.1f}s'
+            else:                 eta_str = '---'
+            eta_str = f'ETA:{eta_str}'
+
+        detailsL = [fract,speed_str,eta_str]
+        detailsL = [e for e in detailsL if e]
+        details = f'{" ".join(detailsL)} ' if detailsL else ''
+
+        printover(f'{prefix} |{bar}| {prog * 100:.1f}% {details}{suffix}')
+
+        if prog == 1:
+            print()
