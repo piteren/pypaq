@@ -155,6 +155,7 @@ class ProgBar:
 
         self._prev = 0
         self._ptime = time.time()
+        self._stime = self._ptime
         self.speed = MovAvg()
 
     def __call__(self, current:NUM, prefix:str='', suffix:str=''):
@@ -186,7 +187,7 @@ class ProgBar:
         if self.show_eta:
             if speed > 0:
                 eta = (self.total - current) / speed
-                if eta > 1000:    eta_str = f'{eta/60/60:.1f}h'
+                if eta > 4000:    eta_str = f'{eta/60/60:.1f}h'
                 else:
                     if eta > 100: eta_str = f'{eta/60:.1f}m'
                     else:         eta_str = f'{eta:.1f}s'
@@ -197,7 +198,15 @@ class ProgBar:
         detailsL = [e for e in detailsL if e]
         details = f'{" ".join(detailsL)} ' if detailsL else ''
 
-        printover(f'{prefix} |{bar}| {prog * 100:.1f}% {details}{suffix}')
+        elapsed = ''
+        if prog == 1 and self.show_eta:
+            el = self._ptime-self._stime
+            if el > 4000:    elapsed = f' TOT:{el / 60 / 60:.1f}h'
+            else:
+                if el > 100: elapsed = f' TOT:{el / 60:.1f}m'
+                else:        elapsed = f' TOT:{el:.1f}s'
+
+        printover(f'{prefix} |{bar}| {prog * 100:.1f}% {details}{suffix}{elapsed}')
 
         if prog == 1:
             print()
