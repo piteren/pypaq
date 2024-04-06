@@ -201,12 +201,12 @@ class ProgBar:
         elapsed = ''
         if prog == 1 and self.show_eta:
             el = self._ptime-self._stime
-            if el > 4000:    elapsed = f' TOT:{el / 60 / 60:.1f}h'
+            if el > 4000:    elapsed = f' TOT:{el / 60 / 60:.1f}h '
             else:
-                if el > 100: elapsed = f' TOT:{el / 60:.1f}m'
-                else:        elapsed = f' TOT:{el:.1f}s'
+                if el > 100: elapsed = f' TOT:{el / 60:.1f}m '
+                else:        elapsed = f' TOT:{el:.1f}s '
 
-        printover(f'{prefix} |{bar}| {prog * 100:.1f}% {details}{suffix}{elapsed}')
+        printover(f'{prefix} |{bar}| {prog * 100:.1f}% {details}{elapsed}{suffix}')
 
         if prog == 1:
             print()
