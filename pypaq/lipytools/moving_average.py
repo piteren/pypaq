@@ -10,19 +10,20 @@ class MovAvg:
 
     def __init__(
             self,
-            factor: NUM=        0.1,    # (0.0;1.0>
-            first_avg: bool=    True,   # first 1/factor values will be averaged
+            factor: NUM=                0.1,    # (0.0;1.0>
+            first_avg: bool=            True,   # first 1/factor values will be averaged
+            init_value: Optional[NUM]=  None,
+            init_weight: int=           10,
     ):
-        self.value: Optional[NUM] = None
+        self.value: Optional[NUM] = init_value
 
         if not 0 < factor <= 1:
             raise PyPaqException('factor should: 0 < factor <= 1')
 
         self.factor = factor
-        self.upd_ix = 0
+        self.upd_ix = 0 if self.value is None else init_weight
         self.first_avg = first_avg
-        self.firstL = []
-
+        self.firstL = [] if self.value is None else [self.value] * self.upd_ix
 
     def upd(self, val:NUM):
 
@@ -30,19 +31,19 @@ class MovAvg:
             self.firstL.append(val)
             self.value = sum(self.firstL) / len(self.firstL)
         else:
-            if self.value is None: self.value = val
-            else: self.value = (1-self.factor)*self.value + self.factor*val
+            if self.value is None:
+                self.value = val
+            else:
+                self.value = (1-self.factor)*self.value + self.factor*val
 
         self.upd_ix += 1
 
         return self.value
 
-
     def reset(self, val:Optional[NUM]=None):
         self.value = val
         self.upd_ix = 0
         self.firstL = []
-
 
     def __call__(self) -> NUM:
         if self.value is None:
