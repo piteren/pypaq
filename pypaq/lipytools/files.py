@@ -85,7 +85,7 @@ def r_csv(file_path, raise_exception=False) -> Optional[List]:
     csv.field_size_limit(sys.maxsize)
     with open(file_path, newline='') as f:
         reader = csv.reader(f)
-        return [row for row in reader][1:]
+        return [row for row in reader]
 
 
 def r_yaml(file_path, raise_exception=False):
