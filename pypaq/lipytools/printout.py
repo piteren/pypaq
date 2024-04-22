@@ -159,54 +159,59 @@ class ProgBar:
         self.speed = MovAvg()
 
     def __call__(self, current:NUM, prefix:str='', suffix:str=''):
-        prog = current / self.total
-        if prog > 1:
-            prog = 1
 
-        diff_n = current - self._prev
-        ctime = time.time()
-        diff_time = ctime - self._ptime
-        self._prev = current
-        self._ptime = ctime
+        if current > self._prev:
 
-        filled_length = int(self.length * prog)
-        bar = self.fill * filled_length + '-' * (self.length - filled_length)
+            prog = current / self.total
+            if prog > 1:
+                prog = 1
 
-        fract = f'{current}/{self.total}' if self.show_fract else ''
+            diff_n = current - self._prev
+            ctime = time.time()
+            diff_time = ctime - self._ptime
+            self._prev = current
+            self._ptime = ctime
 
-        speed_str = ''
-        self.speed.upd(diff_n / diff_time)
-        speed = self.speed()
-        if self.show_speed:
-            if speed > 1:
-                if speed > 100: speed_str = f'{int(speed)}/s'
-                else:           speed_str = f'{speed:.1f}/s'
-            else:               speed_str = f'{speed:.3f}/s'
+            filled_length = int(self.length * prog)
+            bar = self.fill * filled_length + '-' * (self.length - filled_length)
 
-        eta_str = ''
-        if self.show_eta:
-            if speed > 0:
-                eta = (self.total - current) / speed
-                if eta > 4000:    eta_str = f'{eta/60/60:.1f}h'
+            fract = f'{current}/{self.total}' if self.show_fract else ''
+
+            speed_str = ''
+            self.speed.upd(diff_n / diff_time)
+            speed = self.speed()
+            if self.show_speed:
+                if speed > 1:
+                    if speed > 100: speed_str = f'{int(speed)}/s'
+                    else:           speed_str = f'{speed:.1f}/s'
+                else:               speed_str = f'{speed:.3f}/s'
+
+            eta_str = ''
+            if self.show_eta:
+                if speed > 0:
+                    eta = (self.total - current) / speed
+                    if eta < 0:
+                        eta = 0
+                    if eta > 4000:    eta_str = f'{eta/60/60:.1f}h'
+                    else:
+                        if eta > 100: eta_str = f'{eta/60:.1f}m'
+                        else:         eta_str = f'{eta:.1f}s'
+                else:                 eta_str = '---'
+                eta_str = f'ETA:{eta_str}'
+
+            detailsL = [fract,speed_str,eta_str]
+            detailsL = [e for e in detailsL if e]
+            details = f'{" ".join(detailsL)} ' if detailsL else ''
+
+            elapsed = ''
+            if prog == 1 and self.show_eta:
+                el = self._ptime-self._stime
+                if el > 4000:    elapsed = f'TOT:{el/60/60:.1f}h '
                 else:
-                    if eta > 100: eta_str = f'{eta/60:.1f}m'
-                    else:         eta_str = f'{eta:.1f}s'
-            else:                 eta_str = '---'
-            eta_str = f'ETA:{eta_str}'
+                    if el > 100: elapsed = f'TOT:{el/60:.1f}m '
+                    else:        elapsed = f'TOT:{el:.1f}s '
 
-        detailsL = [fract,speed_str,eta_str]
-        detailsL = [e for e in detailsL if e]
-        details = f'{" ".join(detailsL)} ' if detailsL else ''
+            printover(f'{prefix} |{bar}| {prog * 100:.1f}% {details}{elapsed}{suffix}')
 
-        elapsed = ''
-        if prog == 1 and self.show_eta:
-            el = self._ptime-self._stime
-            if el > 4000:    elapsed = f'TOT:{el / 60 / 60:.1f}h '
-            else:
-                if el > 100: elapsed = f'TOT:{el / 60:.1f}m '
-                else:        elapsed = f'TOT:{el:.1f}s '
-
-        printover(f'{prefix} |{bar}| {prog * 100:.1f}% {details}{elapsed}{suffix}')
-
-        if prog == 1:
-            print()
+            if prog == 1:
+                print()
