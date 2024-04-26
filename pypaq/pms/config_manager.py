@@ -86,7 +86,7 @@ class ConfigManager:
 
             return _conf[name]
 
-    # update with give dictionary
+    # update with given dictionary
     def update_config(self, dct:POINT) -> None:
 
         # catch once
@@ -105,7 +105,7 @@ class ConfigManager:
         w_json(_conf, _file)
 
     def get_config(self) -> POINT:
-        self.update_config({})
+        self.update_config({}) # TODO: what for??
         c = {}
         c.update(self.__config)
         return c
