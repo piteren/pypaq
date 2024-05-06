@@ -22,7 +22,7 @@ class ConfigManager:
 
         self._file = file_FP
         prep_folder(self._file)
-        self._logger.info(f'*** ConfigManager *** inits, config file: {self._file}')
+        self._logger.info(f'*** ConfigManager *** initializes, config file: {self._file}')
 
         _conf = {}
 
@@ -45,23 +45,18 @@ class ConfigManager:
             super().__setattr__(key, value)
         else:
 
-            # catch once
-            _conf = self.__config
-            _file = self._file
-            _logger = self._logger
+            # first update from file
+            file_config = r_json(self._file)
+            self.__config.update(file_config)
 
-            # first update with file (no changes monitoring, since usually *setting* changes sth)
-            file_config = r_json(_file)
-            _conf.update(file_config)
-
-            new_attribute = key not in _conf
-            new_value = not new_attribute and _conf[key] != value
+            new_attribute = key not in self.__config
+            new_value = not new_attribute and self.__config[key] != value
             if new_attribute or new_value:
-                _conf[key] = value
-                if new_attribute:   _logger.info(f'set new attribute: {key}: {value}')
-                if new_value:       _logger.info(f'set new value:     {key}: {value}')
+                self.__config[key] = value
+                if new_attribute:   self._logger.info(f'set new attribute: {key}: {value}')
+                if new_value:       self._logger.info(f'set new value:     {key}: {value}')
 
-            w_json(_conf, _file)
+            w_json(self.__config, self._file)
 
     # returns attribute value
     def __getattribute__(self, name):
@@ -69,43 +64,34 @@ class ConfigManager:
             return super().__getattribute__(name)
         else:
 
-            # catch once
-            _conf = self.__config
-            _file = self._file
-
-            # first update with file, with changes monitoring
-            file_config = r_json(_file)
+            # update from file
+            file_config = r_json(self._file)
             changed_sth = False
             for k in file_config:
-                if k not in _conf or k in _conf and _conf[k] != file_config[k]:
-                    _conf[k] = file_config[k]
+                if k not in self.__config or k in self.__config and self.__config[k] != file_config[k]:
+                    self.__config[k] = file_config[k]
                     changed_sth = True
 
             if changed_sth:
-                w_json(_conf, _file)
+                w_json(self.__config, self._file)
 
-            return _conf[name]
+            return self.__config[name]
 
-    # update with given dictionary
+    # update with a given dictionary
     def update_config(self, dct:POINT) -> None:
 
-        # catch once
-        _conf = self.__config
-        _file = self._file
-        _logger = self._logger
-
-        # first update with file (no changes monitoring, since usually *updating* changes sth)
-        file_config = r_json(_file)
-        _conf.update(file_config)
+        # first update from file
+        file_config = r_json(self._file)
+        self.__config.update(file_config)
 
         if dct:
-            _conf.update(dct)
-            _logger.info(f'updated configuration with: {dct}')
+            self.__config.update(dct)
+            self._logger.info(f'updated configuration with: {dct}')
 
-        w_json(_conf, _file)
+        w_json(self.__config, self._file)
 
     def get_config(self) -> POINT:
-        self.update_config({}) # TODO: what for??
+        self.update_config({}) # to update from file
         c = {}
         c.update(self.__config)
         return c
