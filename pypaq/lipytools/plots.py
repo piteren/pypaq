@@ -64,6 +64,7 @@ def two_dim(
         x: Optional[Union[List,np.ndarray]]=    None,
         name=                                   'values',
         save_FD: str =                          None,
+        scatter=                                False,
         xlogscale=                              False,
         ylogscale=                              False,
         legend_loc=                             'upper left'):
@@ -76,7 +77,8 @@ def two_dim(
             y = y[:, 0]
 
     plt.clf()
-    plt.plot(x, y, label=name)
+    plot_f = plt.scatter if scatter else plt.plot
+    plot_f(x, y, label=name)
     if xlogscale: plt.xscale('log')
     if ylogscale: plt.yscale('log')
     plt.legend(loc=legend_loc)
