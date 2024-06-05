@@ -154,23 +154,19 @@ class ProgBar:
         self.show_eta = show_eta
 
         self._prev = 0
-        self._ptime = time.time()
-        self._stime = self._ptime
+        self._stime = time.time()
         self.speed = MovAvg()
 
     def __call__(self, current:NUM, prefix:str='', suffix:str=''):
 
         if current > self._prev:
+            self._prev = current
 
             prog = current / self.total
             if prog > 1:
                 prog = 1
 
-            diff_n = current - self._prev
-            ctime = time.time()
-            diff_time = ctime - self._ptime
-            self._prev = current
-            self._ptime = ctime
+            time_diff = time.time() - self._stime
 
             filled_length = int(self.length * prog)
             bar = self.fill * filled_length + '-' * (self.length - filled_length)
@@ -178,7 +174,7 @@ class ProgBar:
             fract = f'{current}/{self.total}' if self.show_fract else ''
 
             speed_str = ''
-            self.speed.upd(diff_n / diff_time)
+            self.speed.upd(current / time_diff)
             speed = self.speed()
             if self.show_speed:
                 if speed > 1:
@@ -205,11 +201,10 @@ class ProgBar:
 
             elapsed = ''
             if prog == 1 and self.show_eta:
-                el = self._ptime-self._stime
-                if el > 4000:    elapsed = f'TOT:{el/60/60:.1f}h '
+                if time_diff > 4000:    elapsed = f'TOT:{time_diff/60/60:.1f}h '
                 else:
-                    if el > 100: elapsed = f'TOT:{el/60:.1f}m '
-                    else:        elapsed = f'TOT:{el:.1f}s '
+                    if time_diff > 100: elapsed = f'TOT:{time_diff/60:.1f}m '
+                    else:               elapsed = f'TOT:{time_diff:.1f}s '
 
             printover(f'{prefix} |{bar}| {prog * 100:.1f}% {details}{elapsed}{suffix}')
 
