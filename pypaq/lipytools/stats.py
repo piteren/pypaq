@@ -1,5 +1,6 @@
-import pandas as pd
+import math
 import numpy as np
+import pandas as pd
 from typing import Dict, Tuple
 
 from pypaq.pytypes import NPL
@@ -12,14 +13,11 @@ def mam(vals:NPL) -> Tuple[float,float,float]:
 
 # mean, std, min, max (from given list of values or np.arr)
 def msmx(vals:NPL) -> Dict:
-
     arr = np.asarray(vals) if type(vals) is list else vals
-    ret_dict = {
-        'mean': float(np.mean(arr)),
-        'std':  float(np.std(arr)),
-        'min':  float(np.min(arr)),
-        'max':  float(np.max(arr))}
-    ret_dict['string'] = 'mean %.5f, std %.5f, min %.5f, max %.5f'%(ret_dict['mean'],ret_dict['std'],ret_dict['min'],ret_dict['max'])
+    _mean, _std, _min, _max = float(np.mean(arr)), float(np.std(arr)), float(np.min(arr)), float(np.max(arr))
+    _mean_std = _std / math.sqrt(len(vals))
+    ret_dict = {'mean':_mean, 'std':_std, 'mean_std':_mean_std, 'min':_min, 'max':_max}
+    ret_dict['string'] = ' '.join([f'{k}:{ret_dict[k]:.5f}' for k in ret_dict])
     return ret_dict
 
 # deep stats (with pandas)

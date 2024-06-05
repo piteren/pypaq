@@ -3,17 +3,17 @@ from pypaq.pytypes import NUM
 from typing import Optional
 
 
-
 class MovAvg:
-    """ moving average
-    updates self.value with factor (given while init) """
+    """ moving average,
+    updates self.value with factor,
+    optionally averages first 1/factor values, which improves early estimation and diminishes bias """
 
     def __init__(
             self,
             factor: NUM=                0.1,    # (0.0;1.0>
-            first_avg: bool=            True,   # first 1/factor values will be averaged
-            init_value: Optional[NUM]=  None,
-            init_weight: int=           10,
+            first_avg: bool=            True,   # to average first 1/factor values
+            init_value: Optional[NUM]=  None,   # set starting value
+            init_weight: int=           10,     # set weight (count) for starting value
     ):
         self.value: Optional[NUM] = init_value
 
