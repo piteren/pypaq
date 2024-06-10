@@ -11,16 +11,12 @@ LINE_CLEAR = '\x1b[2K'
 
 
 
-def short_scin(
-        fl: float,
-        precision:int=  1,
-) -> str:
-    """ short (compressed) scientific notation for floats """
-    sh = f'{fl:.{precision}E}'
+def short_scin(fl:NUM, precision:int=1) -> str:
+    """ short (compressed) scientific notation for numbers """
+    sh = f'{fl:.{precision}e}'
     sh = sh.replace('+0','')
     sh = sh.replace('+','')
     sh = sh.replace('-0','-')
-    sh = sh.replace('E','e')
     return sh
 
 
