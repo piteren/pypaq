@@ -47,6 +47,7 @@ def stamp(
         hour: bool=             True,
         minutes: bool=          True,
         letters: Optional[int]= 3,
+        separator: str=         '_',
 ) -> str:
     """ prepares timestamp string """
 
@@ -56,7 +57,7 @@ def stamp(
     if year:            time_format += '%y'
     if month:           time_format += '%m'
     if day:             time_format += '%d'
-    if time_format:     time_format += '_'
+    if time_format:     time_format += separator
     if hour:            time_format += '%H'
     if minutes:         time_format += '%M'
 
@@ -65,7 +66,7 @@ def stamp(
         stp = time.strftime(time_format)
 
     if letters:
-        if stp: stp += '_'
+        if stp: stp += separator
         stp += ''.join([random.choice(string.ascii_letters) for _ in range(letters)])
 
     return stp
