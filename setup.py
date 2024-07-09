@@ -5,7 +5,7 @@ from pypaq.lipytools.files import get_requirements
 
 setup(
     name=               'pypaq',
-    version=            'v1.7.10',
+    version=            'v1.7.11',
     url=                'https://github.com/piteren/pypaq.git',
     author=             'Piotr Niewinski',
     author_email=       'pioniewinski@gmail.com',
