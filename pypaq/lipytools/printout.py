@@ -207,3 +207,7 @@ class ProgBar:
 
             if prog == 1:
                 print()
+
+    def inc(self, prefix:str='', suffix:str=''):
+        """ increase by 1 """
+        self(current=self._prev+1, prefix=prefix, suffix=suffix)
