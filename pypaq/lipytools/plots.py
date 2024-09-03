@@ -63,11 +63,16 @@ def two_dim(
         y: Union[List,np.ndarray],                  # two(yx) or one(y) dim list or np.array
         x: Optional[Union[List,np.ndarray]]=    None,
         name=                                   'values',
+        plot_type: str=                         'plot', # pot, bar, scatter
         save_FD: str =                          None,
-        scatter=                                False,
         xlogscale=                              False,
         ylogscale=                              False,
         legend_loc=                             'upper left'):
+
+    _plot_type_function = {
+        'plot':     plt.plot,
+        'bar':      plt.bar,
+        'scatter':  plt.scatter}
 
     if type(y) is list: y = np.asarray(y)
     if x is None:
@@ -77,7 +82,7 @@ def two_dim(
             y = y[:, 0]
 
     plt.clf()
-    plot_f = plt.scatter if scatter else plt.plot
+    plot_f = _plot_type_function[plot_type]
     plot_f(x, y, label=name)
     if xlogscale: plt.xscale('log')
     if ylogscale: plt.yscale('log')
