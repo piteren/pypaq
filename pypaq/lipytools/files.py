@@ -88,6 +88,12 @@ def r_csv(file_path, raise_exception=False) -> Optional[List]:
         return [row for row in reader]
 
 
+def w_csv(data:List[List], file_path):
+    with open(file_path, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerows(data)
+
+
 def r_yaml(file_path, raise_exception=False):
     if not os.path.isfile(file_path):
         if raise_exception:
