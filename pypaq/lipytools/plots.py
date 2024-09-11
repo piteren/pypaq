@@ -24,8 +24,10 @@ def histogram(
     if type(val_list) is list and not val_list or type(val_list) is np.ndarray and not len(val_list):
         print(f'cannot prepare histogram for empty val_list!')
         return
-    if msmx_stats: print(f' > "{name}": {msmx(val_list)["string"]}')
-    if pandas_stats: print(f' > stats with pandas for "{name}":\n{stats_pd(val_list)}')
+    if msmx_stats:
+        print(f' > "{name}" ({len(val_list)}): {msmx(val_list)["string"]}')
+    if pandas_stats:
+        print(f' > stats with pandas for "{name}":\n{stats_pd(val_list)}')
 
     if rem_nstd:
         stats = msmx(val_list)
