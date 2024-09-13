@@ -1,7 +1,7 @@
 import math
 import numpy as np
 from scipy import stats
-from typing import Tuple
+from typing import Tuple, Union, Iterable
 
 
 class ValuesArray:
@@ -31,6 +31,22 @@ class ValuesArray:
 
     def __len__(self) -> int:
         return self.size
+
+    def __iadd__(self, other:Union[Iterable,"ValuesArray"]):
+
+        if isinstance(other, ValuesArray):
+            other = other.get_array()
+        _other_arr = np.asarray(other, dtype=self.dtype)
+
+        while len(self._val) - self.size < len(_other_arr):
+            self._grow()
+
+        self._val[self.size:self.size+len(_other_arr)] = _other_arr
+        self.size += len(_other_arr)
+        return self
+
+    def __str__(self):
+        return str(self.get_array())
 
     def append(self, v):
         self._val[self.size] = v

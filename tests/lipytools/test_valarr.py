@@ -20,3 +20,12 @@ class TestValArr(unittest.TestCase):
 
         a = va.get_array()
         print(a[0])
+
+    def test_iadd(self):
+        va = ValuesArray()
+        va += [1.1, 2.2]
+        print(len(va), va)
+        vb = ValuesArray()
+        vb.append(0.1)
+        vb += va
+        print(len(vb), vb)
