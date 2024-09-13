@@ -5,6 +5,7 @@ import pandas as pd
 import plotly.express as px
 import scipy
 from typing import List, Optional, Union
+import warnings
 
 from pypaq.lipytools.files import prep_folder
 from pypaq.lipytools.stats import stats_pd, msmx
@@ -19,15 +20,19 @@ def histogram(
         pandas_stats=           False,  # prints pandas extended stats
         density=                True,
         bins: Optional[int]=    None,   # automatic for None
-        save_FD :str=           None):
+        save_FD :str=           None,
+) -> str:
 
     if type(val_list) is list and not val_list or type(val_list) is np.ndarray and not len(val_list):
-        print(f'cannot prepare histogram for empty val_list!')
-        return
+        msg = f'cannot prepare histogram for empty val_list!'
+        warnings.warn(msg)
+        return msg
+
+    s = ''
     if msmx_stats:
-        print(f' > "{name}" ({len(val_list)}): {msmx(val_list)["string"]}')
+        s += f' > "{name}" ({len(val_list)}): {msmx(val_list)["string"]}\n'
     if pandas_stats:
-        print(f' > stats with pandas for "{name}":\n{stats_pd(val_list)}')
+        s += f' > stats with pandas for "{name}":\n{stats_pd(val_list)}\n'
 
     if rem_nstd:
         stats = msmx(val_list)
@@ -36,8 +41,8 @@ def histogram(
         val_list = [val for val in val_list if mean - rem_nstd * std < val < mean + rem_nstd * std]
 
         if pandas_stats:
-            print(f'\n > after removing {rem_nstd} stddev:')
-            print(stats_pd(val_list))
+            s += f'\n > after removing {rem_nstd} stddev:\n'
+            s += f'{stats_pd(val_list)}\n'
 
     if not bins:
         bins = len(set(val_list))
@@ -59,6 +64,8 @@ def histogram(
         plt.savefig(f'{save_FD}/{name}.png')
     else:
         plt.show()
+
+    return s
 
 
 def two_dim(
