@@ -26,7 +26,7 @@ def w_text(text:str, file_path:str):
         return file.write(text)
 
 
-def r_pickle(file_path, obj_type=None, raise_exception=False, compress=False):
+def r_pickle(file_path, obj_type=None, raise_exception=False, compressed=False):
     """ reads pickle
     if obj_type is given checks for compatibility with given type """
     if not os.path.isfile(file_path):
@@ -34,7 +34,7 @@ def r_pickle(file_path, obj_type=None, raise_exception=False, compress=False):
             raise FileNotFoundError(f'file {file_path} not exists!')
         return None
 
-    op_fn = gzip.open if compress else open
+    op_fn = gzip.open if compressed else open
     with op_fn(file_path, 'rb') as file:
         obj = pickle.load(file)
 
