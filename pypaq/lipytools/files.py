@@ -26,13 +26,18 @@ def w_text(text:str, file_path:str):
         return file.write(text)
 
 
-def r_pickle(file_path, obj_type=None, raise_exception=False, compressed=False):
+def r_pickle(file_path, obj_type=None, raise_exception=False):
     """ reads pickle
     if obj_type is given checks for compatibility with given type """
     if not os.path.isfile(file_path):
         if raise_exception:
             raise FileNotFoundError(f'file {file_path} not exists!')
         return None
+
+    compressed = False
+    with open(file_path, 'rb') as f:
+        if f.read(2) == b'\x1f\x8b': # gzip magic number
+            compressed = True
 
     op_fn = gzip.open if compressed else open
     with op_fn(file_path, 'rb') as file:
