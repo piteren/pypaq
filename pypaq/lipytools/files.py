@@ -1,4 +1,5 @@
 import csv
+import gzip
 import json
 import os
 import pickle
@@ -25,7 +26,7 @@ def w_text(text:str, file_path:str):
         return file.write(text)
 
 
-def r_pickle(file_path, obj_type=None, raise_exception=False):
+def r_pickle(file_path, obj_type=None, raise_exception=False, compress=False):
     """ reads pickle
     if obj_type is given checks for compatibility with given type """
     if not os.path.isfile(file_path):
@@ -33,7 +34,8 @@ def r_pickle(file_path, obj_type=None, raise_exception=False):
             raise FileNotFoundError(f'file {file_path} not exists!')
         return None
 
-    with open(file_path, 'rb') as file:
+    op_fn = gzip.open if compress else open
+    with op_fn(file_path, 'rb') as file:
         obj = pickle.load(file)
 
     if obj_type:
@@ -42,8 +44,9 @@ def r_pickle(file_path, obj_type=None, raise_exception=False):
     return obj
 
 
-def w_pickle(obj, file_path):
-    with open(file_path, 'wb') as file:
+def w_pickle(obj, file_path, compressed=False):
+    op_fn = gzip.open if compressed else open
+    with op_fn(file_path, 'wb') as file:
         pickle.dump(obj, file)
 
 
