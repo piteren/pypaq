@@ -203,7 +203,7 @@ class ProgBar:
                     if time_diff > 100: elapsed = f'TOT:{time_diff/60:.1f}m '
                     else:               elapsed = f'TOT:{time_diff:.1f}s '
 
-            printover(f'{prefix} |{bar}| {prog * 100:.1f}% {details}{elapsed}{suffix}')
+            printover(f'{prefix}|{bar}|{prog * 100:.1f}% {details}{elapsed}{suffix}')
 
             if prog == 1:
                 print()
