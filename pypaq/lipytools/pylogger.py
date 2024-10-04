@@ -5,6 +5,12 @@ from pypaq.lipytools.printout import stamp
 from pypaq.lipytools.files import prep_folder
 
 
+class PyLogger(logging.Logger):
+    pass
+
+logging.setLoggerClass(PyLogger)
+
+
 def get_pylogger(
         name: Optional[str]=                None,
         add_stamp=                          True,
