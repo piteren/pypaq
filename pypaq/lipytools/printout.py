@@ -3,6 +3,7 @@ import string
 import time
 from typing import List, Any, Optional
 
+from pypaq.exception import PyPaqException
 from pypaq.pytypes import NUM
 from pypaq.lipytools.moving_average import MovAvg
 
@@ -155,6 +156,9 @@ class ProgBar:
         self.speed = MovAvg()
 
     def __call__(self, current:NUM, prefix:str='', suffix:str=''):
+
+        if current < self._prev:
+            raise PyPaqException('ProgBar cannot step back with progress (current < prev)')
 
         if current > self._prev:
             self._prev = current
