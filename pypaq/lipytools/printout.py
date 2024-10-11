@@ -140,9 +140,9 @@ class ProgBar:
             total: NUM,
             length: int=        20,
             fill: str=          '█',
-            show_fract: bool=   False,
-            show_speed: bool=   False,
-            show_eta: bool=     False,
+            show_fract: bool=   True,
+            show_speed: bool=   True,
+            show_eta: bool=     True,
     ):
         self.total = total
         self.length = length
