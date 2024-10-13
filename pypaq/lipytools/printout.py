@@ -133,85 +133,117 @@ def printover_terminal(sth) -> None:
 
 
 class ProgBar:
-    """ terminal progress bar """
+    """ ProgBar - terminal progress bar,
+    speed_avg is an average speed smoothened with moving average,
+    speed_cur is a current speed smoothened with moving average,
+    guess speed - expected speed value (initial guess), helps to set proper params for the update
+    refresh_delay - keeps min delay between refreshes """
 
     def __init__(
             self,
             total: NUM,
-            length: int=        20,
-            fill: str=          '█',
-            show_fract: bool=   True,
-            show_speed: bool=   True,
-            show_eta: bool=     True,
+            length: int=            20,
+            fill: str=              '█',
+            show_fract: bool=       True,
+            show_speed_avg: bool=   True,
+            show_speed_cur: bool=   True,
+            show_eta: bool=         True,
+            guess_speed: float=     10.0,
+            refresh_delay: float=   1,
     ):
         self.total = total
         self.length = length
         self.fill = fill
         self.show_fract = show_fract
-        self.show_speed =show_speed
+        self.show_speed_avg = show_speed_avg
+        self.show_speed_cur = show_speed_cur and self.show_speed_avg
         self.show_eta = show_eta
+        self.min_delay_sec = refresh_delay
 
-        self._prev = 0
-        self._stime = time.time()
-        self.speed = MovAvg()
+        f = min(0.5,max(0.01, 1/guess_speed))
+        self.speed_a = MovAvg(factor=f) # tot mavg
+        self.speed_c = MovAvg(factor=f) # current mavg
+        self.n_prev = 0
+        self.inc_cached = 0
+        self.start_time = time.time()
+        self.time_prev = self.start_time
 
-    def __call__(self, current:NUM, prefix:str='', suffix:str=''):
+    @staticmethod
+    def _speed_to_str(s) -> str:
+        if s > 1:
+            if s > 100: return f'{int(s)}/s'
+            else:       return f'{s:.1f}/s'
+        else:           return f'{s:.3f}/s'
 
-        if current < self._prev:
-            raise PyPaqException('ProgBar cannot step back with progress (current < prev)')
+    @staticmethod
+    def _time_to_str(t) -> str:
+        if t > 4000:    return f'{t / 60 / 60:.1f}h'
+        else:
+            if t > 100: return f'{t / 60:.1f}m'
+            else:       return f'{t:.1f}s'
 
-        if current > self._prev:
-            self._prev = current
+    def __call__(self, n:NUM, prefix:str='', suffix:str=''):
 
-            prog = current / self.total
-            if prog > 1:
-                prog = 1
+        if n < self.n_prev:
+            raise PyPaqException('ProgBar cannot step back with progress (n < prev)')
 
-            time_diff = time.time() - self._stime
+        if n > self.n_prev:
 
-            filled_length = int(self.length * prog)
-            bar = self.fill * filled_length + '-' * (self.length - filled_length)
+            time_current = time.time()
+            time_passed_prev = time_current - self.time_prev
+            if time_passed_prev >= self.min_delay_sec or n >= self.total:
 
-            fract = f'{current}/{self.total}' if self.show_fract else ''
+                time_passed_tot = time_current - self.start_time
+                self.time_prev = time_current
 
-            speed_str = ''
-            self.speed.upd(current / time_diff)
-            speed = self.speed()
-            if self.show_speed:
-                if speed > 1:
-                    if speed > 100: speed_str = f'{int(speed)}/s'
-                    else:           speed_str = f'{speed:.1f}/s'
-                else:               speed_str = f'{speed:.3f}/s'
+                progress_factor = n / self.total
+                if progress_factor > 1:
+                    progress_factor = 1
 
-            eta_str = ''
-            if self.show_eta:
-                if speed > 0:
-                    eta = (self.total - current) / speed
-                    if eta < 0:
-                        eta = 0
-                    if eta > 4000:    eta_str = f'{eta/60/60:.1f}h'
-                    else:
-                        if eta > 100: eta_str = f'{eta/60:.1f}m'
-                        else:         eta_str = f'{eta:.1f}s'
-                else:                 eta_str = '---'
-                eta_str = f'ETA:{eta_str}'
+                filled_length = int(self.length * progress_factor)
+                bar_str = self.fill * filled_length + '-' * (self.length - filled_length)
 
-            detailsL = [fract,speed_str,eta_str]
-            detailsL = [e for e in detailsL if e]
-            details = f'{" ".join(detailsL)} ' if detailsL else ''
+                fract_str = f'{n}/{self.total}' if self.show_fract else ''
 
-            elapsed = ''
-            if prog == 1 and self.show_eta:
-                if time_diff > 4000:    elapsed = f'TOT:{time_diff/60/60:.1f}h '
-                else:
-                    if time_diff > 100: elapsed = f'TOT:{time_diff/60:.1f}m '
-                    else:               elapsed = f'TOT:{time_diff:.1f}s '
+                speed_str = ''
+                self.speed_a.upd(n / time_passed_tot)
+                self.speed_c.upd((n-self.n_prev) / time_passed_prev)
+                speed_a = self.speed_a()
+                if self.show_speed_avg:
+                    speed_str = self._speed_to_str(speed_a)
+                if self.show_speed_cur:
+                    speed_str += f'[{self._speed_to_str(self.speed_c())}]'
 
-            printover(f'{prefix}|{bar}|{prog * 100:.1f}% {details}{elapsed}{suffix}')
+                eta_str = ''
+                if self.show_eta:
+                    if speed_a > 0:
+                        eta = (self.total - n) / speed_a
+                        if eta < 0:
+                            eta = 0
+                        eta_str = self._time_to_str(eta)
+                    else:                 eta_str = '---'
+                    eta_str = f'ETA:{eta_str}'
 
-            if prog == 1:
-                print()
+                detailsL = [fract_str,speed_str,eta_str]
+                detailsL = [e for e in detailsL if e]
+                details_str = f'{" ".join(detailsL)} ' if detailsL else ''
+
+                elapsed_str = ''
+                if progress_factor == 1 and self.show_eta:
+                    elapsed_str = '-- TOT:' + self._time_to_str(time_passed_tot)
+                    elapsed_str += f' {self._speed_to_str(self.total / time_passed_tot)}'
+
+
+                printover(f'{prefix}|{bar_str}|{progress_factor * 100:.1f}% '
+                          f'{details_str}{elapsed_str}{suffix}')
+
+                if progress_factor == 1:
+                    print()
+
+                self.n_prev = n
+                self.inc_cached = 0
 
     def inc(self, prefix:str='', suffix:str=''):
         """ increase by 1 """
-        self(current=self._prev+1, prefix=prefix, suffix=suffix)
+        self.inc_cached += 1
+        self(n=self.n_prev + self.inc_cached, prefix=prefix, suffix=suffix)
