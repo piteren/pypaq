@@ -58,7 +58,7 @@ def stamp(
     if year:            time_format += '%y'
     if month:           time_format += '%m'
     if day:             time_format += '%d'
-    if time_format:     time_format += separator
+    if time_format and (hour or minutes): time_format += separator
     if hour:            time_format += '%H'
     if minutes:         time_format += '%M'
 
