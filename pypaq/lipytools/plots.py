@@ -28,11 +28,11 @@ def histogram(
         warnings.warn(msg)
         return msg
 
-    s = ''
+    s = []
     if msmx_stats:
-        s += f' > "{name}" ({len(val_list)}): {msmx(val_list)["string"]}\n'
+        s.append(f' > "{name}" ({len(val_list)}): {msmx(val_list)["string"]}')
     if pandas_stats:
-        s += f' > stats with pandas for "{name}":\n{stats_pd(val_list)}\n'
+        s.append(f' > stats with pandas for "{name}":\n{stats_pd(val_list)}')
 
     if rem_nstd:
         stats = msmx(val_list)
@@ -41,8 +41,8 @@ def histogram(
         val_list = [val for val in val_list if mean - rem_nstd * std < val < mean + rem_nstd * std]
 
         if pandas_stats:
-            s += f'\n > after removing {rem_nstd} stddev:\n'
-            s += f'{stats_pd(val_list)}\n'
+            s.append(f'\n > after removing {rem_nstd} stddev:')
+            s.append(f'{stats_pd(val_list)}')
 
     if not bins:
         bins = len(set(val_list))
@@ -65,7 +65,7 @@ def histogram(
     else:
         plt.show()
 
-    return s
+    return '\n'.join(s)
 
 
 def two_dim(
