@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from multiprocessing import cpu_count, Process, Queue, Value
-from queue import Empty
 import psutil
 import time
 from typing import Any, Optional
@@ -51,18 +50,15 @@ class Que:
         self.size.increment(1)
         self.q.put(msg, **kwargs)
 
-    # does not raise Empty exception, but returns None in case no QMessage
-    def get(self,
-            block: bool=                True,
-            timeout: Optional[float]=   None,
-            ) -> Optional[QMessage]:
+    # does not raise Empty exception, but returns None if couldn't get
+    def get(self, block:bool=True, timeout:Optional[float]=None) -> Optional[QMessage]:
         try:
             msg = self.q.get(block=block, timeout=timeout)
             self.size.increment(-1)
             if not isinstance(msg, QMessage):
                 raise MPythonException(f'\'msg\' should be type of QMessage, but is {type(msg)}')
             return msg
-        except Empty:
+        except:
             return None
 
     def empty(self) -> bool:
