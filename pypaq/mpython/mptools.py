@@ -12,15 +12,14 @@ class MPythonException(PyPaqException):
     pass
 
 
-# message sent between processes via Ques (my que)
 class QMessage:
+    """ QMessage is a type of object (message) sent between processes with Ques """
     def __init__(self, type:str, data:Optional[Any]=None):
         self.type = type
         self.data = data
 
     def __str__(self):
         return f'{self.__class__.__name__}, type:{self.type}, data:{self.data}'
-
 
 # https://github.com/vterron/lemon/commit/9ca6b4b1212228dbd4f69b88aaf88b12952d7d6f
 class SharedCounter:
@@ -37,8 +36,10 @@ class SharedCounter:
         return self.count.value
 
 
-# my que
 class Que:
+    """ MultiProcessing Queue that:
+    - manages its size
+    - accepts messages of QMessage type """
 
     def __init__(self):
         self.q = Queue()
@@ -50,8 +51,8 @@ class Que:
         self.size.increment(1)
         self.q.put(msg, **kwargs)
 
-    # does not raise Empty exception, but returns None if couldn't get
     def get(self, block:bool=True, timeout:Optional[float]=None) -> Optional[QMessage]:
+        """ does not raise Empty exception, but returns None if couldn't get QMessage """
         try:
             msg = self.q.get(block=block, timeout=timeout)
             self.size.increment(-1)
@@ -61,30 +62,31 @@ class Que:
         except:
             return None
 
+    @property
     def empty(self) -> bool:
-        return not self.qsize()
+        return not self.qsize
 
+    @property
     def qsize(self) -> int:
         return self.size.value
 
 
-# Exception Managed Subprocess - with basic exceptions management
-class ExSubprocess(Process, ABC):
+class ExProcess(Process, ABC):
+    """ Exception Managed Process
+    implements basic exceptions management """
 
     def __init__(
             self,
             ique: Optional[Que]=        None,   # input que
             oque: Optional[Que]=        None,   # output que
-            id: Optional[int or str]=   None,   # unique id to identify the subprocess, if not given takes from Process name
+            id: Optional[int or str]=   None,   # unique id to identify the subprocess, for None is taken from Process.name
             raise_unk_exception=        True,   # raises exception other than KeyboardInterrupt
             logger=                     None,
             loglevel=                   30):
 
         super().__init__(target=self.__run)
 
-        if id is None:
-            id = self.name
-        self.id = id
+        self.id = self.name if id is None else id
 
         if not logger:
             logger = get_pylogger(
@@ -93,61 +95,68 @@ class ExSubprocess(Process, ABC):
                 level=      loglevel)
         self.logger = logger
 
-        self.raise_unk_exception = raise_unk_exception
-
         self.ique = ique
         self.oque = oque
+        self.raise_unk_exception = raise_unk_exception
 
-        self.logger.info(f'*** ExSubprocess *** id: {self.id} initialized')
+        self.logger.info(f'*** ExProcess *** id: {self.id} initialized')
 
-    # process target method, wraps subprocess_method() with try / except
     def __run(self):
+        """ process target method,
+        wraps exprocess_method() with try / except = exception handling """
         try:
-            self.logger.debug(f'> ExSubprocess ({self.id}, pid:{self.pid}) - started subprocess_method()')
-            self.subprocess_method()
-            self.logger.debug(f'> ExSubprocess ({self.id}, pid:{self.pid}) - finished subprocess_method()')
+            self.logger.debug(f'> ExProcess ({self.id}, pid:{self.pid}) - started subprocess_method()')
+            self.exprocess_method()
+            self.logger.debug(f'> ExProcess ({self.id}, pid:{self.pid}) - finished subprocess_method()')
         except KeyboardInterrupt:
             self.__exception_handle('KeyboardInterrupt')
         except Exception as e:
             self.__exception_handle(f'other: {e}')
-            if self.raise_unk_exception: raise e
+            if self.raise_unk_exception:
+                raise e
 
-    # method run in a subprocess, to be implemented
     @abstractmethod
-    def subprocess_method(self): pass
+    def exprocess_method(self):
+        """ method run in a subprocess, to be implemented """
+        pass
 
-    # when exception occurs, message with exception data is put on the output que
     def __exception_handle(self, name:str):
-        msg = QMessage(
-            type=   f'ex_{name}, ExSubprocess id: {self.id}, pid: {self.pid}',
-            data=   self.id) # returns ID here to allow process identification
+        """ when exception occurs, message with exception data is put on the output que """
         if self.oque is not None:
-            self.oque.put(msg)
-        self.logger.warning(f'> ExSubprocess ({self.id}) halted by exception: {name}')
+            self.oque.put(QMessage(
+                type=   f'ex_{name}, ExProcess id: {self.id}, pid: {self.pid}',
+                data=   self.id)) # returns ID here to allow process identification
+        self.logger.warning(f'> ExProcess ({self.id}) halted by exception: {name}')
         self.after_exception_handle_run()
 
-    # this method may be implemented and will be run after exception occurred
-    def after_exception_handle_run(self): pass
+    def after_exception_handle_run(self):
+        """ this method may be implemented and will be run after thr exception occurred """
+        pass
 
     def kill(self):
-        if self.alive: super().kill()
-        while self.alive: time.sleep(0.01)
+        if self.alive:
+            super().kill()
+        while self.alive:
+            time.sleep(0.01)
 
     def terminate(self):
-        if self.alive: super().terminate()
-        while self.alive: time.sleep(0.01)
+        if self.alive:
+            super().terminate()
+        while self.alive:
+            time.sleep(0.01)
 
     @property
     def alive(self):
-        if self.closed: return False
+        if self.closed:
+            return False
         return self.is_alive()
 
     @property
     def closed(self):
         return self._closed
 
-    # some process info
     def get_info(self) -> str:
+        """ some some process info about process """
         pid = self.pid if not self.closed else None
         pid_nfo = pid if pid is not None else '<pid:closed>'
         exitcode = self.exitcode if not self.closed else '<exitcode:closed>'
