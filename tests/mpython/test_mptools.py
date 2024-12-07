@@ -40,7 +40,11 @@ class TestMPTools(unittest.TestCase):
                     time.sleep(0.3)
 
         exs = ExS(oque=Que(), raise_unk_exception=False, loglevel=10)
+        print(exs.name)
         exs.start()
+
+        exs = ExS(oque=Que(), raise_unk_exception=False, loglevel=10)
+        print(exs.name)
 
     def test_ExProcess_exception(self):
 
@@ -73,9 +77,9 @@ class TestMPTools(unittest.TestCase):
             def exprocess_method(self):
                 cnt = 0
                 num_loops = 10
-                print(f'Starting ExProcess.subprocess_method() loop for {num_loops} loops..')
+                print(f'Starting ExProcess.exprocess_method() loop for {num_loops} loops..')
                 while cnt < num_loops:
-                    print(f'subprocess_method is running (#{cnt})..')
+                    print(f'exprocess_method is running (#{cnt})..')
                     cnt += 1
                     if random.random() < 0.1: raise KeyboardInterrupt
                     if random.random() < 0.1: raise Exception
@@ -104,7 +108,7 @@ class TestMPTools(unittest.TestCase):
                     msg = self.ique.get(block=False)
                     if msg:
                         print(f'ExS received message: {msg}')
-                    print(f'subprocess_method is running (#{cnt})..')
+                    print(f'exprocess_method is running (#{cnt})..')
                     cnt += 1
                     time.sleep(1)
 

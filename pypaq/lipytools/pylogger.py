@@ -20,13 +20,11 @@ def get_pylogger(
         format: Union[Tuple[str,str],str]=  '%(asctime)s {%(filename)20s:%(lineno)4d} p%(process)s %(levelname)s: %(message)s',
         to_stdout=                          True,
 ) -> logging.Logger:
-    """
-    # returns formatted logging.Logger
+    """ returns formatted logging.Logger
     - add_stamp:    prevents merging loggers of same name
     - folder:       writes logfile to folder if given
     - flat_child:   forces child of this logger created with get_child() to be same level
-    - format:       may be given as a str or Tuple[str,str] (fmt,datefmt)
-    """
+    - format:       may be given as a str or Tuple[str,str] (fmt,datefmt) """
 
     if not name and folder:
         name = 'pylogger'
@@ -65,17 +63,11 @@ def get_pylogger(
 
     return logger
 
-# returns child with optionally changed level
-def get_child(
-        logger,
-        name: Optional[str]=    None,
-        change_level: int=      10,
-) -> logging.Logger:
 
-    if not name:
-        name = '_child'
+def get_child(logger, name:Optional[str], change_level:int=0) -> logging.Logger:
+    """ returns child with optionally changed level """
 
-    clogger = logger.getChild(name)
+    clogger = logger.getChild(name or '_child')
     clogger.flat_child = logger.flat_child
 
     if change_level != 0 and not logger.flat_child:

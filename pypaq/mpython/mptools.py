@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from multiprocessing import cpu_count, Process, Queue, Value
 import psutil
 import time
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from pypaq.exception import PyPaqException
 from pypaq.lipytools.pylogger import get_pylogger
@@ -77,20 +77,21 @@ class ExProcess(Process, ABC):
 
     def __init__(
             self,
-            ique: Optional[Que]=        None,   # input que
-            oque: Optional[Que]=        None,   # output que
-            id: Optional[int or str]=   None,   # unique id to identify the subprocess, for None is taken from Process.name
-            raise_unk_exception=        True,   # raises exception other than KeyboardInterrupt
-            logger=                     None,
-            loglevel=                   30):
+            ique: Optional[Que]=            None, # input que
+            oque: Optional[Que]=            None, # output que
+            name: Optional[Union[str,int]]= None, # identifies ExProcess, for None is taken from Process.name
+            raise_unk_exception=            True, # raises exception other than KeyboardInterrupt
+            logger=                         None,
+            loglevel=                       30):
 
         super().__init__(target=self.__run)
 
-        self.id = self.name if id is None else id
+        if name is not None:
+            self.name = str(name)
 
         if not logger:
             logger = get_pylogger(
-                name=       self.id,
+                name=       self.name,
                 folder=     None,
                 level=      loglevel)
         self.logger = logger
@@ -99,15 +100,15 @@ class ExProcess(Process, ABC):
         self.oque = oque
         self.raise_unk_exception = raise_unk_exception
 
-        self.logger.info(f'*** ExProcess *** id: {self.id} initialized')
+        self.logger.info(f'*** {self.name} (ExProcess) *** initialized')
 
     def __run(self):
         """ process target method,
         wraps exprocess_method() with try / except = exception handling """
         try:
-            self.logger.debug(f'> ExProcess ({self.id}, pid:{self.pid}) - started subprocess_method()')
+            self.logger.debug(f'> ExProcess ({self.name}, pid:{self.pid}) - started exprocess_method()')
             self.exprocess_method()
-            self.logger.debug(f'> ExProcess ({self.id}, pid:{self.pid}) - finished subprocess_method()')
+            self.logger.debug(f'> ExProcess ({self.name}, pid:{self.pid}) - finished exprocess_method()')
         except KeyboardInterrupt:
             self.__exception_handle('KeyboardInterrupt')
         except Exception as e:
@@ -117,16 +118,16 @@ class ExProcess(Process, ABC):
 
     @abstractmethod
     def exprocess_method(self):
-        """ method run in a subprocess, to be implemented """
+        """ method run in a process, to be implemented """
         pass
 
     def __exception_handle(self, name:str):
         """ when exception occurs, message with exception data is put on the output que """
         if self.oque is not None:
             self.oque.put(QMessage(
-                type=   f'ex_{name}, ExProcess id: {self.id}, pid: {self.pid}',
-                data=   self.id)) # returns ID here to allow process identification
-        self.logger.warning(f'> ExProcess ({self.id}) halted by exception: {name}')
+                type=   f'ex_{name}, ExProcess id: {self.name}, pid: {self.pid}',
+                data=   self.name)) # returns ID here to allow process identification
+        self.logger.warning(f'> ExProcess ({self.name}) halted by exception: {name}')
         self.after_exception_handle_run()
 
     def after_exception_handle_run(self):
