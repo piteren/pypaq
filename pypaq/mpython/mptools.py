@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from multiprocessing import cpu_count, Process, Queue, Value
 import psutil
+from queue import Empty
 import time
 from typing import Any, Optional, Union
 
@@ -52,15 +53,14 @@ class Que:
         self.q.put(msg, **kwargs)
 
     def get(self, block:bool=True, timeout:Optional[float]=None) -> Optional[QMessage]:
-        """ does not raise Empty exception, but returns None if couldn't get QMessage """
         try:
             msg = self.q.get(block=block, timeout=timeout)
             self.size.increment(-1)
-            if not isinstance(msg, QMessage):
-                raise MPythonException(f'\'msg\' should be type of QMessage, but is {type(msg)}')
-            return msg
-        except:
+        except Empty:
             return None
+        if not isinstance(msg, QMessage):
+            raise MPythonException(f'\'msg\' should be type of QMessage, but is {type(msg)}')
+        return msg
 
     @property
     def empty(self) -> bool:
@@ -77,12 +77,25 @@ class ExProcess(Process, ABC):
 
     def __init__(
             self,
-            ique: Optional[Que]=            None, # input que
-            oque: Optional[Que]=            None, # output que
-            name: Optional[Union[str,int]]= None, # identifies ExProcess, for None is taken from Process.name
-            raise_unk_exception=            True, # raises exception other than KeyboardInterrupt
+            ique: Optional[Que]=            None,
+            oque: Optional[Que]=            None,
+            name: Optional[Union[str,int]]= None,
+            raise_KeyboardInterrupt=        False,
+            raise_Exception=                False,
             logger=                         None,
             loglevel=                       30):
+        """
+        :param ique:
+            input Que, not used by this class, but may be used by child Classes
+        :param oque:
+            output Que, sends messages from the ExProcess,
+            when Exception or KeyboardInterrupt occurs message is sent here
+        :param name:
+            identifies ExProcess, for None is taken from Process.name
+        :param raise_KeyboardInterrupt:
+            results in immediate exit (without running post exception handler)
+        :param raise_KeyboardInterrupt:
+            raises Exception output (debug) """
 
         super().__init__(target=self.__run)
 
@@ -98,7 +111,8 @@ class ExProcess(Process, ABC):
 
         self.ique = ique
         self.oque = oque
-        self.raise_unk_exception = raise_unk_exception
+        self.raise_KeyboardInterrupt = raise_KeyboardInterrupt
+        self.raise_Exception = raise_Exception
 
         self.logger.info(f'*** {self.name} (ExProcess) *** initialized')
 
@@ -109,11 +123,21 @@ class ExProcess(Process, ABC):
             self.logger.debug(f'> ExProcess ({self.name}, pid:{self.pid}) - started exprocess_method()')
             self.exprocess_method()
             self.logger.debug(f'> ExProcess ({self.name}, pid:{self.pid}) - finished exprocess_method()')
+
         except KeyboardInterrupt:
-            self.__exception_handle('KeyboardInterrupt')
+
+            # allows intermediate interrupt
+            if self.raise_KeyboardInterrupt:
+                raise KeyboardInterrupt
+
+            self.__exception_handle('(Base)KeyboardInterrupt')
+            if self.raise_Exception:
+                raise KeyboardInterrupt
+
         except Exception as e:
-            self.__exception_handle(f'other: {e}')
-            if self.raise_unk_exception:
+
+            self.__exception_handle(str(e))
+            if self.raise_Exception:
                 raise e
 
     @abstractmethod
@@ -121,24 +145,26 @@ class ExProcess(Process, ABC):
         """ method run in a process, to be implemented """
         pass
 
-    def __exception_handle(self, name:str):
+    def __exception_handle(self, e_name:str):
         """ when exception occurs, message with exception data is put on the output que """
         if self.oque is not None:
             self.oque.put(QMessage(
-                type=   f'ex_{name}, ExProcess id: {self.name}, pid: {self.pid}',
-                data=   self.name)) # returns ID here to allow process identification
-        self.logger.warning(f'> ExProcess ({self.name}) halted by exception: {name}')
+                type=   f'Exception:{e_name}, ExProcess {self.name} (pid:{self.pid})',
+                data=   self.name)) # returns name here to allow process identification
+        self.logger.warning(f'> ExProcess ({self.name}) halted by Exception:{e_name}')
         self.after_exception_handle_run()
 
     def after_exception_handle_run(self):
-        """ this method may be implemented and will be run after thr exception occurred """
+        """ this method may be implemented and will be run after inside exception handler """
         pass
 
-    def kill(self):
-        if self.alive:
-            super().kill()
-        while self.alive:
-            time.sleep(0.01)
+    @property
+    def alive(self):
+        """ not spawned process is not alive and cannot be joined,
+        when proces alive: True->False it may be join()-ed """
+        if self.closed:
+            return False
+        return self.is_alive()
 
     def terminate(self):
         if self.alive:
@@ -146,24 +172,30 @@ class ExProcess(Process, ABC):
         while self.alive:
             time.sleep(0.01)
 
-    @property
-    def alive(self):
-        if self.closed:
-            return False
-        return self.is_alive()
+    def kill(self):
+        if self.alive:
+            super().kill()
+        while self.alive:
+            time.sleep(0.01)
 
     @property
     def closed(self):
         return self._closed
 
-    def get_info(self) -> str:
-        """ some some process info about process """
-        pid = self.pid if not self.closed else None
-        pid_nfo = pid if pid is not None else '<pid:closed>'
-        exitcode = self.exitcode if not self.closed else '<exitcode:closed>'
-        mem_nfo = int(psutil.Process(pid).memory_info().rss / 1024 ** 2) if not exitcode else '-'
-        nfo = f'{str(self)}, pid: {pid_nfo}, mem:{mem_nfo}MB, parent pid: {self._parent_pid}, alive: {self.alive}, exitcode: {exitcode}'
-        return nfo
+    def __str__(self):
+        pid = self.pid if not self.closed else '<-closed->'
+        exitcode = self.exitcode if not self.closed else '<-closed->'
+        mem_nfo = '---'
+        if self.alive:
+            mem_mb = int(psutil.Process(self.pid).memory_info().rss / 1024 ** 2)
+            mem_nfo = f'{mem_mb}MB'
+        return (f'{super().__str__()}\n'
+                f'> pid:            {pid}\n'
+                f'> parent(pid):    {self._parent_pid}\n'
+                f'> alive:          {self.alive}\n'
+                f'> closed:         {self.closed}\n'
+                f'> exitcode:       {exitcode}\n'
+                f'> mem:            {mem_nfo}')
 
 
 def sys_res_nfo():

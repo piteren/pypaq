@@ -32,43 +32,94 @@ class TestMPTools(unittest.TestCase):
         class ExS(ExProcess):
 
             def exprocess_method(self):
-                cnt = 0
-                num_loops = 5
-                while cnt < num_loops:
-                    print(f'running #{cnt} ..')
-                    cnt += 1
-                    time.sleep(0.3)
+                print(f'---running process---')
+                time.sleep(3)
 
-        exs = ExS(oque=Que(), raise_unk_exception=False, loglevel=10)
-        print(exs.name)
+        exs = ExS(oque=Que(), loglevel=10)
+        print(f'before spawned: {exs}')
         exs.start()
+        print(f'spawned (started): {exs}')
+        while exs.alive:
+            time.sleep(1)
+        print(f'finished: {exs}')
+        exs.join()
+        print(f'joined: {exs}')
+        exs.close()
+        print(f'closed: {exs}')
 
-        exs = ExS(oque=Que(), raise_unk_exception=False, loglevel=10)
-        print(exs.name)
+        exs = ExS(oque=Que(), loglevel=10)
+        exs.start()
+        time.sleep(1)
+        exs.terminate()
+        print(f'terminated: {exs}')
+        exs.close()
+        print(f'closed: {exs}')
 
-    def test_ExProcess_exception(self):
+        exs = ExS(oque=Que(), loglevel=10)
+        exs.start()
+        time.sleep(1)
+        exs.kill()
+        print(f'killed: {exs}')
+        exs.close()
+        print(f'closed: {exs}')
+
+    def test_ExProcess_KeyboardInterrupt(self):
+
+        num_loops = 10
 
         class ExS(ExProcess):
 
             def exprocess_method(self):
                 cnt = 0
-                num_loops = 10
                 while cnt < num_loops:
                     print(f'running #{cnt} ..')
                     cnt += 1
-                    if random.random() < 0.05: raise KeyboardInterrupt
-                    if random.random() < 0.05: raise Exception('random exception')
+                    if random.random() < 0.3:
+                        raise KeyboardInterrupt
                     time.sleep(0.3)
-                raise Exception('final exception')
+                raise KeyboardInterrupt
 
-        exs = ExS(oque=Que(), raise_unk_exception=False)
+        exs = ExS(oque=Que(), raise_KeyboardInterrupt=False)
         exs.start()
         msg = exs.oque.get()
         print(msg)
+        self.assertTrue(msg.type.startswith('Exception:'))
 
-        exs = ExS(oque=Que(), raise_unk_exception=True)
+        exs = ExS(oque=Que(), raise_KeyboardInterrupt=True)
         exs.start()
 
+        # here message won't come since immediate break by keyboard
+        #msg = exs.oque.get()
+        #print(msg)
+        #self.assertTrue(msg is None)
+
+    def test_ExProcess_Exception(self):
+
+        num_loops = 10
+
+        class ExS(ExProcess):
+
+            def exprocess_method(self):
+                cnt = 0
+                while cnt < num_loops:
+                    print(f'running #{cnt} ..')
+                    cnt += 1
+                    if random.random() < 0.3:
+                        raise Exception('RandomException')
+                    time.sleep(0.3)
+                raise Exception('RandomException')
+
+        exs = ExS(oque=Que(), raise_Exception=False)
+        exs.start()
+        msg = exs.oque.get()
+        print(msg)
+        self.assertTrue(msg.type.startswith('Exception:'))
+
+        exs = ExS(oque=Que(), raise_Exception=True)
+        exs.start()
+        msg = exs.oque.get()
+        print(msg)
+        self.assertTrue(msg.type.startswith('Exception:'))
 
     def test_ExProcess_after(self):
 
@@ -89,43 +140,14 @@ class TestMPTools(unittest.TestCase):
             def after_exception_handle_run(self):
                 self.oque.put(QMessage(type='info', data='after'))
 
-        exs = ExS(oque=Que(), raise_unk_exception=False)
+        exs = ExS(oque=Que())
         exs.start()
         msg = exs.oque.get()
         print(msg.type)
-        self.assertTrue('ex_' in msg.type)
+        self.assertTrue('Exception' in msg.type)
         msg = exs.oque.get()
         print(msg.type, msg.data)
         self.assertTrue(msg.data == 'after')
-
-    def test_ExProcess_management(self):
-
-        class ExS(ExProcess):
-
-            def exprocess_method(self):
-                cnt = 0
-                while True:
-                    msg = self.ique.get(block=False)
-                    if msg:
-                        print(f'ExS received message: {msg}')
-                    print(f'exprocess_method is running (#{cnt})..')
-                    cnt += 1
-                    time.sleep(1)
-
-        exs = ExS(ique=Que(), oque=Que())
-        self.assertTrue(not exs.alive)
-        self.assertTrue(not exs.closed)
-
-        exs.start()
-        exs.ique.put(QMessage(type='test', data='data'))
-        time.sleep(3)
-        print(exs.get_info())
-        exs.kill()
-        print(exs.get_info())
-        self.assertTrue(not exs.alive)
-        exs.close()
-        self.assertTrue(exs.closed)
-        print(exs.get_info())
 
     def test_sys_res_nfo(self):
         info = sys_res_nfo()

@@ -54,6 +54,6 @@ python setup.py sdist bdist_wheel
 python -m twine upload -r pypi dist/*
 rm -rf build
 rm -rf dist
-rm -rf pypaq.egg-info
+rm -rf *.egg-info
 
 echo "Version $TAG published to pypi."
