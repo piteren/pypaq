@@ -8,7 +8,7 @@ from typing import List, Optional, Union
 import warnings
 
 from pypaq.lipytools.files import prep_folder
-from pypaq.lipytools.stats import stats_pd, msmx
+from pypaq.lipytools.stats import msmx
 
 
 
@@ -17,7 +17,6 @@ def histogram(
         name=                   'values',
         rem_nstd: float=        0.0,    # removes values out of N*stddev
         msmx_stats=             True,   # prints minimal stats
-        pandas_stats=           False,  # prints pandas extended stats
         density=                True,
         bins: Optional[int]=    None,   # automatic for None
         save_FD :str=           None,
@@ -30,19 +29,13 @@ def histogram(
 
     s = []
     if msmx_stats:
-        s.append(f' > "{name}" ({len(val_list)}): {msmx(val_list)["string"]}')
-    if pandas_stats:
-        s.append(f' > stats with pandas for "{name}":\n{stats_pd(val_list)}')
+        s.append(f'histogram: "{name}" (samples: {len(val_list)}): {msmx(val_list)["string"]}')
 
     if rem_nstd:
         stats = msmx(val_list)
         std = stats['std']
         mean = stats['mean']
         val_list = [val for val in val_list if mean - rem_nstd * std < val < mean + rem_nstd * std]
-
-        if pandas_stats:
-            s.append(f'\n > after removing {rem_nstd} stddev:')
-            s.append(f'{stats_pd(val_list)}')
 
     if not bins:
         bins = len(set(val_list))
