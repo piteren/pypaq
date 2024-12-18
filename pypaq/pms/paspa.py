@@ -453,7 +453,11 @@ class PaSpa:
                 else:
                     ranges = psdd_merged[ax] + psdd_b[ax]
                     psdd_merged[ax] = [min(ranges), max(ranges)]
-        return PaSpa(psdd_merged, logger=get_child(self.logger))
+        return PaSpa(
+            psdd=   psdd_merged,
+            logger= get_child(
+                logger= self.logger,
+                name=   f'{self.logger.name}_child'))
 
     def __str__(self):
         info = f'*** PaSpa *** (dim: {self.dim}, rdim: {self.rdim:.1f}) parameters space:\n'
