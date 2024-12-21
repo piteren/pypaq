@@ -133,11 +133,7 @@ def printover_terminal(sth) -> None:
 
 
 class ProgBar:
-    """ ProgBar - terminal progress bar,
-    speed_avg is an average speed smoothened with moving average,
-    speed_cur is a current speed smoothened with moving average,
-    guess speed - expected speed value (initial guess), helps to set proper params for the update
-    refresh_delay - keeps min delay between refreshes """
+    """ ProgBar - terminal progress bar """
 
     def __init__(
             self,
@@ -151,6 +147,21 @@ class ProgBar:
             guess_speed: float=     10.0,
             refresh_delay: float=   1,
     ):
+        """ speed_avg is an average speed smoothened with moving average,
+        speed_cur is a current speed smoothened with moving average,
+
+        :param total:
+        :param length:
+        :param fill:
+        :param show_fract:
+        :param show_speed_avg:
+        :param show_speed_cur:
+        :param show_eta:
+        :param guess_speed:
+            expected speed value (initial guess), helps to set proper params for the update
+        :param refresh_delay:
+            (sec) delay between refreshes
+        """
         self.total = total
         self.length = length
         self.fill = fill
@@ -158,7 +169,7 @@ class ProgBar:
         self.show_speed_avg = show_speed_avg
         self.show_speed_cur = show_speed_cur and self.show_speed_avg
         self.show_eta = show_eta
-        self.min_delay_sec = refresh_delay
+        self.refresh_delay = refresh_delay
 
         f = min(0.5,max(0.01, 1/guess_speed))
         self.speed_a = MovAvg(factor=f) # tot mavg
@@ -191,7 +202,7 @@ class ProgBar:
 
             time_current = time.time()
             time_passed_prev = time_current - self.time_prev
-            if time_passed_prev >= self.min_delay_sec or n >= self.total:
+            if time_passed_prev >= self.refresh_delay or n >= self.total:
 
                 time_passed_tot = time_current - self.start_time
                 self.time_prev = time_current
