@@ -3,6 +3,7 @@ import unittest
 
 from pypaq.lipytools.decorators import timing, args
 
+
 class TestDecorators(unittest.TestCase):
 
     def test_timing(self):
