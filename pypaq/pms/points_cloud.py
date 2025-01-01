@@ -113,7 +113,7 @@ class PointsCloud(Sized):
         if not logger:
             logger = get_pylogger(name=self.__class__.__name__, level=loglevel)
         self.logger = logger
-        self.logger.info('*** PointsCloud *** initializing..')
+        self.logger.info('*** PointsCloud *** initializing ..')
 
         self.paspa = paspa
 

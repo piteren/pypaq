@@ -70,7 +70,7 @@ class ParaSave(ParaGX):
                 level=      loglevel)
         self.__log = logger
 
-        self.__log.info(f'*** ParaSave : {self.name} *** initializes..')
+        self.__log.info(f'*** ParaSave : {self.name} *** initializes ..')
         self.__log.debug(f'> save_topdir: {self.save_topdir}')
         self.__log.debug(f'> save_fn_pfx: {self.save_fn_pfx}')
 
