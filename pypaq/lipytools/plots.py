@@ -7,13 +7,14 @@ import scipy
 from typing import List, Optional, Union
 import warnings
 
+from pypaq.pytypes import NPL
 from pypaq.lipytools.files import prep_folder
 from pypaq.lipytools.stats import msmx
 
 
 
 def histogram(
-        val_list: Union[List,np.ndarray],
+        val_list: NPL,
         name=                   'values',
         rem_nstd: float=        0.0,    # removes values out of N*stddev
         msmx_stats=             True,   # prints minimal stats
@@ -22,7 +23,10 @@ def histogram(
         save_FD :str=           None,
 ) -> str:
 
-    if type(val_list) is list and not val_list or type(val_list) is np.ndarray and not len(val_list):
+    if type(val_list) is not np.ndarray:
+        val_list = np.asarray(val_list)
+
+    if not len(val_list):
         msg = f'cannot prepare histogram for empty val_list!'
         warnings.warn(msg)
         return msg
@@ -32,10 +36,10 @@ def histogram(
         s.append(f'histogram: "{name}" (samples: {len(val_list)}): {msmx(val_list)["string"]}')
 
     if rem_nstd:
-        stats = msmx(val_list)
-        std = stats['std']
-        mean = stats['mean']
-        val_list = [val for val in val_list if mean - rem_nstd * std < val < mean + rem_nstd * std]
+        std = val_list.std()
+        mean = val_list.mean()
+        val_list = val_list[val_list > mean - rem_nstd * std]
+        val_list = val_list[val_list < mean + rem_nstd * std]
 
     if not bins:
         bins = len(set(val_list))
