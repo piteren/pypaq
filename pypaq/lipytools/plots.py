@@ -73,7 +73,8 @@ def two_dim(
         save_FD: str =                          None,
         xlogscale=                              False,
         ylogscale=                              False,
-        legend_loc=                             'upper left'):
+        legend_loc=                             'upper left',
+        **plot_f_kwargs): # like for scatter: alpha=0.5, s=10
 
     _plot_type_function = {
         'plot':     plt.plot,
@@ -89,7 +90,7 @@ def two_dim(
 
     plt.clf()
     plot_f = _plot_type_function[plot_type]
-    plot_f(x, y, label=name)
+    plot_f(x, y, label=name, **plot_f_kwargs)
     if xlogscale: plt.xscale('log')
     if ylogscale: plt.yscale('log')
     plt.legend(loc=legend_loc)
