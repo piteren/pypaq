@@ -138,6 +138,7 @@ class ProgBar:
     def __init__(
             self,
             total: NUM,
+            name: Optional[str]=    None,
             length: int=            20,
             fill: str=              '█',
             show_fract: bool=       True,
@@ -163,6 +164,7 @@ class ProgBar:
             (sec) delay between refreshes
         """
         self.total = total
+        self.name = name or ''
         self.length = length
         self.fill = fill
         self.show_fract = show_fract
@@ -244,8 +246,14 @@ class ProgBar:
                     elapsed_str = '-- TOT:' + self._time_to_str(time_passed_tot)
                     elapsed_str += f' {self._speed_to_str(self.total / time_passed_tot)}'
 
+                if self.name:
+                    pfx = self.name
+                    if prefix:
+                        pfx += f' {prefix}'
+                else:
+                    pfx = prefix
 
-                printover(f'{prefix}|{bar_str}|{progress_factor * 100:.1f}% '
+                printover(f'{pfx}|{bar_str}|{progress_factor * 100:.1f}% '
                           f'{details_str}{elapsed_str}{suffix}')
 
                 if progress_factor == 1:
