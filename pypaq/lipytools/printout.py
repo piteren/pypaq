@@ -42,13 +42,13 @@ def float_to_str(
 
 
 def stamp(
-        year: bool=             False,
-        month: bool=            True,
-        day: bool=              True,
-        hour: bool=             True,
-        minutes: bool=          True,
-        letters: Optional[int]= 3,
-        separator: str=         '_',
+        year: bool=     False,
+        month: bool=    True,
+        day: bool=      True,
+        hour: bool=     True,
+        minutes: bool=  True,
+        letters: int=   3,
+        separator: str= '_',
 ) -> str:
     """ prepares timestamp string """
 
