@@ -147,6 +147,7 @@ class ProgBar:
             show_eta: bool=         True,
             guess_speed: float=     10.0,
             refresh_delay: float=   1,
+            logger=                 None,
     ):
         """ speed_avg is an average speed smoothened with moving average,
         speed_cur is a current speed smoothened with moving average,
@@ -172,6 +173,7 @@ class ProgBar:
         self.show_speed_cur = show_speed_cur and self.show_speed_avg
         self.show_eta = show_eta
         self.refresh_delay = refresh_delay
+        self.logger = logger
 
         f = min(0.5,max(0.01, 1/guess_speed))
         self.speed_a = MovAvg(factor=f) # tot mavg
@@ -253,11 +255,13 @@ class ProgBar:
                 else:
                     pfx = prefix
 
-                printover(f'{pfx}|{bar_str}|{progress_factor * 100:.1f}% '
-                          f'{details_str}{elapsed_str}{suffix}')
+                nfo = f'{pfx}|{bar_str}|{progress_factor * 100:.1f}% {details_str}{elapsed_str}{suffix}'
+                printover(nfo)
 
                 if progress_factor == 1:
                     print()
+                    if self.logger:
+                        self.logger.info(f'ProgBar: {nfo}')
 
                 self.n_prev = n
                 self.inc_cached = 0
