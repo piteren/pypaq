@@ -3,23 +3,23 @@ from pypaq.exception import PyPaqException
 
 # double hinge function _/**
 def double_hinge(
-        s_val: float,
-        e_val: float,
-        a: int,
-        b: int,
-        counter: int,
+        a_value: float,
+        b_value: float,
+        a_point: float,
+        b_point: float,
+        point: int,
 ) -> float:
     """ returns:
-    - s_val for counter <= a
-    - linear interpolation from s_val to e_val in range (a;b)
-    - e_val for counter >= b """
+    - a_value for point <= a_point
+    - b_value for point >= b_point
+    - linear interpolation from a_value to b_value in range (a_point;b_point) """
 
-    if b < a or b == a and s_val != e_val:
+    if b_point < a_point or b_point == a_point and a_value != b_value:
         raise PyPaqException('bad arguments!')
 
-    if counter <= a:
-        return s_val
-    if counter >= b:
-        return e_val
-    y = (counter - a) / (b - a)
-    return s_val + (e_val-s_val) * y
+    if point <= a_point:
+        return a_value
+    if point >= b_point:
+        return b_value
+    y = (point - a_point) / (b_point - a_point)
+    return a_value + (b_value - a_value) * y
