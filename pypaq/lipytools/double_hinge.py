@@ -7,7 +7,7 @@ def double_hinge(
         b_value: float,
         a_point: float,
         b_point: float,
-        point: int,
+        point, # int, float, np.ndarray
 ) -> float:
     """ returns:
     - a_value for point <= a_point
