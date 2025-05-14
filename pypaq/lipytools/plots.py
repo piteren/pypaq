@@ -45,7 +45,7 @@ def histogram(
         bins = len(set(val_list))
         if bins>50: bins = 50
 
-    plt.clf()
+    plt.figure()
     n, x, _ = plt.hist(val_list, label=name, density=density, bins=bins, alpha=0.5)
 
     # try build density, for some val_list it is not possible
@@ -88,7 +88,7 @@ def two_dim(
             x = y[:, 1]
             y = y[:, 0]
 
-    plt.clf()
+    plt.figure()
     plot_f = _plot_type_function[plot_type]
     plot_f(x, y, label=name, **plot_f_kwargs)
     if xlogscale: plt.xscale('log')
@@ -116,7 +116,7 @@ def two_dim_multi(
 
     x = np.arange(len(ys[0]))
 
-    plt.clf()
+    plt.figure()
     for y,name in zip(ys,names):
         plt.plot(x, y, label=name)
 
