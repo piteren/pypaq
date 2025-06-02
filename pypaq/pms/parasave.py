@@ -239,6 +239,7 @@ class ParaSave(ParaGX):
             save_fn_pfx: Optional[str]=     None,
             logger=                         None,
             loglevel=                       20,
+            **kwags,
     ) -> None:
         """ copies saved ParaSave POINT from one folder to another """
 
@@ -251,7 +252,8 @@ class ParaSave(ParaGX):
             save_fn_pfx=    save_fn_pfx,
             assert_saved=   True,
             logger=         logger,
-            loglevel=       loglevel)
+            loglevel=       loglevel,
+            **kwags)
 
         ps_src.name = name_trg
         if save_topdir_trg:
