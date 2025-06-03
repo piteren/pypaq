@@ -138,16 +138,16 @@ class ProgBar:
     def __init__(
             self,
             total: NUM,
-            name: Optional[str]=    None,
-            length: int=            20,
-            fill: str=              '█',
-            show_fract: bool=       True,
-            show_speed_avg: bool=   True,
-            show_speed_cur: bool=   True,
-            show_eta: bool=         True,
-            guess_speed: float=     10.0,
-            refresh_delay: float=   1,
-            logger=                 None,
+            name: Optional[str]=            None,
+            length: int=                    20,
+            fill: str=                      '█',
+            show_fract: bool=               True,
+            show_speed_avg: bool=           True,
+            show_speed_cur: bool=           True,
+            show_eta: bool=                 True,
+            guess_speed: float=             10.0,
+            refresh_delay: Optional[float]= 1,
+            logger=                         None,
     ):
         """ speed_avg is an average speed smoothened with moving average,
         speed_cur is a current speed smoothened with moving average,
@@ -206,7 +206,7 @@ class ProgBar:
 
             time_current = time.time()
             time_passed_prev = time_current - self.time_prev
-            if time_passed_prev >= self.refresh_delay or n >= self.total:
+            if self.refresh_delay is None or time_passed_prev >= self.refresh_delay or n >= self.total:
 
                 time_passed_tot = time_current - self.start_time
                 self.time_prev = time_current
