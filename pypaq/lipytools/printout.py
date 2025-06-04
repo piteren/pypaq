@@ -266,7 +266,7 @@ class ProgBar:
                 self.n_prev = n
                 self.inc_cached = 0
 
-    def inc(self, prefix:str='', suffix:str=''):
-        """ increase by 1 """
-        self.inc_cached += 1
+    def inc(self, prefix:str='', suffix:str='', by:int=1):
+        """ increase by """
+        self.inc_cached += by
         self(n=self.n_prev + self.inc_cached, prefix=prefix, suffix=suffix)
