@@ -26,9 +26,9 @@ def get_pylogger(
     - flat_child:   forces child of this logger created with get_child() to be same level
     - format:       may be given as a str or Tuple[str,str] (fmt,datefmt) """
 
-    if not name and folder:
+    if not name:
         name = 'pylogger'
-    if name and add_stamp:
+    if add_stamp:
         name += '_' + stamp()
 
     if type(format) is not tuple:
@@ -38,6 +38,7 @@ def get_pylogger(
 
     logger = logging.getLogger(name)
     logger.setLevel(level)
+    logger.propagate = False
 
     ### manage handlers
 
