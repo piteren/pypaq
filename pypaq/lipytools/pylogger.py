@@ -64,10 +64,12 @@ def get_pylogger(
     return logger
 
 
-def get_child(logger, name:Optional[str], change_level:int=0) -> logging.Logger:
+def get_child(logger, name:Optional[str]=None, change_level:int=0) -> logging.Logger:
     """ returns child with optionally changed level """
 
-    clogger = logger.getChild(name or '_child')
+    if not name:
+        name = f'{logger.name}_child'
+    clogger = logger.getChild(name)
     clogger.flat_child = logger.flat_child
 
     if change_level != 0 and not logger.flat_child:
