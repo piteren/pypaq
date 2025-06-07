@@ -85,6 +85,22 @@ def w_jsonl(data:List, file_path):
             file.write('\n')
 
 
+def r_jsonl_gz(file_path: str, raise_exception=False) -> Optional[List]:
+    if not os.path.isfile(file_path):
+        if raise_exception:
+            raise FileNotFoundError(f'file {file_path} not exists!')
+        return None
+    with gzip.open(file_path, 'rt', encoding='utf-8') as file:
+        return [json.loads(line) for line in file]
+
+
+def w_jsonl_gz(data: List, file_path: str):
+    with gzip.open(file_path, 'wt', encoding='utf-8') as file:
+        for d in data:
+            json.dump(d, file, ensure_ascii=False)
+            file.write('\n')
+
+
 def r_csv(file_path, raise_exception=False) -> Optional[List]:
     if not os.path.isfile(file_path):
         if raise_exception:
