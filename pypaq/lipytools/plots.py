@@ -62,6 +62,7 @@ def histogram(
     else:
         plt.show()
 
+    plt.close()
     return '\n'.join(s)
 
 
@@ -100,6 +101,7 @@ def two_dim(
         plt.savefig(f'{save_FD}/{name}.png')
     else:
         plt.show()
+    plt.close()
 
 
 def two_dim_multi(
@@ -132,6 +134,7 @@ def two_dim_multi(
         plt.savefig(f'{save_FD}/{name}.png')
     else:
         plt.show()
+    plt.close()
 
 
 def three_dim(
@@ -177,4 +180,6 @@ def three_dim(
     if save_FD:
         file = f'{save_FD}/{name}_3Dplot.html'
         fig.write_html(file, auto_open=False if os.path.isfile(file) else True)
-    else: fig.show()
+    else:
+        fig.show()
+    plt.close()
