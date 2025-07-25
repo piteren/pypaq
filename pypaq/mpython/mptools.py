@@ -83,7 +83,8 @@ class ExProcess(Process, ABC):
             raise_KeyboardInterrupt=        False,
             raise_Exception=                False,
             logger=                         None,
-            loglevel=                       30):
+            loglevel=                       30,
+    ):
         """
         :param ique:
             input Que, not used by this class, but may be used by child Classes
@@ -126,17 +127,18 @@ class ExProcess(Process, ABC):
 
         except KeyboardInterrupt:
 
-            # allows intermediate interrupt
             if self.raise_KeyboardInterrupt:
                 raise KeyboardInterrupt
 
-            self.__exception_handle('(Base)KeyboardInterrupt')
+            self.__exception_handle('KeyboardInterrupt')
+
             if self.raise_Exception:
                 raise KeyboardInterrupt
 
         except Exception as e:
 
             self.__exception_handle(str(e))
+
             if self.raise_Exception:
                 raise e
 
