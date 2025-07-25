@@ -94,9 +94,10 @@ class ExProcess(Process, ABC):
         :param name:
             identifies ExProcess, for None is taken from Process.name
         :param raise_KeyboardInterrupt:
-            results in immediate exit (without running post exception handler)
-        :param raise_KeyboardInterrupt:
-            raises Exception output (debug) """
+            results in immediate exit after KeyboardInterrupt,
+            without running post exception handler
+        :param raise_Exception:
+            raises Exception, for debug """
 
         super().__init__(target=self.__run)
 
