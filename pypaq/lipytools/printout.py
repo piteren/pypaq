@@ -12,7 +12,7 @@ LINE_CLEAR = '\x1b[2K'
 
 
 
-def short_scin(fl:NUM, precision:int=1, replace_zero:bool=True, add_plus:bool=True) -> str:
+def short_scin(fl:NUM, precision:int=1, replace_zero:bool=True, add_plus:bool=False) -> str:
     """ short (compressed) scientific notation for numbers """
     sh = f'{fl:.{precision}e}'
     if replace_zero:
