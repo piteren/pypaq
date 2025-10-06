@@ -1,8 +1,9 @@
 import numpy as np
+import pandas as pd
 import unittest
 
 from pypaq.lipytools.files import prep_folder
-from pypaq.lipytools.plots import histogram, two_dim, three_dim, two_dim_multi
+from pypaq.lipytools.plots import histogram, two_dim, three_dim, two_dim_multi, week_density_plot
 
 from tests.envy import flush_tmp_dir
 
@@ -61,3 +62,16 @@ class TestPlots(unittest.TestCase):
                 xyz.append([rix, eix, vals[rix, eix]])
 
         three_dim(xyz)
+
+
+    def test_week_density_plot(self):
+
+        for s,e in [
+            ('2024-01-08', '2024-02-21'),
+            ('2024-01-08', '2024-09-11'),
+            ('2021-01-15', '2026-09-14'),
+        ]:
+            dates = pd.date_range(s,e, freq="D")
+            values = np.random.rand(len(dates))
+            df = pd.DataFrame({'date': dates, 'density': values})
+            week_density_plot(df, bounds=[0.0, 0.2, 0.5, 0.7])
