@@ -88,15 +88,21 @@ def list_str(ls: List[Any], limit:Optional[int]=200) -> str:
 def print_nested_dict(
         d: dict,
         ind_scale: int=     2,
-        line_limit: int=    100,
+        line_limit: int=    150,
 ) -> None:
     """ prints nice string of nested dict """
 
     types = {
-        dict:   'D',
-        list:   'L',
-        tuple:  'T',
-        str:    'S'}
+        int:        'int',
+        float:      'float',
+        bool:       'bool',
+        type(None): 'NoneType',
+        dict:       'dict',
+        list:       'list',
+        tuple:      'tuple',
+        str:        'str'}
+
+    types_len = ['dict','list','tuple','str']
 
     def __prn_root(root:dict, ind:int):
 
@@ -105,20 +111,28 @@ def print_nested_dict(
         for key in sorted(list(root.keys())):
 
             value = root[key]
-            tp = types.get(type(value),'')
-            value_len_str = str(len(value)) if tp in types.values() else ''
+            tp = types.get(type(value),None)
+            value_len_str = str(len(value)) if tp in types_len else ''
 
-            line = ''
-            if tp != 'D':
-                line = repr(value)
-                if line_limit and len(line)>line_limit:
-                    line = f'{line[:line_limit]} ..'
-                line = f' : {line}'
+            if tp == 'list':
+                sub_tp = list(set([type(e) for e in value]))
+                if len(sub_tp) == 1:
+                    sub_tp = types.get(sub_tp[0],None)
+                    if sub_tp:
+                        tp = f'{tp}[{sub_tp}]'
 
-            type_len_nfo = f' [{tp}.{value_len_str}]' if tp else ''
-            print(f'{spacer}{key}{type_len_nfo}{line}')
+            val_line = ''
+            if tp != 'dict':
+                val_line = repr(value)
+                if line_limit and len(val_line)>line_limit:
+                    val_line = f'{val_line[:line_limit]} ..'
+                val_line = f' : {val_line}'
 
-            if type(value) is dict:
+            value_len_nfo = f'.{value_len_str}' if value_len_str else ''
+            type_nfo = f' [{tp}{value_len_nfo}]' if tp else ''
+            print(f'{spacer}{key}{type_nfo}{val_line}')
+
+            if tp == 'dict':
                 __prn_root(root=root[key], ind=ind+1)
 
     __prn_root(root=d, ind=0)
