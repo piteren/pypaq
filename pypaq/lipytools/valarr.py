@@ -5,12 +5,11 @@ from typing import Tuple, Union, Iterable
 
 
 class ValuesArray:
-    """ ValuesArray is a np.ndarray
-    which behaves like a python List
-    (only some interfaces are implemented).
+    """ValuesArray is a np.ndarray
+    which behaves similar to python List
+    only some interfaces are implemented.
     It is optimized for constant grow and large sizes. 
-    Additionally, supports:
-    - mean and h95 calculation """
+    Additionally, supports mean and h95 calculation"""
 
     def __init__(
             self,

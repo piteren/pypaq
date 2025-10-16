@@ -11,7 +11,6 @@ LINE_UP = '\033[1A'
 LINE_CLEAR = '\x1b[2K'
 
 
-
 def short_scin(fl:NUM, precision:int=1, replace_zero:bool=True, add_plus:bool=False) -> str:
     """ short (compressed) scientific notation for numbers """
     sh = f'{fl:.{precision}e}'
@@ -30,7 +29,7 @@ def float_to_str(
         width: int=     7,
         fill: bool=     True,
 ) -> str:
-    """ returns nice string from float, always of given width """
+    """returns nice string from float, always of a given width"""
 
     if width < 5: width = 5
     scientific_decimals = width-6 if width>6 else 0
@@ -43,6 +42,31 @@ def float_to_str(
         fstr += ' '*(width-len(fstr))
 
     return fstr
+
+
+def float_01_to_str(
+        num: float,
+        width: int= 4,
+) -> str:
+    """returns nice string from float
+    deigned for floats from range 0.0 <-> 1e(width+1)-1
+    example:
+     for width = 4:
+    0.355266 -> '.355'
+    0.050466 -> '.050'
+    0.000002 -> '.000'
+    1.0      -> '1.00'
+    12.34    -> '12.3'
+    3678.6   -> '3678'
+    4524223  -> '4524' <- problem: 4524223 is too big, is bigger than 1e(width+1)-1 = 9999
+    """
+    num_str = f"{num:.{width+1}f}"
+    if num_str[0] == '0':
+        num_str = num_str[1:]
+    num_str = num_str[:width]
+    while len(num_str) < width:
+        num_str += '0'
+    return num_str
 
 
 def stamp(
