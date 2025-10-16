@@ -5,7 +5,7 @@ from scipy import stats
 from typing import Dict, Tuple
 
 from pypaq.pytypes import NPL
-from pypaq.lipytools.printout import short_scin
+from pypaq.lipytools.printout import nice_scin
 
 
 # min, avg, max
@@ -28,7 +28,7 @@ def msmx(vals:NPL, use_scin:bool=True) -> Dict:
          'L2norm': _L2norm,
          'sem':    _sem,
          'h95':    _h95}
-    r['string'] = ' '.join([f'{k}:{short_scin(r[k]):8}' for k in r]) if use_scin else (
+    r['string'] = ' '.join([f'{k}:{nice_scin(r[k]):8}' for k in r]) if use_scin else (
         f'min:{r["min"]:.3f} '
         f'mean:{r["mean"]:.3f} '
         f'median:{r["median"]:.3f} '

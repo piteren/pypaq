@@ -11,32 +11,94 @@ LINE_UP = '\033[1A'
 LINE_CLEAR = '\x1b[2K'
 
 
-def short_scin(fl:NUM, precision:int=1, replace_zero:bool=True, add_plus:bool=False) -> str:
-    """ short (compressed) scientific notation for numbers """
-    sh = f'{fl:.{precision}e}'
+def nice_scin(num:float, precision:int=1, replace_zero:bool=True, add_plus:bool=False) -> str:
+    """short (compressed) scientific notation for numbers
+
+    examples:
+        0.1                  ->: 1.0e-1
+        0.13124              ->: 1.3e-1
+        0.45738683456        ->: 4.6e-1
+        0.0021342            ->: 2.1e-3
+        1.234e-06            ->: 1.2e-6
+        0.0                  ->: 0.0e0
+        1.3453               ->: 1.3e0
+        1.9999999            ->: 2.0e0
+        123.12345            ->: 1.2e2
+        1                    ->: 1.0e0
+        2                    ->: 2.0e0
+        100.0                ->: 1.0e2
+        -0.0                 ->: 0.0e0
+        -1                   ->: -1.0e0
+        -2                   ->: -2.0e0
+        -999                 ->: -1.0e3
+        9999                 ->: 1.0e4
+        -99999999            ->: -1.0e8
+        99999999             ->: 1.0e8
+    """
+
+    # -0.0 case
+    if num == 0:
+        num = 0
+
+    sh = f'{num:.{precision}e}'
+
     if replace_zero:
         sh = sh.replace('+0','+')
         if not add_plus:
             sh = sh.replace('+','')
         sh = sh.replace('-0','-')
-    if add_plus and fl >= 0:
+
+    if add_plus and num >= 0:
         sh = '+' + sh
+
     return sh
 
 
-def float_to_str(
+def nice_float_pad(
         num: float,
         width: int=     7,
         fill: bool=     True,
 ) -> str:
-    """returns nice string from float, always of a given width"""
+    """returns nice string from float, always of a given width, padded with spaces
+    width should be >= 5
 
-    if width < 5: width = 5
-    scientific_decimals = width-6 if width>6 else 0
+    examples:
+        0.1                  -> 0.1     (7)
+        0.13124              -> 0.13124 (7)
+        0.45738683456        -> 0.45738 (7)
+        0.0021342            -> 0.00213 (7)
+        1.234e-06            -> 1.23e-6 (7)
+        0.0                  -> 0       (7)
+        1.3453               -> 1.3453  (7)
+        1.9999999            -> 1.99999 (7)
+        123.12345            -> 123.123 (7)
+        1                    -> 1       (7)
+        2                    -> 2       (7)
+        100.0                -> 100     (7)
+        -0.0                 -> 0       (7)
+        -1                   -> -1      (7)
+        -2                   -> -2      (7)
+        -999                 -> -999    (7)
+        9999                 -> 9999    (7)
+        -888888888           -> -8.89e8 (7)
+        888888888            -> 8.889e8 (7)
+    """
 
-    fstr = f'{num:.{scientific_decimals}E}'
-    if 1000 > num > 0.0001 or num == 0.0:
+    if width < 5:
+        raise ValueError('width must be >= 5')
+
+    # 1e2 case
+    if round(num) == num:
+        num = int(num)
+
+    if 1e4 > num > 1e-4 or -1e4 < num < -1e-4 or num == 0:
         fstr = str(num)[:width]
+    else:
+        precision = width - 4
+        fstr = '-' * (width+1)
+        while len(fstr) > width:
+            fstr = nice_scin(num, precision=precision, replace_zero=True, add_plus=False)
+            precision -= 1
 
     if fill and len(fstr)<width:
         fstr += ' '*(width-len(fstr))
@@ -44,25 +106,38 @@ def float_to_str(
     return fstr
 
 
-def float_01_to_str(
+def nice_float_width(
         num: float,
         width: int= 4,
 ) -> str:
-    """returns nice string from float
-    deigned for floats from range 0.0 <-> 1e(width+1)-1
-    example:
-     for width = 4:
-    0.355266 -> '.355'
-    0.050466 -> '.050'
-    0.000002 -> '.000'
-    1.0      -> '1.00'
-    12.34    -> '12.3'
-    3678.6   -> '3678'
-    4524223  -> '4524' <- problem: 4524223 is too big, is bigger than 1e(width+1)-1 = 9999
+    """returns nice string from float from range (-(10**(width-1));10**width)
+
+    example (width = 4):
+        0.1                  -> .100
+        0.13124              -> .131
+        0.4573868            -> .457
+        0.0021342            -> .002
+        1.234e-06            -> .000
+        0.0                  -> .000
+        1.3453               -> 1.34
+        1.9999999            -> 2.00
+        123.123              -> 123.
+        1                    -> 1.00
+        2                    -> 2.00
+        100.0                -> 100.
+        -0.0                 -> -.00
+        -1                   -> -1.0
+        -2                   -> -2.0
+        -999                 -> -999
+        9999                 -> 9999
     """
+    if num >= 10**width or -(10**(width-1)) >= num:
+        raise ValueError(f'this value num: {num} is out of supported range!')
     num_str = f"{num:.{width+1}f}"
     if num_str[0] == '0':
         num_str = num_str[1:]
+    if num_str.startswith('-0'):
+        num_str = '-' + num_str[2:]
     num_str = num_str[:width]
     while len(num_str) < width:
         num_str += '0'
@@ -70,13 +145,13 @@ def float_01_to_str(
 
 
 def stamp(
-        year: bool=     False,
-        month: bool=    True,
-        day: bool=      True,
-        hour: bool=     True,
-        minutes: bool=  True,
-        letters: int=   3,
-        separator: str= '_',
+        year: bool=             False,
+        month: bool=            True,
+        day: bool=              True,
+        hour: bool=             True,
+        minutes: bool=          True,
+        letters: Optional[int]= 3,
+        separator: str=         '_',
 ) -> str:
     """ prepares timestamp string """
 
