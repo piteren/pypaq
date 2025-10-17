@@ -11,7 +11,7 @@ LINE_UP = '\033[1A'
 LINE_CLEAR = '\x1b[2K'
 
 
-def nice_scin(num:float, precision:int=1, replace_zero:bool=True, add_plus:bool=False) -> str:
+def nice_scin(num:NUM, precision:int=1, replace_zero:bool=True, add_plus:bool=False) -> str:
     """short (compressed) scientific notation for numbers
 
     examples:

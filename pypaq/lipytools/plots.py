@@ -1,10 +1,11 @@
+import matplotlib
 from matplotlib import pyplot as plt
 import numpy as np
 import os
 import pandas as pd
 import plotly.express as px
 import scipy
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Sequence
 import warnings
 
 from pypaq.pytypes import NPL
@@ -199,4 +200,90 @@ def three_dim(
         fig.write_html(file, auto_open=False if os.path.isfile(file) else True)
     else:
         fig.show()
+    plt.close()
+
+
+def week_density_plot(
+        df: pd.DataFrame,
+        bounds: Sequence[float]=    (0,1,3,6,10,20),
+        name: Optional[str]=        'density',
+        save_FD: Optional[str]=     None,
+):
+    """plots github-style density calendar
+    df: dataframe with 'date' and 'density' columns
+    bounds: bin edges"""
+
+    for cn in ['date','density']:
+        if cn not in df.columns:
+            raise ValueError(f'{cn} not present in dataframe!')
+
+    start = df['date'].min()
+    end = df['date'].max()
+    start_aligned = start - pd.Timedelta(days=start.weekday())
+    end_aligned = end + pd.Timedelta(days=(6 - end.weekday()))
+
+    dates = pd.date_range(start_aligned, end_aligned, freq="D")
+    df_extended = pd.DataFrame({'date':dates, 'density':np.zeros(len(dates))})
+    df_extended.set_index('date', inplace=True)
+    df.set_index('date', inplace=True)
+    df_extended.update(df)
+    df_extended.reset_index(inplace=True)
+    df = df_extended
+
+    df["dow"] = df["date"].dt.dayofweek
+    df["week"] = ((df["date"] - start_aligned).dt.days // 7).astype(int)
+
+    matrix = df.pivot(index="dow", columns="week", values="density")
+
+    cmap = matplotlib.colormaps["Oranges"].resampled(len(bounds) - 1)
+    norm = matplotlib.colors.BoundaryNorm(bounds, cmap.N)
+
+    cell_in = 0.25  # square size
+    cbar_in = 0.25  # colorbar width
+    pad_in = 0.10  # gap
+    margins_in = (0.5, 0.6, 0.7, 0.3)  # LRBT
+    dpi = 100
+
+    h, w = matrix.shape
+    left_in, right_in, bottom_in, top_in = margins_in
+
+    img_w_in = w * cell_in
+    img_h_in = h * cell_in
+
+    fig_w_in = left_in + img_w_in + pad_in + cbar_in + right_in
+    fig_h_in = bottom_in + img_h_in + top_in
+
+    fig = plt.figure(figsize=(fig_w_in, fig_h_in), dpi=dpi)
+
+    def fx(inches):
+        return inches / fig_w_in
+
+    def fy(inches):
+        return inches / fig_h_in
+
+    ax = fig.add_axes((fx(left_in), fy(bottom_in), fx(img_w_in), fy(img_h_in)))
+    im = ax.imshow(matrix, cmap=cmap, norm=norm, origin="lower", interpolation="none", aspect="equal")
+
+    ax.set_yticks(range(h), list(range(h)))
+
+    step = 1
+    first_dates = df.groupby("week")["date"].min()
+    xtick_positions = np.arange(0, len(first_dates), step)
+    xtick_labels = [first_dates.iloc[i].strftime("%b %d") for i in xtick_positions]
+    ax.set_xticks(xtick_positions, xtick_labels, rotation=90)
+
+    title = name or ''
+    if title:
+        title += ', '
+    title += f"{start_aligned.strftime('%Y-%m-%d')} - {end_aligned.strftime('%Y-%m-%d')}"
+    ax.set_title(title, fontsize=10)
+
+    cax = fig.add_axes((fx(left_in + img_w_in + pad_in), fy(bottom_in), fx(cbar_in), fy(img_h_in)))
+    fig.colorbar(im, cax=cax)
+
+    if save_FD:
+        prep_folder(save_FD)
+        plt.savefig(f'{save_FD}/{name or "density"}.png')
+    else:
+        plt.show()
     plt.close()
