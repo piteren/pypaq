@@ -41,7 +41,6 @@ def histogram(
             val_set = sorted(val_set)
             if val_set[-1]-val_set[0] < 60:
                 small_int_case = True
-    print(small_int_case)
 
     s = []
     if msmx_stats:
