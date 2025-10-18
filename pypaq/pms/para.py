@@ -31,12 +31,12 @@ def dict_diff(da:Dict, db:Dict) -> str:
     if new_keys:
         nfo += f'new keys: {new_keys}\n'
         for k in new_keys:
-            nfo += f' > {k}: {db[k]}\n'
+            nfo += f'> {k}: {db[k]}\n'
 
     if new_values:
         nfo += f'new values: {new_values}\n'
         for k in new_values:
-            nfo += f' > {k}: {db[k]}\n'
+            nfo += f'> {k}: {db[k]}\n'
 
     if nfo: nfo = nfo[:-1]
     return nfo
@@ -115,7 +115,7 @@ class Para:
         pms = self.get_point()
         if pms:
             for k in sorted(pms.keys()):
-                s += f' > {k:30s}: {pms[k]}\n'
+                s += f'> {k:30s}: {pms[k]}\n'
         else:
             s += f'---empty---\n'
         return s[:-1]

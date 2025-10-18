@@ -77,10 +77,10 @@ def args(f):
 
         print(f'\n@args report: *****************************************************************************************')
         print(f'function __name__: {f.__name__}')
-        print(f' > {"param":{str(kw[0])}s}  {"default":{str(kw[1])}s}  {"given":{str(kw[2])}s}')
+        print(f'> {"param":{str(kw[0])}s}  {"default":{str(kw[1])}s}  {"given":{str(kw[2])}s}')
         for e in arL:
             print(f'   {s(e[0]):{str(kw[0])}s}  {s(e[1]):{str(kw[1])}s}  {s(e[2]):{str(kw[2])}s}')
-        if kwL: print(f' > **kwargs (not used by {f.__name__}):')
+        if kwL: print(f'> **kwargs (not used by {f.__name__}):')
         for e in kwL:
             print(f'   {s(e[0]):{str(kw[0])}s}  {"":{str(kw[1])}s}  {s(e[1]):{str(kw[2])}s}')
         print('@args report finished *********************************************************************************\n')
