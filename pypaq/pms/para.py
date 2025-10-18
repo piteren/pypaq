@@ -148,6 +148,8 @@ class ParaGX(Para):
             family: Optional[str]=  '__gx-fam__', # family of GXable, here default, for GX functionality family needs to be given
             psdd: Optional[PSDD]=   None, # PSDD of GXable
             **kwargs):
+        
+        super().__init__()
 
         if not name:
             name = self.__class__.__name__
