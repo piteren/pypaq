@@ -104,6 +104,9 @@ class ParaSave(ParaGX):
             self._managed_params = self.get_managed_params()
             self.logger.debug(f'locked managed params: {self._managed_params}')
 
+    def exclude_from_params(self) -> List[str]:
+        return super().exclude_from_params() + ['logger']
+
     def get_managed_params(self) -> List[str]:
         if self._managed_params is not None:
             return self._managed_params
