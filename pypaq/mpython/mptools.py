@@ -86,17 +86,17 @@ class ExProcess(Process, ABC):
             loglevel=                       30,
     ):
         """
-        :param ique:
+        ique:
             input Que, not used by this class, but may be used by child Classes
-        :param oque:
+        oque:
             output Que, sends messages from the ExProcess,
             when Exception or KeyboardInterrupt occurs message is sent here
-        :param name:
+        name:
             identifies ExProcess, for None is taken from Process.name
-        :param raise_KeyboardInterrupt:
+        raise_KeyboardInterrupt:
             results in immediate exit after KeyboardInterrupt,
             without running post exception handler
-        :param raise_Exception:
+        raise_Exception:
             raises Exception, for debug """
 
         super().__init__(target=self.__run)

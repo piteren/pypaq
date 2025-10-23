@@ -57,6 +57,7 @@ def nice_scin(num:float, precision:int=1, replace_zero:bool=True, add_plus:bool=
 def nice_float_pad(
         num: float,
         width: int=     7,
+        add_plus: bool= False,
         fill: bool=     True,
 ) -> str:
     """returns nice string from float, always of a given width, padded with spaces
@@ -97,7 +98,7 @@ def nice_float_pad(
         precision = width - 4
         fstr = '-' * (width+1)
         while len(fstr) > width:
-            fstr = nice_scin(num, precision=precision, replace_zero=True, add_plus=False)
+            fstr = nice_scin(num, precision=precision, replace_zero=True, add_plus=add_plus)
             precision -= 1
 
     if fill and len(fstr)<width:
@@ -108,7 +109,8 @@ def nice_float_pad(
 
 def nice_float_width(
         num: float,
-        width: int= 4,
+        width: int=     4,
+        add_plus: bool= False,
 ) -> str:
     """returns nice string from float from range (-(10**(width-1));10**width)
 
@@ -134,6 +136,8 @@ def nice_float_width(
     if num >= 10**width or -(10**(width-1)) >= num:
         raise ValueError(f'this value num: {num} is out of supported range!')
     num_str = f"{num:.{width+1}f}"
+    if add_plus and num >= 0:
+        num_str = '+' + num_str
     if num_str[0] == '0':
         num_str = num_str[1:]
     if num_str.startswith('-0'):
@@ -269,17 +273,15 @@ class ProgBar:
         """ speed_avg is an average speed smoothened with moving average,
         speed_cur is a current speed smoothened with moving average,
 
-        :param total:
-        :param length:
-        :param fill:
-        :param show_fract:
-        :param show_speed_avg:
-        :param show_speed_cur:
-        :param show_eta:
-        :param guess_speed:
-            expected speed value (initial guess), helps to set proper params for the update
-        :param refresh_delay:
-            (sec) delay between refreshes
+        total: task size
+        length: bar char length
+        fill: char to fill the bar
+        show_fract: fraction of task
+        show_speed_avg: speed moving average
+        show_speed_cur: speed current (also moving average but with lower factor)
+        show_eta: ETA
+        guess_speed: expected speed value (initial guess), helps to set proper params for the update
+        refresh_delay: (sec) delay between refreshes
         """
         self.total = total
         self.name = name or ''
