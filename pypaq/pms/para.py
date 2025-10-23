@@ -7,7 +7,7 @@ from pypaq.pms.paspa import PaSpa
 
 
 def dict_diff(da:Dict, db:Dict) -> str:
-    """ returns nice str information about dict differences: db against da """
+    """returns nice str with dict differences: db against da"""
 
     nfo = ''
 
@@ -31,22 +31,22 @@ def dict_diff(da:Dict, db:Dict) -> str:
     if new_keys:
         nfo += f'new keys: {new_keys}\n'
         for k in new_keys:
-            nfo += f' > {k}: {db[k]}\n'
+            nfo += f'> {k}: {db[k]}\n'
 
     if new_values:
         nfo += f'new values: {new_values}\n'
         for k in new_values:
-            nfo += f' > {k}: {db[k]}\n'
+            nfo += f'> {k}: {db[k]}\n'
 
     if nfo: nfo = nfo[:-1]
     return nfo
 
 
 class Para:
-    """ Parameters Access
+    """Parameters Access
     its parameters (point) may be accessed in dict-like style []
     but Para IS NOT a dict
-    protected fields may also be accessed with [], but rather should not """
+    protected fields may also be accessed with [], but rather should not"""
 
     def __getitem__(self, key):
         return getattr(self, key)
@@ -59,16 +59,27 @@ class Para:
 
     # ********************************************************************************************************** getters
 
+    # noinspection PyMethodMayBeStatic
+    def exclude_from_params(self) -> List[str]:
+        """allows to specify additional names of self variables (beyond protected),
+        which will not be included in managed params"""
+        return []
+
     def get_all_params(self, protected=False) -> List[str]:
         """ returns list of all self parameters """
-        fields = [pm for pm in vars(self) if not pm.startswith('_Para__')]
+        fields = [pn for pn in vars(self) if not pn.startswith('_Para__')]
         if not protected:
-            fields = [pm for pm in fields if not pm.startswith('_')]
+            fields = [pn for pn in fields if not pn.startswith('_')]
         return fields
 
     def get_managed_params(self) -> List[str]:
-        """ prepares list of parameters managed by Para (all but private and protected) """
-        return self.get_all_params(protected=False)
+        """prepares list of parameters managed by Para
+        excludes:
+        - private and protected
+        - params excluded by self.exclude_from_params()"""
+        _mp = self.get_all_params(protected=False)
+        _mp = [pn for pn in _mp if pn not in self.exclude_from_params()]
+        return _mp
 
     def get_point(self) -> POINT:
         """ returns POINT of parameters managed by Para """
@@ -115,7 +126,7 @@ class Para:
         pms = self.get_point()
         if pms:
             for k in sorted(pms.keys()):
-                s += f' > {k:30s}: {pms[k]}\n'
+                s += f'> {k:30s}: {pms[k]}\n'
         else:
             s += f'---empty---\n'
         return s[:-1]
@@ -137,6 +148,8 @@ class ParaGX(Para):
             family: Optional[str]=  '__gx-fam__', # family of GXable, here default, for GX functionality family needs to be given
             psdd: Optional[PSDD]=   None, # PSDD of GXable
             **kwargs):
+        
+        super().__init__()
 
         if not name:
             name = self.__class__.__name__

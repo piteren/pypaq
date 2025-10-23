@@ -62,6 +62,9 @@ class TestParaSave(unittest.TestCase):
         psa.save_point()
         self.assertTrue(psa.family == 'a' and psa.param_a == 'a' and psa.param_b == 'b')
 
+        print(psa.get_managed_params())
+        self.assertTrue('logger' not in psa.get_managed_params())
+
         psb = ParaSave(
             name=           'ps_test',
             assert_saved=   True,

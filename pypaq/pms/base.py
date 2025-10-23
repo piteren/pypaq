@@ -2,7 +2,7 @@ import inspect
 from typing import Any, Dict, List, Tuple, Callable, Optional, Union, Type
 
 from pypaq.exception import PyPaqException
-from pypaq.lipytools.printout import float_to_str
+from pypaq.lipytools.printout import nice_float_pad
 
 AXIS =  str                     # axis type (parameter name)
 P_VAL = Union[float, int, Any]  # point value (parameter value)
@@ -43,7 +43,7 @@ def point_str(p:POINT) -> str:
 
         val_str = ''
         if type(val) is float:
-            val_str = float_to_str(val)
+            val_str = nice_float_pad(val)
         if type(val) is bool:
             val_str = f'{str(val):5}'
         if not val_str:

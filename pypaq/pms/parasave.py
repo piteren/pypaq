@@ -62,24 +62,22 @@ class ParaSave(ParaGX):
         self.save_topdir = save_topdir or self.SAVE_TOPDIR
         self.save_fn_pfx = save_fn_pfx or self.SAVE_FN_PFX
 
-        if not logger:
-            logger = get_pylogger(
+        self.logger = logger or get_pylogger(
                 name=       self.name,
                 add_stamp=  False,
                 folder=     ParaSave._full_dir(name=self.name, save_topdir=self.save_topdir) if self.save_topdir else None,
                 level=      loglevel)
-        self.__log = logger
 
-        self.__log.info(f'*** ParaSave : {self.name} *** initializes ..')
-        self.__log.debug(f'> save_topdir: {self.save_topdir}')
-        self.__log.debug(f'> save_fn_pfx: {self.save_fn_pfx}')
+        self.logger.info(f'*** ParaSave : {self.name} *** initializes ..')
+        self.logger.debug(f'> save_topdir: {self.save_topdir}')
+        self.logger.debug(f'> save_fn_pfx: {self.save_fn_pfx}')
 
         if assert_saved and not self.is_saved(
                 name=           self.name,
                 save_topdir=    self.save_topdir,
                 save_fn_pfx=    self.save_fn_pfx):
             ex_msg = f'ParaSave {self.name} does not exist, but should!'
-            self.__log.error(ex_msg)
+            self.logger.error(ex_msg)
             raise ParaSaveException(ex_msg)
 
         point_saved = self.load_point(
@@ -94,17 +92,20 @@ class ParaSave(ParaGX):
         _self_point.update(self.get_point()) # params added up to now to self
         _self_point.update(kwargs)
 
-        self.__log.debug(f'ParaSave POINT sources:')
-        self.__log.debug(f'> PARASAVE_DEFAULTS:     {self.PARASAVE_DEFAULTS}')
-        self.__log.debug(f'> POINT saved:           {point_saved}')
-        self.__log.debug(f'> given kwargs:          {kwargs}')
-        self.__log.debug(f'ParaSave complete POINT: {_self_point}')
+        self.logger.debug(f'ParaSave POINT sources:')
+        self.logger.debug(f'> PARASAVE_DEFAULTS:     {self.PARASAVE_DEFAULTS}')
+        self.logger.debug(f'> POINT saved:           {point_saved}')
+        self.logger.debug(f'> given kwargs:          {kwargs}')
+        self.logger.debug(f'ParaSave complete POINT: {_self_point}')
 
         super().__init__(**_self_point)
 
         if lock_managed_params:
             self._managed_params = self.get_managed_params()
-            self.__log.debug(f'locked managed params: {self._managed_params}')
+            self.logger.debug(f'locked managed params: {self._managed_params}')
+
+    def exclude_from_params(self) -> List[str]:
+        return super().exclude_from_params() + ['logger']
 
     def get_managed_params(self) -> List[str]:
         if self._managed_params is not None:
@@ -114,7 +115,7 @@ class ParaSave(ParaGX):
     def __setitem__(self, key, value):
         if self._managed_params is not None:
             msg = f'ParaSave (managed_params locked) asked to self set with: >{key}:{value}< self will be updated, but managed_params not!'
-            self.__log.warning(msg)
+            self.logger.warning(msg)
         setattr(self, key, value)
 
     # ************************************************************************************************ folder management
@@ -184,7 +185,7 @@ class ParaSave(ParaGX):
 
         if not self.save_topdir:
             msg = f'cannot save {self.__class__.__name__}, if save directory was not given, aborting'
-            self.__log.error(msg)
+            self.logger.error(msg)
             raise ParaSaveException(msg)
 
         obj_FN = self._obj_fn(
@@ -210,7 +211,7 @@ class ParaSave(ParaGX):
             s += self.dict_2str(point)
             file.write(s)
 
-        self.__log.debug(f'{self.__class__.__name__} {self.name} saved to {self.save_topdir}')
+        self.logger.debug(f'{self.__class__.__name__} {self.name} saved to {self.save_topdir}')
 
     @classmethod
     def oversave_point(
@@ -357,10 +358,6 @@ class ParaSave(ParaGX):
             child_point['parents'].append(parentB.parents if parentB.parents else parentB.name)
 
         return child_point
-
-    @property
-    def logger(self):
-        return self.__log
 
     @staticmethod
     def dict_2str(d:dict) -> str:
