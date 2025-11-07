@@ -144,12 +144,24 @@ def prep_folder(path:Union[str,Path], flush_non_empty=False):
         os.makedirs(folder_path, exist_ok=True)
 
 
-def list_dir(path: Union[str, Path]) -> Dict[str,List]:
-    ls = os.listdir(path)
+def list_dir(fd_path: Union[str, Path]) -> Dict[str,List]:
+    ls = os.listdir(fd_path)
     lsD = {'files':[], 'dirs':[]}
     for e in ls:
-        lsD['files' if os.path.isfile(f'{path}/{e}') else 'dirs'].append(e)
+        lsD['files' if os.path.isfile(f'{fd_path}/{e}') else 'dirs'].append(e)
     return lsD
+
+
+def get_files(fd_path: Union[str, Path], recursive:bool=False) -> List[str]:
+    """returns full paths to files form given folder
+    recursive: parses also subfolders"""
+    files = []
+    dirD = list_dir(fd_path)
+    files.extend([f"{fd_path}/{fn}" for fn in dirD['files']])
+    if recursive:
+        for sfd_name in dirD['dirs']:
+            files.extend(get_files(f"{fd_path}/{sfd_name}", recursive=True))
+    return files
 
 
 def get_requirements(file_path:str='requirements.txt') -> List[str]:
