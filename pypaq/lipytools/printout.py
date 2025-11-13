@@ -349,7 +349,7 @@ class ProgBar:
                     speed_str += f'[{self._speed_to_str(self.speed_c())}]'
 
                 eta_str = ''
-                if self.show_eta:
+                if self.show_eta and progress_factor < 1:
                     if speed_a > 0:
                         eta = (self.total - n) / speed_a
                         if eta < 0:
