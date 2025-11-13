@@ -152,7 +152,7 @@ def list_dir(fd_path: Union[str, Path]) -> Dict[str,List]:
     return lsD
 
 
-def get_files(fd_path: Union[str, Path], recursive:bool=False) -> List[str]:
+def get_files(fd_path: Union[str, Path], recursive:bool=True) -> List[str]:
     """returns full paths to files form given folder
     recursive: parses also subfolders"""
     files = []
