@@ -32,7 +32,7 @@ class TestCM(unittest.TestCase):
             time.sleep(5)
             print(cm.get_config())
 
-        cm = ConfigManager(file_FP=f'{CONFIG_DIR}/config.file')
+        cm = ConfigManager(file_path=f'{CONFIG_DIR}/config.file')
         print(cm.get_config())
 
     def test_base_set(self):
