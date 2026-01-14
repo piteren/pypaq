@@ -4,7 +4,7 @@ from typing import Sized, List, Tuple, Optional, Dict, Union
 from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.lipytools.stats import mam
 from pypaq.lipytools.plots import three_dim
-from pypaq.lipytools.printout import float_to_str
+from pypaq.lipytools.printout import nice_float_pad
 from pypaq.pms.base import POINT, point_str
 from pypaq.pms.paspa import PaSpa
 
@@ -62,7 +62,7 @@ def points_nice_table(
 
             val_str = ''
             if type(val) is float:
-                val_str = float_to_str(val, fill=False)
+                val_str = nice_float_pad(val, fill=False)
             if type(val) is bool:
                 val_str = f'{str(val):5}'
             if not val_str:
@@ -80,7 +80,7 @@ def points_nice_table(
                 kw['_name'] = ln
 
         if vp.value:
-            lv = len(float_to_str(vp.value, fill=False))
+            lv = len(nice_float_pad(vp.value, fill=False))
             if lv > kw['_val']:
                 kw['_val'] = lv
 
@@ -91,7 +91,7 @@ def points_nice_table(
     table = [s]
     for vp,pv in zip(vpoints,print_vals):
         name = f'{vp.name:{kw["_name"]}}' if vp.name else ' ' * kw["_name"]
-        val = f'{float_to_str(vp.value, fill=False):{kw["_val"]}}' if vp.value is not None else ' ' * kw["_val"]
+        val = f'{nice_float_pad(vp.value, fill=False):{kw["_val"]}}' if vp.value is not None else ' ' * kw["_val"]
         s = ''
         if do_name: s += f'{name} '
         if do_val:  s += f'{val} '
@@ -136,35 +136,32 @@ class PointsCloud(Sized):
         """ updates Cloud (self) with given VPoint / list
         (adds new to _vpoints & updates _nearest) """
 
-        if vpoints:
+        if type(vpoints) is not list:
+            vpoints = [vpoints]
 
-            if type(vpoints) is not list:
-                vpoints = [vpoints]
+        for vp in vpoints:
 
-            for vpoint in vpoints:
+            # add to _vpoints
+            vp.id = len(self)
+            self._vpointsD[vp.id] = vp
 
-                # add to _vpoints
-                vp_id = len(self)
-                vpoint.id = vp_id
-                self._vpointsD[vp_id] = vpoint
+            # update _nearest
+            his_nearest = None
+            his_nearest_dist = None
+            for k in self._vpointsD:
+                if k != vp.id:
+                    dist = self.distance(vp, self._vpointsD[k])
+                    if his_nearest is None or dist < his_nearest_dist:
+                        his_nearest = k
+                        his_nearest_dist = dist
+                    if k not in self._nearest or dist < self._nearest[k][1]:
+                        self._nearest[k] = vp.id, dist
+            if his_nearest is not None:
+                self._nearest[vp.id] = his_nearest, his_nearest_dist
 
-                # update _nearest
-                his_nearest = None
-                his_nearest_dist = None
-                for k in self._vpointsD:
-                    if k != vp_id:
-                        dist = self.distance(vpoint, self._vpointsD[k])
-                        if his_nearest is None or dist < his_nearest_dist:
-                            his_nearest = k
-                            his_nearest_dist = dist
-                        if k not in self._nearest or dist < self._nearest[k][1]:
-                            self._nearest[k] = vp_id, dist
-                if his_nearest is not None:
-                    self._nearest[vp_id] = his_nearest, his_nearest_dist
+            if vp.value is not None and vp.value > 0.01: self.prec = 4
 
-                if vpoint.value is not None and vpoint.value > 0.01: self.prec = 4
-
-            self.min_nearest, self.avg_nearest, self.max_nearest = mam([v[1] for v in self._nearest.values()])
+        self.min_nearest, self.avg_nearest, self.max_nearest = mam([v[1] for v in self._nearest.values()])
 
 
     def plot(

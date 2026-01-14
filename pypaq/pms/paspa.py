@@ -6,7 +6,7 @@ from typing import Optional, Dict, Tuple, Union
 from pypaq.pms.base import P_VAL, POINT, PSDD, PMSException
 from pypaq.lipytools.pylogger import get_pylogger, get_child
 
-NO_REF = '<<< NO-REF >>>' # axis value when no reference value given (since 'None' cannot be used)
+NO_REF = '<<< NO-REF >>>' # axis value when no reference value given
 
 
 
@@ -16,7 +16,8 @@ class PaSpa:
     PaSpa is build from PSDD (Params Space Definition Dictionary),
     PaSpa has two properties that may describe its complexity:
     - dim  - dimensionality (= number of axes)
-    - rdim - reduced dimensionality (rdim<=dim - since some axes are simpler(tuples, lists of ints))
+    - rdim - reduced dimensionality, rdim <= dim - because some axes are simpler,
+             for example: tuples, lists of ints
 
     Each axis of PaSpa has:
     - type (list, tuple) of (float, int, diff)
@@ -26,10 +27,10 @@ class PaSpa:
 
     def __init__(
             self,
-            psdd:PSDD,
-            seed:Optional[int]= None,
-            logger=             None,
-            loglevel=           30,
+            psdd: PSDD,
+            seed: Optional[int]=    None,
+            logger=                 None,
+            loglevel=               30,
     ):
 
         if not logger:
