@@ -17,7 +17,7 @@ def _double_hinge_np(
     - linear interpolation from a_value to b_value in range (a_point;b_point) """
 
     if b_point < a_point or b_point == a_point and a_value != b_value:
-        raise PyPaqException('bad arguments!')
+        raise PyPaqException('wrong arguments values!')
 
     r = (point - a_point) / (b_point - a_point)
     v_max, v_min = (b_value, a_value) if b_value > a_value else (a_value, b_value)
