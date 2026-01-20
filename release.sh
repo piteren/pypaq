@@ -2,7 +2,7 @@
 
 # Check if a tag parameter is provided and if it follows the specific pattern
 if [ "$#" -ne 1 ] || ! [[ "$1" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo "Usage: $0 <tag> where <tag> is like 'v1.2.3'"
+    echo "Usage: $0 <tag> where <tag> is like 'v1.2.3', example: $0 v1.16.1"
     exit 1
 fi
 
