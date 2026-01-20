@@ -2,7 +2,7 @@ import logging
 import unittest
 
 from pypaq.lipytools.files import prep_folder
-from pypaq.lipytools.pylogger import get_pylogger, get_child
+from pypaq.lipytools.pylogger import PyLogger, get_pylogger, get_child
 
 from tests.envy import flush_tmp_dir
 
@@ -16,16 +16,14 @@ class TestPylogger(unittest.TestCase):
 
     def test_base(self):
         logger = get_pylogger()
-        print(logger)
-        self.assertTrue(type(logger) is logging.RootLogger and logger.level == 20 and logger.getEffectiveLevel() == 20)
+        self.assertTrue(type(logger) is PyLogger and logger.level == 20 and logger.getEffectiveLevel() == 20)
         logger = get_pylogger(level=30)
-        print(logger)
-        self.assertTrue(type(logger) is logging.RootLogger and logger.level == 30 and logger.getEffectiveLevel() == 30)
+        self.assertTrue(type(logger) is PyLogger and logger.level == 30 and logger.getEffectiveLevel() == 30)
 
     def test_name(self):
         logger = get_pylogger()
         print(logger.name)
-        self.assertTrue(logger.name == 'root')
+        self.assertTrue(logger.name.startswith('pylogger_'))
 
         logger = get_pylogger(folder=f'{TEMP_FD}/logger')
         print(logger.name)
