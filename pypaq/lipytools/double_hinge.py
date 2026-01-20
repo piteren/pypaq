@@ -30,8 +30,8 @@ def double_hinge(
         b_value: float,
         a_point: float,
         b_point: float,
-        point, # int, float, np.ndarray
-):
+        point: int|float|np.ndarray,
+) -> float|np.ndarray:
     r = _double_hinge_np(a_value, b_value, a_point, b_point, point)
     if type(point) is not np.ndarray:
         r = float(r)
