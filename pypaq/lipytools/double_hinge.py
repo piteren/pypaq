@@ -19,10 +19,9 @@ def _double_hinge_np(
     if b_point < a_point or b_point == a_point and a_value != b_value:
         raise PyPaqException('wrong arguments values!')
 
-    r = (point - a_point) / (b_point - a_point)
-    v_max, v_min = (b_value, a_value) if b_value > a_value else (a_value, b_value)
-    r = np.maximum(v_min, np.minimum(v_max, r))
-    return a_value + (b_value - a_value) * r
+    x = (point - a_point) / (b_point - a_point) # position on x-axis
+    x = np.maximum(0.0, np.minimum(1.0, x)) # trim to <0.0;1.0>
+    return a_value + (b_value - a_value) * x
 
 
 def double_hinge(
