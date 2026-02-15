@@ -22,8 +22,11 @@ class QMessage:
     def __str__(self):
         return f'{self.__class__.__name__}, type:{self.type}, data:{self.data}'
 
-# https://github.com/vterron/lemon/commit/9ca6b4b1212228dbd4f69b88aaf88b12952d7d6f
+
 class SharedCounter:
+    """ Process-safe integer counter backed by multiprocessing.Value (shared memory).
+    Uses lock for atomic updates, so all processes see consistent value.
+    Used by Que to track queue size reliably across processes and platforms """
 
     def __init__(self, n:int=0):
         self.count = Value('i', n)
@@ -39,36 +42,34 @@ class SharedCounter:
 
 class Que:
     """ MultiProcessing Queue that:
-    - manages its size
-    - accepts messages of QMessage type """
+    - has size
+    - works with QMessage type messages """
 
     def __init__(self):
-        self.q = Queue()
-        self.size = SharedCounter(0)
+        self._q = Queue()
+        self._size = SharedCounter(0)
 
     def put(self, msg:QMessage, **kwargs):
         if not isinstance(msg, QMessage):
             raise MPythonException(f'\'msg\' should be type of QMessage, but is {type(msg)}')
-        self.size.increment(1)
-        self.q.put(msg, **kwargs)
+        self._size.increment(1)
+        self._q.put(msg, **kwargs)
 
     def get(self, block:bool=True, timeout:Optional[float]=None) -> Optional[QMessage]:
         try:
-            msg = self.q.get(block=block, timeout=timeout)
-            self.size.increment(-1)
+            msg = self._q.get(block=block, timeout=timeout)
+            self._size.increment(-1)
         except Empty:
             return None
-        if not isinstance(msg, QMessage):
-            raise MPythonException(f'\'msg\' should be type of QMessage, but is {type(msg)}')
         return msg
 
     @property
     def empty(self) -> bool:
-        return not self.qsize
+        return not self.size
 
     @property
-    def qsize(self) -> int:
-        return self.size.value
+    def size(self) -> int:
+        return self._size.value
 
 
 class ExProcess(Process, ABC):
@@ -151,20 +152,22 @@ class ExProcess(Process, ABC):
     def __exception_handle(self, e_name:str):
         """ when exception occurs, message with exception data is put on the output que """
         if self.oque is not None:
+            # returns self.name as data to allow process identification
             self.oque.put(QMessage(
                 type=   f'Exception:{e_name}, ExProcess {self.name} (pid:{self.pid})',
-                data=   self.name)) # returns name here to allow process identification
+                data=   self.name))
         self.logger.warning(f'> ExProcess ({self.name}) halted by Exception:{e_name}')
         self.after_exception_handle_run()
 
     def after_exception_handle_run(self):
-        """ this method may be implemented and will be run after inside exception handler """
+        """ this method may be implemented and will be run
+        after exception occurred inside exception handler """
         pass
 
     @property
     def alive(self):
-        """ not spawned process is not alive and cannot be joined,
-        when proces alive: True->False it may be join()-ed """
+        """ process may be joined only when is alive,
+        not spawned process is not alive and cannot be joined """
         if self.closed:
             return False
         return self.is_alive()

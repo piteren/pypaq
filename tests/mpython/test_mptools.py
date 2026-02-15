@@ -10,17 +10,17 @@ class TestMPTools(unittest.TestCase):
     def test_Que(self):
         que = Que()
         self.assertTrue(que.empty)
-        self.assertTrue(que.qsize == 0)
+        self.assertTrue(que.size == 0)
 
         qm = QMessage(type='test', data=1)
         que.put(qm)
-        self.assertTrue(que.qsize == 1)
+        self.assertTrue(que.size == 1)
         qm = que.get()
         self.assertTrue(qm.data == 1)
-        self.assertTrue(que.qsize == 0)
+        self.assertTrue(que.size == 0)
 
         self.assertTrue(que.empty)
-        self.assertTrue(que.qsize == 0)
+        self.assertTrue(que.size == 0)
         qm = que.get(block=False)
         self.assertTrue(not qm)
 
