@@ -74,7 +74,8 @@ class Que:
 
 class ExProcess(Process, ABC):
     """ Exception Managed Process
-    implements basic exceptions management """
+    implements basic exceptions management.
+    Similar to Process, it should be started with start() """
 
     def __init__(
             self,
@@ -120,8 +121,7 @@ class ExProcess(Process, ABC):
         self.logger.info(f'*** {self.name} (ExProcess) *** initialized')
 
     def __run(self):
-        """ process target method,
-        wraps exprocess_method() with try / except = exception handling """
+        """ process target method """
         try:
             self.logger.debug(f'> ExProcess ({self.name}, pid:{self.pid}) - started exprocess_method()')
             self.exprocess_method()
@@ -146,7 +146,8 @@ class ExProcess(Process, ABC):
 
     @abstractmethod
     def exprocess_method(self):
-        """ method run in a process, to be implemented """
+        """ method run in a process, to be implemented,
+        this method is run inside try / except statement to hande ExProcess exceptions """
         pass
 
     def __exception_handle(self, e_name:str):
@@ -164,14 +165,6 @@ class ExProcess(Process, ABC):
         after exception occurred inside exception handler """
         pass
 
-    @property
-    def alive(self):
-        """ process may be joined only when is alive,
-        not spawned process is not alive and cannot be joined """
-        if self.closed:
-            return False
-        return self.is_alive()
-
     def terminate(self):
         if self.alive:
             super().terminate()
@@ -185,11 +178,19 @@ class ExProcess(Process, ABC):
             time.sleep(0.01)
 
     @property
+    def alive(self):
+        """ process may be joined only when is alive,
+        not spawned process is not alive and cannot be joined """
+        if self.closed:
+            return False
+        return self.is_alive()
+
+    @property
     def closed(self):
-        return self._closed
+        return getattr(self, '_closed', False)
 
     def __str__(self):
-        pid = self.pid if not self.closed else '<-closed->'
+        pid = self.pid if not self.closed else '--- # no pid for closed process'
         exitcode = self.exitcode if not self.closed else '<-closed->'
         mem_nfo = '---'
         if self.alive:
