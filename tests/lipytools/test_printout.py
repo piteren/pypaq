@@ -5,7 +5,8 @@ import pytest
 
 from pypaq.lipytools.printout import (
     nice_scin, nice_float_pad, nice_float_width,
-    stamp, print_nested_dict, ProgBar)
+    stamp, print_nested_dict, ProgBar, list_str,
+    printover, printover_terminal)
 
 
 def test_nice_scin():
@@ -130,6 +131,32 @@ def test_ProgBar():
     for ix in range(tot):
         time.sleep(random.random()/5)
         pb(ix, prefix='test:', suffix=':ok')
+
+
+def test_list_str():
+    assert list_str([1, 2, 3]) == '1; 2; 3'
+    assert list_str([]) == ''
+    assert list_str(['a', 'b']) == 'a; b'
+
+    # test limit
+    long_list = list(range(100))
+    s = list_str(long_list, limit=20)
+    assert len(s) <= 20
+
+    # no limit
+    s = list_str([1, 2, 3], limit=None)
+    assert s == '1; 2; 3'
+
+
+def test_printover():
+    # just verify it doesn't crash
+    printover('test message')
+    printover('another', clear=20)
+
+
+def test_printover_terminal():
+    # just verify it doesn't crash
+    printover_terminal('test message')
 
 
 def test_ProgBar_behaviour():

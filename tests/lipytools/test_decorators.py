@@ -1,6 +1,6 @@
 import time
 
-from pypaq.lipytools.decorators import timing, args
+from pypaq.lipytools.decorators import timing, args, autoinit
 
 
 def test_timing():
@@ -41,3 +41,44 @@ def test_args_more():
 
     d = {'agsgssd':134, 'sdghsdhsdhdhdhg':12354, 'asgagafsdgasdfafasfdasdf':12345155}
     do_something(10, 11, pa_c=d, def_b=5, oth_a=6, first=0.000025)
+
+
+def test_autoinit():
+
+    class MyClass:
+        @autoinit
+        def __init__(self, a, b, c=10, d=False):
+            pass
+
+    obj = MyClass(1, 2)
+    assert obj.a == 1
+    assert obj.b == 2
+    assert obj.c == 10
+    assert obj.d is False
+
+
+def test_autoinit_kwargs_override():
+
+    class MyClass:
+        @autoinit
+        def __init__(self, a, b, c=10):
+            pass
+
+    obj = MyClass(1, 2, c=99)
+    assert obj.a == 1
+    assert obj.b == 2
+    assert obj.c == 99
+
+
+def test_autoinit_positional_defaults():
+
+    class MyClass:
+        @autoinit
+        def __init__(self, a, b, c=10, d=20):
+            pass
+
+    obj = MyClass(1, 2, 99)
+    assert obj.a == 1
+    assert obj.b == 2
+    assert obj.c == 99
+    assert obj.d == 20

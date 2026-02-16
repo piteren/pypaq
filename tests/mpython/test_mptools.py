@@ -126,6 +126,61 @@ def test_ExProcess_Exception_after():
     assert msg.type.startswith('Exception:')
 
 
+def test_SharedCounter():
+    from pypaq.mpython.mptools import SharedCounter
+
+    sc = SharedCounter()
+    assert sc.value == 0
+
+    sc.increment()
+    assert sc.value == 1
+
+    sc.increment(5)
+    assert sc.value == 6
+
+    sc.increment(-3)
+    assert sc.value == 3
+
+    sc2 = SharedCounter(10)
+    assert sc2.value == 10
+
+
+def test_QMessage():
+    qm = QMessage(type='test', data={'key': 'val'})
+    assert qm.type == 'test'
+    assert qm.data == {'key': 'val'}
+    s = str(qm)
+    assert 'QMessage' in s
+    assert 'test' in s
+
+    qm_no_data = QMessage(type='info')
+    assert qm_no_data.data is None
+
+
+def test_ExProcess_mem_usage():
+    que = Que()
+    exs = ExS(oque=que, loglevel=10)
+    exs.start()
+    time.sleep(1)
+    mem = exs.mem_usage
+    print(f'mem_usage: {mem}MB')
+    assert mem > 0
+    exs.kill_and_close()
+
+    # after close, mem_usage should be 0
+    assert exs.mem_usage == 0
+
+
+def test_ExProcess_alive():
+    que = Que()
+    exs = ExS(oque=que, loglevel=10)
+    assert not exs.alive  # not started yet
+    exs.start()
+    assert exs.alive
+    exs.kill_and_close()
+    assert not exs.alive
+
+
 def test_sys_res_nfo():
     info = sys_res_nfo()
     print(info)

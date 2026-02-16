@@ -10,7 +10,7 @@ def lev_distL(source :list or str, target :list or str):
 
     # same
     if len(source) == len(target):
-        if not sum([1 for e in zip(source,target) if e[0] == e[1]]):
+        if not sum([1 for e in zip(source,target) if e[0] != e[1]]):
             return 0
 
     # prepare a matrix

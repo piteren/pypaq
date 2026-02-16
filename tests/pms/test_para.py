@@ -1,6 +1,6 @@
 import pytest
 
-from pypaq.pms.para import Para, ParaGX
+from pypaq.pms.para import Para, ParaGX, dict_diff
 from pypaq.pms.base import PMSException
 
 _PSDD = {
@@ -47,6 +47,35 @@ def test_Para_check_params_sim():
         'bet':      8}
     assert sa.check_params_sim(params=more_dict)
     assert sa.check_params_sim(params=list(more_dict.keys()))
+
+
+def test_dict_diff_identical():
+    da = {'a': 1, 'b': 2}
+    assert dict_diff(da, da) == ''
+
+
+def test_dict_diff_missing_keys():
+    da = {'a': 1, 'b': 2}
+    db = {'a': 1}
+    nfo = dict_diff(da, db)
+    assert 'missing keys' in nfo
+    assert 'b' in nfo
+
+
+def test_dict_diff_new_keys():
+    da = {'a': 1}
+    db = {'a': 1, 'c': 3}
+    nfo = dict_diff(da, db)
+    assert 'new keys' in nfo
+    assert 'c' in nfo
+
+
+def test_dict_diff_new_values():
+    da = {'a': 1, 'b': 2}
+    db = {'a': 1, 'b': 99}
+    nfo = dict_diff(da, db)
+    assert 'new values' in nfo
+    assert 'b' in nfo
 
 
 def test_ParaGX_base():
