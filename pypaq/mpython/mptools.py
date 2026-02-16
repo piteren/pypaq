@@ -1,8 +1,6 @@
-from abc import ABC, abstractmethod
 from multiprocessing import cpu_count, Process, Queue, Value
 import psutil
 from queue import Empty
-import time
 from typing import Any, Optional, Union
 
 from pypaq.exception import PyPaqException
@@ -72,7 +70,7 @@ class Que:
         return self._size.value
 
 
-class ExProcess(Process, ABC):
+class ExProcess(Process):
     """ Exception Managed Process
     implements basic exceptions management.
     Similar to Process, it should be started with start() """
@@ -144,11 +142,10 @@ class ExProcess(Process, ABC):
             if self.raise_Exception:
                 raise e
 
-    @abstractmethod
     def exprocess_method(self):
         """ method run in a process, to be implemented,
         this method is run inside try / except statement to hande ExProcess exceptions """
-        pass
+        raise NotImplementedError
 
     def __exception_handle(self, e_name:str):
         """ when exception occurs, message with exception data is put on the output que """
@@ -165,44 +162,24 @@ class ExProcess(Process, ABC):
         after exception occurred inside exception handler """
         pass
 
-    def terminate(self):
-        if self.alive:
-            super().terminate()
-        while self.alive:
-            time.sleep(0.01)
-
-    def kill(self):
-        if self.alive:
-            super().kill()
-        while self.alive:
-            time.sleep(0.01)
+    def kill_and_close(self):
+        self.kill()
+        self.join()
+        self.close()
 
     @property
-    def alive(self):
-        """ process may be joined only when is alive,
-        not spawned process is not alive and cannot be joined """
-        if self.closed:
-            return False
-        return self.is_alive()
+    def alive(self) -> bool:
+        return not getattr(self, '_closed', False) and self.is_alive()
 
     @property
-    def closed(self):
-        return getattr(self, '_closed', False)
-
-    def __str__(self):
-        pid = self.pid if not self.closed else '--- # no pid for closed process'
-        exitcode = self.exitcode if not self.closed else '<-closed->'
-        mem_nfo = '---'
+    def mem_usage(self) -> int:
+        mem = 0
         if self.alive:
-            mem_mb = int(psutil.Process(self.pid).memory_info().rss / 1024 ** 2)
-            mem_nfo = f'{mem_mb}MB'
-        return (f'{super().__str__()}\n'
-                f'> pid:            {pid}\n'
-                f'> parent(pid):    {self._parent_pid}\n'
-                f'> alive:          {self.alive}\n'
-                f'> closed:         {self.closed}\n'
-                f'> exitcode:       {exitcode}\n'
-                f'> mem:            {mem_nfo}')
+            try:
+                mem = int(psutil.Process(self.pid).memory_info().rss / 1024 ** 2)
+            except (psutil.NoSuchProcess, ProcessLookupError):
+                pass
+        return mem
 
 
 def sys_res_nfo():
