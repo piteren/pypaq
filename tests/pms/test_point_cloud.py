@@ -1,5 +1,3 @@
-import unittest
-
 from pypaq.pms.paspa import PaSpa
 from pypaq.pms.points_cloud import VPoint, PointsCloud
 
@@ -25,19 +23,16 @@ SAMPLE_PSDD = {
     't':    (1,2,3,4,8,4,'','wert','5')}
 
 
-class TestVPoint(unittest.TestCase):
+def test_VPoint_base():
+    paspa = PaSpa(SAMPLE_PSDD)
+    point = paspa.sample_point()
+    vpoint = VPoint(point=point, name='test', value=0.1)
+    print(vpoint)
 
-    def test_base(self):
-        paspa = PaSpa(SAMPLE_PSDD)
-        point = paspa.sample_point()
-        vpoint = VPoint(point=point, name='test', value=0.1)
-        print(vpoint)
 
-class TestPointCloud(unittest.TestCase):
-
-    def test_base(self):
-        paspa = PaSpa(SAMPLE_PSDD)
-        points = [paspa.sample_point() for _ in range(20)]
-        pcloud = PointsCloud(paspa=paspa)
-        pcloud.update_cloud([VPoint(point=p, name=f'p{ix:02}') for ix,p in enumerate(points)])
-        print(pcloud)
+def test_PointCloud_base():
+    paspa = PaSpa(SAMPLE_PSDD)
+    points = [paspa.sample_point() for _ in range(20)]
+    pcloud = PointsCloud(paspa=paspa)
+    pcloud.update_cloud([VPoint(point=p, name=f'p{ix:02}') for ix,p in enumerate(points)])
+    print(pcloud)

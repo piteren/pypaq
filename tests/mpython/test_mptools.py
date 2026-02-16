@@ -1,6 +1,5 @@
-import random
+import pytest
 import time
-import unittest
 
 from pypaq.mpython.mptools import ExProcess, Que, QMessage, sys_res_nfo, MPythonException
 
@@ -45,86 +44,91 @@ class ExS_EXA(ExProcess):
     def after_exception_handle_run(self):
         print("after exception handle called")
 
-class TestMPTools(unittest.TestCase):
 
-    def test_Que(self):
-        que = Que()
-        self.assertTrue(que.empty)
-        self.assertTrue(que.size == 0)
+def test_Que():
+    que = Que()
+    assert que.empty
+    assert que.size == 0
 
-        qm = QMessage(type='test', data=1)
-        que.put(qm)
-        self.assertTrue(que.size == 1)
-        qm = que.get()
-        self.assertTrue(qm.data == 1)
-        self.assertTrue(que.size == 0)
+    qm = QMessage(type='test', data=1)
+    que.put(qm)
+    assert que.size == 1
+    qm = que.get()
+    assert qm.data == 1
+    assert que.size == 0
 
-        self.assertTrue(que.empty)
-        self.assertTrue(que.size == 0)
-        qm = que.get(block=False)
-        self.assertTrue(not qm)
+    assert que.empty
+    assert que.size == 0
+    qm = que.get(block=False)
+    assert not qm
 
-        qm = {'a': 'b'}
-        self.assertRaises(MPythonException, que.put, qm)
+    with pytest.raises(MPythonException):
+        que.put({'a': 'b'})
 
-    def test_ExProcess_lifecycle(self):
 
-        que = Que()
-        exs = ExS(oque=que, loglevel=10)
-        print(f'before spawned: {exs}')
-        exs.start()
-        print(f'spawned (started): {exs}')
-        exs.join()
-        print(f'joined: {exs}')
-        exs.close()
-        print(f'closed: {exs}')
+def test_ExProcess_lifecycle():
 
-        self.assertTrue(que.size == 0)
+    que = Que()
+    exs = ExS(oque=que, loglevel=10)
+    print(f'before spawned: {exs}')
+    exs.start()
+    print(f'spawned (started): {exs}')
+    exs.join()
+    print(f'joined: {exs}')
+    exs.close()
+    print(f'closed: {exs}')
 
-    def test_ExProcess_kill(self):
+    assert que.size == 0
 
-        que = Que()
-        exs = ExS(oque=que, loglevel=10)
-        exs.start()
-        time.sleep(1)
-        exs.kill_and_close()
-        print(f'killed and closed: {exs}')
 
-        self.assertTrue(que.size == 0)
+def test_ExProcess_kill():
 
-    def test_ExProcess_KeyboardInterrupt(self):
+    que = Que()
+    exs = ExS(oque=que, loglevel=10)
+    exs.start()
+    time.sleep(1)
+    exs.kill_and_close()
+    print(f'killed and closed: {exs}')
 
-        que = Que()
-        exs = ExS_KI(oque=que)
-        exs.start()
+    assert que.size == 0
 
-        msg = que.get()
-        print(msg)
-        self.assertTrue(msg.type.startswith('Exception:'))
 
-    def test_ExProcess_Exception(self):
+def test_ExProcess_KeyboardInterrupt():
 
-        que = Que()
-        exs = ExS_EX(oque=que)
-        exs.start()
+    que = Que()
+    exs = ExS_KI(oque=que)
+    exs.start()
 
-        msg = que.get()
-        print(msg)
-        self.assertTrue(msg.type.startswith('Exception:'))
+    msg = que.get()
+    print(msg)
+    assert msg.type.startswith('Exception:')
 
-    def test_ExProcess_Exception_after(self):
 
-        que = Que()
-        exs = ExS_EXA(oque=que)
-        exs.start()
+def test_ExProcess_Exception():
 
-        msg = que.get()
-        print(msg)
-        self.assertTrue(msg.type.startswith('Exception:'))
+    que = Que()
+    exs = ExS_EX(oque=que)
+    exs.start()
 
-    def test_sys_res_nfo(self):
-        info = sys_res_nfo()
-        print(info)
-        self.assertTrue(info['cpu_count'] > 0)
-        self.assertTrue(info['mem_total_GB'] > 0)
-        self.assertTrue(info['mem_used_%'] > 0)
+    msg = que.get()
+    print(msg)
+    assert msg.type.startswith('Exception:')
+
+
+def test_ExProcess_Exception_after():
+
+    que = Que()
+    exs = ExS_EXA(oque=que)
+    exs.start()
+
+    msg = que.get()
+    print(msg)
+    assert msg.type.startswith('Exception:')
+
+
+def test_sys_res_nfo():
+    info = sys_res_nfo()
+    print(info)
+    assert info['cpu_count'] > 0
+    assert info['mem_total_GB'] > 0
+    assert info['mem_used_%'] > 0
