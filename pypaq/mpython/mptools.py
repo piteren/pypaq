@@ -168,8 +168,12 @@ class ExProcess(Process):
         self.close()
 
     @property
+    def closed(self) -> bool:
+        return getattr(self, '_closed', False)
+
+    @property
     def alive(self) -> bool:
-        return not getattr(self, '_closed', False) and self.is_alive()
+        return not self.closed and self.is_alive()
 
     @property
     def mem_usage(self) -> int:
