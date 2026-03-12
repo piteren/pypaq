@@ -156,7 +156,7 @@ def two_dim_multi(
 
 
 def three_dim(
-    xyz: Union[list, np.ndarray], # sequence of (x,y,val) or (x,y,z,val)
+    xyz: list|np.ndarray, # sequence of (x,y,val) or (x,y,z,val)
     name=               'values',
     x_name=             'x',
     y_name=             'y',
@@ -165,13 +165,14 @@ def three_dim(
     opacity=            0.7,
     width=              700,
     height=             700,
-    save_FD: str =      None):
+    save_FD: str =      None,
+):
 
-    # expand to 3 axes + val (3rd axis data)
-    if len(xyz[0])<4:
-        new_xyz = []
-        for e in xyz: new_xyz.append(list(e) + [e[-1]])
-        xyz = new_xyz
+    if type(xyz) is not np.ndarray:
+        xyz = np.asarray(xyz)
+
+    if xyz.shape[-1] == 3:
+        xyz = np.concat([xyz, xyz[:,-1:]], axis=-1)
 
     df = pd.DataFrame(
         data=       xyz,
