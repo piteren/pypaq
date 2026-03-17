@@ -6,23 +6,25 @@ from pypaq.lipytools.printout import nice_float_pad
 
 AXIS =  str                     # axis type (parameter name)
 P_VAL = Union[float, int, Any]  # point value (parameter value)
-POINT = Dict[AXIS, P_VAL]       # POINT ia a dict {parameter: value}
+POINT = Dict[AXIS, P_VAL]       # POINT is a dict {parameter: value}
 
 
 """ 
-    PSDD - Parameters Space Definition Dict
-    dictionary that defines space of POINTS {axis(parameter name): list or tuple or value}
-        - list of ints or floats defines continuous range
-        - tuple may contain elements of any type (even non-numeric), may have one
-        - any other type is considered to be a constant (single value)
+    PSDD - Parameters Space Definition Dict {axis(parameter name): list or tuple or value}
+    dictionary that defines space, where POINTs can exist,
+    for each axis possible POINT values are described with: list, tuple or any.
+    - list (len == 2) of ints or floats defines continuous range
+    - tuple defines a set, may contain elements of any type, even non-numeric
+    - any other type is considered to be a constant (single value)
 
-        example:
-        {   'a':    [0.0, 1],               # range of floats
-            'b':    (-1,-7,10,15.5,90,30),  # set of num(float) values, num will be sorted
-            'c':    ('tat','mam','kot'),    # set of diff values
-            'd':    [0,10],                 # range of ints
-            'e':    (-2.0,2,None)}          # set of diff values
-            'f':    (16.2,)}                # single value
+    example:
+    {   'a':    [0.0, 1],               # range of floats
+        'b':    [0,10],                 # range of ints
+        'c':    (-1,-7,10,15.5,90,30),  # set of num(float) values, NUM will be sorted
+        'd':    ('tat','mam','kot'),    # set of various types
+        'e':    (-2.0,2,None),          # set of various types
+        'f':    (16.2,),                # single value
+        'g':    's'}                    # single value
 """
 
 RANGE = List[P_VAL] or Tuple[P_VAL] or P_VAL    # axis range type (range of parameter)
@@ -34,7 +36,7 @@ class PMSException(PyPaqException):
 
 
 def point_str(p:POINT) -> str:
-    """ prepares nice string of POINT """
+    """ prepares POINT's nice string """
 
     avL = []
     for axis in sorted(list(p.keys())):
@@ -83,7 +85,7 @@ def get_params(function:Callable) -> Dict:
 
 
 def get_class_init_params(cl:Type) -> Dict:
-    """ prepares class.__init__ parameters dictionary
+    """ prepares class.__init__ parameters dictionary,
     recurrently goes down to base classes """
 
     def _update_params_dict(
@@ -129,9 +131,9 @@ def get_class_init_params(cl:Type) -> Dict:
 def point_trim(
         fc: Optional[Union[Callable,Type]],
         point: POINT,
-        remove_self= True,  # removes self in case of class methods
+        remove_self = True,  # removes self in case of class methods
 ) -> POINT:
-    """ prepares sub-POINT trimmed to function params (given wider POINT) """
+    """ prepares sub-POINT trimmed to function params - given wider POINT """
 
     if fc is None:
         return {}
