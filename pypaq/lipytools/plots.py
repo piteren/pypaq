@@ -18,6 +18,7 @@ def histogram(
         val_list: NPL,
         name=                       'values',
         rem_nstd: float=            0.0,    # removes values out of N*stddev
+        rem_only_right: bool=       True,   # removes only right out-layers
         msmx_stats=                 True,   # prints minimal stats
         density=                    True,
         bins: Optional[int]=        None,   # automatic for None
@@ -50,8 +51,9 @@ def histogram(
     if rem_nstd:
         std = val_list.std()
         mean = val_list.mean()
-        val_list = val_list[val_list > mean - rem_nstd * std]
         val_list = val_list[val_list < mean + rem_nstd * std]
+        if not rem_only_right:
+            val_list = val_list[val_list > mean - rem_nstd * std]
 
     if not bins:
         if small_int_case:
