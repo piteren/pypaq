@@ -18,16 +18,16 @@ def msmx(vals:NPL, use_scin:bool=True) -> Dict:
     arr = np.asarray(vals) if type(vals) is list else vals
     _mean, _median, _std, _min, _max = float(np.mean(arr)), float(np.median(arr)), float(np.std(arr)), float(np.min(arr)), float(np.max(arr))
     _sem = _std / math.sqrt(len(vals))
-    _h95 = _sem * stats.t.ppf(0.975, len(vals) - 1) # 0.975 is 1 + 0.95 / 2
-    _L2norm = np.linalg.norm(arr, ord=2)
-    r = {'min':    _min,
-         'mean':   _mean,
-         'median': _median,
-         'max':    _max,
-         'std':    _std,
-         'L2norm': _L2norm,
-         'sem':    _sem,
-         'h95':    _h95}
+    r = {
+        'min':    _min,
+        'mean':   _mean,
+        'median': _median,
+        'max':    _max,
+        'std':    _std,
+        'L2norm': np.linalg.norm(arr, ord=2),
+        'sem':    _sem,
+        'h95':    _sem * stats.t.ppf(0.975, len(vals) - 1), # 0.975 is 1 + 0.95 / 2
+    }
     r['string'] = ' '.join([f'{k}:{nice_scin(r[k]):8}' for k in r]) if use_scin else (
         f'min:{r["min"]:.3f} '
         f'mean:{r["mean"]:.3f} '
