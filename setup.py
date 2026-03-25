@@ -5,11 +5,11 @@ from pypaq.lipytools.files import get_requirements
 
 setup(
     name=               'pypaq',
-    version=            'v1.17.0',
+    version=            'v1.17.1',
     url=                'https://github.com/piteren/pypaq.git',
     author=             'Piotr Niewinski',
     author_email=       'pioniewinski@gmail.com',
     description=        'little Python tools',
     packages=           find_packages(),
     install_requires=   get_requirements(),
-    license=            'MIT')
+    license=            'MIT'
