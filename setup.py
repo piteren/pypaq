@@ -12,4 +12,4 @@ setup(
     description=        'little Python tools',
     packages=           find_packages(),
     install_requires=   get_requirements(),
-    license=            'MIT'
+    license=            'MIT')
