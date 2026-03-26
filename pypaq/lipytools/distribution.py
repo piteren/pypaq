@@ -1,12 +1,14 @@
-from pypaq.lipytools.plots import histogram
 import numpy as np
+from typing import Optional
+
+from pypaq.lipytools.plots import histogram
 
 
 def sample_to_flatten(
         vals: np.ndarray,
-        n_new = None,
+        n_new: Optional[int] = None,
         bins: int = 40,
-        rng = None,
+        rng: Optional[np.random.Generator] = None,
         seed: int = 123,
 ):
 
