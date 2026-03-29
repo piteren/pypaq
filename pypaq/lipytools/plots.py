@@ -17,17 +17,14 @@ from pypaq.lipytools.stats import msmx
 def histogram(
         val_list: NPL,
         name=                       'values',
-        rem_nstd: float=            0.0,    # removes values out of N*stddev
-        rem_only_right: bool=       True,   # removes only right out-layers
+        rem_tails: Optional[float]= 0.01,   # removes 100X% from tails
+        rem_only_right: bool=       True,   # removes only right side
         msmx_stats=                 True,   # prints minimal stats
         density=                    True,
         bins: Optional[int]=        None,   # automatic for None
         add_density_curve: bool=    True,
         save_FD :str=               None,
 ) -> str:
-
-    if type(val_list) is not np.ndarray:
-        val_list = np.asarray(val_list)
 
     if not len(val_list):
         msg = f'cannot prepare histogram for empty val_list!'
@@ -44,23 +41,46 @@ def histogram(
             if val_set[-1]-val_set[0] < 60:
                 small_int_case = True
 
+    if type(val_list) is not np.ndarray:
+        val_list = np.asarray(val_list)
+
     s = []
     if msmx_stats:
         s.append(f'histogram: "{name}" (samples: {len(val_list)}): {msmx(val_list)["string"]}')
 
-    if rem_nstd:
-        std = val_list.std()
-        mean = val_list.mean()
-        val_list = val_list[val_list < mean + rem_nstd * std]
+    if rem_tails:
+        counts, edges = np.histogram(val_list, bins=200)
+        n_all = len(val_list)
+
+        re = edges[-1]
+        nr = 0
+        for c,e in zip(reversed(counts), reversed(edges)):
+            nr += c
+            re = e
+            if nr > rem_tails * n_all:
+                break
+        val_list = val_list[val_list <= re]
+
         if not rem_only_right:
-            val_list = val_list[val_list > mean - rem_nstd * std]
+            le = edges[0]
+            nl = 0
+            for c,e in zip(counts,edges):
+                nl += c
+                le = e
+                if nl > rem_tails * n_all:
+                    break
+            val_list = val_list[le <= val_list]
 
     if not bins:
         if small_int_case:
             bins = np.arange(val_set[0]-0.5, val_set[-1]+1.5, 1)
         else:
-            bins = len(val_set)
-            if bins > 50: bins = 50
+            if len(val_set) < 200:
+                bins = len(val_set)
+            else:
+                bins = np.sqrt(len(val_list))
+                if bins > 100:
+                    bins = 100
 
     plt.figure()
     n, x, _ = plt.hist(val_list, label=name, density=density, bins=bins, alpha=0.5)
