@@ -13,10 +13,13 @@ from pypaq.exception import PyPaqException
 
 @dataclass
 class Folder:
-    name: str # folder name, NOT a full path
-    path: str # folder path (folder full_path = path/name)
-    subfolders: list["Folder"] = field(default_factory=list) # subfolders names, NOT full paths
-    files: list[str] = field(default_factory=list) # files names, NOT full paths
+    full_path: Path
+    subfolders: list["Folder"] = field(default_factory=list)
+    files: list[str] = field(default_factory=list) # file names only, NOT full paths
+
+    @property
+    def name(self) -> str:
+        return self.full_path.name
 
     def _build_tree(self, lines: list[str], prefix: str) -> None:
         entries: list[tuple[Folder | str, bool]] = (
@@ -41,7 +44,7 @@ class Folder:
     def from_path(cls, fd_path: str | Path, recursive: bool = True) -> "Folder":
         """builds a Folder tree from the given directory path"""
         fd_path = Path(fd_path)
-        folder = cls(name=fd_path.name, path=str(fd_path.parent))
+        folder = cls(full_path=fd_path)
         for entry in fd_path.iterdir():
             if entry.is_file():
                 folder.files.append(entry.name)
@@ -49,7 +52,7 @@ class Folder:
                 if recursive:
                     folder.subfolders.append(cls.from_path(entry, recursive))
                 else:
-                    folder.subfolders.append(cls(name=entry.name, path=str(fd_path)))
+                    folder.subfolders.append(cls(full_path=entry))
         return folder
 
 
@@ -245,7 +248,7 @@ def get_files(
     recursive: parses also subfolders"""
 
     def _get_fd_and_sub_files(fd: Folder) -> list[str]:
-        files = [str(Path(fd.path) / fd.name / fn) for fn in fd.files]
+        files = [str(fd.full_path / fn) for fn in fd.files]
         for sfd in fd.subfolders:
             files.extend(_get_fd_and_sub_files(sfd))
         return files
