@@ -19,7 +19,7 @@ class Folder:
     files: list[str] = field(default_factory=list) # files names, NOT full paths
 
     def _build_tree(self, lines: list[str], prefix: str) -> None:
-        entries: list[tuple] = (
+        entries: list[tuple[Folder | str, bool]] = (
             [(sf, True) for sf in sorted(self.subfolders, key=lambda f: f.name)] +
             [(fn, False) for fn in sorted(self.files)]
         )
@@ -54,7 +54,7 @@ def w_text(
         text: str,
         file_path: str | Path,
 ):
-    with open(file_path, 'w') as file:
+    with open(file_path, 'w', encoding='utf-8') as file:
         return file.write(text)
 
 
@@ -79,7 +79,7 @@ def r_pickle(
     with op_fn(file_path, 'rb') as file:
         obj = pickle.load(file)
 
-    if obj_type:
+    if obj_type is not None:
         if not type(obj) is obj_type:
             raise PyPaqException(f'ERROR: obj from file is not {str(obj_type)} type')
     return obj
@@ -170,7 +170,7 @@ def r_csv(
     csv.field_size_limit(sys.maxsize)
     with open(file_path, newline='') as f:
         reader = csv.reader(f)
-        return [row for row in reader]
+        return list(reader)
 
 
 def w_csv(
@@ -216,19 +216,17 @@ def prep_folder(
 ):
     """ prepares folder
     path may be a file path -> folder path is extracted """
-    folder_path = extract_folder_path(path)
-    if folder_path: # in case folder_path == ''
-        folder_path = Path(folder_path)
-        if flush_non_empty and folder_path.is_dir():
-            shutil.rmtree(folder_path)
-        folder_path.mkdir(parents=True, exist_ok=True)
+    folder_path = Path(extract_folder_path(path))
+    if flush_non_empty and folder_path.is_dir():
+        shutil.rmtree(folder_path)
+    folder_path.mkdir(parents=True, exist_ok=True)
 
 
 def build_folder(
         fd_path: str | Path,
         recursive: bool = True,
 ) -> Folder:
-    """lists folder subfolders and files"""
+    """builds a Folder tree from the given directory path"""
     fd_path = Path(fd_path)
     folder = Folder(name=fd_path.name, path=str(fd_path.parent))
     for entry in fd_path.iterdir():
@@ -263,8 +261,3 @@ def get_requirements(file_path :str = 'requirements.txt') -> list[str]:
     file_text = r_text(file_path, raise_exception=True)
     file_lines = file_text.split('\n')
     return [l.strip() for l in file_lines]
-
-
-print(build_folder("pypaq"))
-print()
-print(get_files("pypaq"))
