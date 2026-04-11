@@ -2,7 +2,6 @@ import csv
 from dataclasses import dataclass, field
 import gzip
 import json
-import os
 from pathlib import Path
 import pickle
 import shutil
@@ -219,28 +218,27 @@ def prep_folder(
     path may be a file path -> folder path is extracted """
     folder_path = extract_folder_path(path)
     if folder_path: # in case folder_path == ''
-        if flush_non_empty and os.path.isdir(folder_path):
+        folder_path = Path(folder_path)
+        if flush_non_empty and folder_path.is_dir():
             shutil.rmtree(folder_path)
-        os.makedirs(folder_path, exist_ok=True)
+        folder_path.mkdir(parents=True, exist_ok=True)
 
 
-def list_folder(
+def build_folder(
         fd_path: str | Path,
         recursive: bool = True,
 ) -> Folder:
     """lists folder subfolders and files"""
-    ls = os.listdir(fd_path)
-    fd_name = extract_folder_name(fd_path)
-    folder = Folder(name=fd_name, path=fd_path.split(fd_name)[-1])
-    for e in ls:
-        _full_path = os.path.join(fd_path, e)
-        if os.path.isfile(_full_path):
-            folder.files.append(e)
-        else:
+    fd_path = Path(fd_path)
+    folder = Folder(name=fd_path.name, path=str(fd_path.parent))
+    for entry in fd_path.iterdir():
+        if entry.is_file():
+            folder.files.append(entry.name)
+        elif entry.is_dir():
             if recursive:
-                folder.subfolders.append(list_folder(_full_path, recursive))
+                folder.subfolders.append(build_folder(entry, recursive))
             else:
-                folder.subfolders.append(Folder(name=e, path=fd_path))
+                folder.subfolders.append(Folder(name=entry.name, path=str(fd_path)))
     return folder
 
 
@@ -252,12 +250,12 @@ def get_files(
     recursive: parses also subfolders"""
 
     def _get_fd_and_sub_files(fd: Folder) -> list[str]:
-        files = [f"{fd.path}/{fd.name}/{fn}" for fn in fd.files]
+        files = [str(Path(fd.path) / fd.name / fn) for fn in fd.files]
         for sfd in fd.subfolders:
             files.extend(_get_fd_and_sub_files(sfd))
         return files
 
-    folder = list_folder(fd_path, recursive)
+    folder = build_folder(fd_path, recursive)
     return _get_fd_and_sub_files(folder)
 
 
@@ -267,4 +265,6 @@ def get_requirements(file_path :str = 'requirements.txt') -> list[str]:
     return [l.strip() for l in file_lines]
 
 
-print(list_folder("pypaq"))
+print(build_folder("pypaq"))
+print()
+print(get_files("pypaq"))

@@ -10,7 +10,7 @@ from pypaq.lipytools.files import (
     r_csv, w_csv,
     r_yaml,
     extract_folder_path, extract_folder_name,
-    prep_folder, list_folder, get_files,
+    prep_folder, build_folder, get_files,
 )
 from pypaq.exception import PyPaqException
 
@@ -183,7 +183,7 @@ def test_list_folder():
     w_text('b', f'{fd}/b.txt')
     prep_folder(f'{fd}/subdir')
 
-    result = list_folder(fd)
+    result = build_folder(fd)
     assert sorted(result['files']) == ['a.txt', 'b.txt']
     assert result['dirs'] == ['subdir']
 
