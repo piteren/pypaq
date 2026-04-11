@@ -15,7 +15,7 @@ from pypaq.lipytools.files import (
 )
 from pypaq.exception import PyPaqException
 
-TMP_DIR = Path(__file__).parent / '_tmp' / 'files_test'
+TMP_DIR = Path(__file__).parent / '_tmp'
 
 
 @pytest.fixture(autouse=True, scope='module')
@@ -24,7 +24,8 @@ def tmp_dir():
 
 
 def test_text():
-    fp = f'{TMP_DIR}/test.txt'
+    fp = Path(TMP_DIR) / 'test.txt'
+    print(f"fp --- {fp}")
     w_text('hello world', fp)
     assert r_text(fp) == 'hello world'
 
@@ -148,13 +149,13 @@ def test_yaml_missing():
 def test_extract_folder_path():
     assert extract_folder_path('/home/user/file.txt') == '/home/user'
     assert extract_folder_path('/home/user/folder') == '/home/user/folder'
-    assert extract_folder_path('/home/user/folder/') == '/home/user/folder/'
+    assert extract_folder_path('/home/user/folder/') == '/home/user/folder'
 
 
 def test_extract_folder_name():
-    extract_folder_name("")
-    # TODO
-    pass
+    assert extract_folder_name('/home/user/file.txt') == 'user'
+    assert extract_folder_name('/home/user/folder') == 'folder'
+    assert extract_folder_name(TMP_DIR) == TMP_DIR.name
 
 
 def test_prep_folder():
@@ -178,16 +179,18 @@ def test_prep_folder_from_file_path():
     assert os.path.isdir(f'{TMP_DIR}/sub/deep')
 
 
-def test_list_folder():
-    fd = f'{TMP_DIR}/list_test'
+def test_build_folder():
+    fd = f'{TMP_DIR}/build_folder'
     prep_folder(fd)
     w_text('a', f'{fd}/a.txt')
     w_text('b', f'{fd}/b.txt')
     prep_folder(f'{fd}/subdir')
 
-    result = build_folder(fd)
-    assert sorted(result['files']) == ['a.txt', 'b.txt']
-    assert result['dirs'] == ['subdir']
+    folder = build_folder(fd)
+
+    assert folder.name == 'build_folder'
+    assert folder.subfolders[0].name == 'subdir'
+    assert folder.files == ['b.txt', 'a.txt']
 
 
 def test_get_files():

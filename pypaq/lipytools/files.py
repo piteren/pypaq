@@ -197,7 +197,7 @@ def r_yaml(
 def extract_folder_path(path: str | Path) -> str:
     """extracts folder full path from a given path"""
     path = Path(path)
-    if path.is_dir():
+    if not path.suffix and not path.is_file():
         return str(path)
     return str(path.parent)
 
@@ -205,7 +205,7 @@ def extract_folder_path(path: str | Path) -> str:
 def extract_folder_name(path: str | Path) -> str:
     """extracts folder name from a given path"""
     path = Path(path)
-    if path.is_dir():
+    if not path.suffix and not path.is_file():
         return path.name
     return path.parent.name
 
