@@ -19,6 +19,25 @@ class Folder:
     subfolders: list["Folder"] = field(default_factory=list) # subfolders names, NOT full paths
     files: list[str] = field(default_factory=list) # files names, NOT full paths
 
+    def _build_tree(self, lines: list[str], prefix: str) -> None:
+        entries: list[tuple] = (
+            [(sf, True) for sf in sorted(self.subfolders, key=lambda f: f.name)] +
+            [(fn, False) for fn in sorted(self.files)]
+        )
+        for i, (entry, is_folder) in enumerate(entries):
+            is_last = i == len(entries) - 1
+            connector = '└─ ' if is_last else '├─ '
+            if is_folder:
+                lines.append(f'{prefix}{connector}D {entry.name}/')
+                entry._build_tree(lines, prefix + ('   ' if is_last else '│  '))
+            else:
+                lines.append(f'{prefix}{connector}f {entry}')
+
+    def __str__(self) -> str:
+        lines = [f'D {self.name}/']
+        self._build_tree(lines, '')
+        return '\n'.join(lines)
+
 
 def r_text(
         file_path: str | Path,
@@ -178,16 +197,18 @@ def r_yaml(
 
 def extract_folder_path(path: str | Path) -> str:
     """extracts folder full path from a given path"""
-    if os.path.isdir(path):
-        return path
-    path_split = str(path).split('/')
-    return '/'.join(path_split[:-1])
+    path = Path(path)
+    if path.is_dir():
+        return str(path)
+    return str(path.parent)
 
 
 def extract_folder_name(path: str | Path) -> str:
     """extracts folder name from a given path"""
-    n = -1 if os.path.isdir(path) else -2
-    return str(path).split('/')[n]
+    path = Path(path)
+    if path.is_dir():
+        return path.name
+    return path.parent.name
 
 
 def prep_folder(
@@ -244,3 +265,6 @@ def get_requirements(file_path :str = 'requirements.txt') -> list[str]:
     file_text = r_text(file_path, raise_exception=True)
     file_lines = file_text.split('\n')
     return [l.strip() for l in file_lines]
+
+
+print(list_folder("pypaq"))
