@@ -38,8 +38,7 @@ class Folder:
         return lines
 
     def __str__(self) -> str:
-        subtree_lines = self._build_tree()
-        return '\n'.join([f'D {self.name}/'] + subtree_lines)
+        return '\n'.join([f'D {self.name}/'] + self._build_tree())
 
     @classmethod
     def from_path(cls, fd_path: str | Path, recursive: bool = True) -> "Folder":
