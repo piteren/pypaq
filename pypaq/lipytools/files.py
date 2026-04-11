@@ -37,6 +37,21 @@ class Folder:
         self._build_tree(lines, '')
         return '\n'.join(lines)
 
+    @classmethod
+    def from_path(cls, fd_path: str | Path, recursive: bool = True) -> "Folder":
+        """builds a Folder tree from the given directory path"""
+        fd_path = Path(fd_path)
+        folder = cls(name=fd_path.name, path=str(fd_path.parent))
+        for entry in fd_path.iterdir():
+            if entry.is_file():
+                folder.files.append(entry.name)
+            elif entry.is_dir():
+                if recursive:
+                    folder.subfolders.append(cls.from_path(entry, recursive))
+                else:
+                    folder.subfolders.append(cls(name=entry.name, path=str(fd_path)))
+        return folder
+
 
 def r_text(
         file_path: str | Path,
@@ -222,24 +237,6 @@ def prep_folder(
     folder_path.mkdir(parents=True, exist_ok=True)
 
 
-def build_folder(
-        fd_path: str | Path,
-        recursive: bool = True,
-) -> Folder:
-    """builds a Folder tree from the given directory path"""
-    fd_path = Path(fd_path)
-    folder = Folder(name=fd_path.name, path=str(fd_path.parent))
-    for entry in fd_path.iterdir():
-        if entry.is_file():
-            folder.files.append(entry.name)
-        elif entry.is_dir():
-            if recursive:
-                folder.subfolders.append(build_folder(entry, recursive))
-            else:
-                folder.subfolders.append(Folder(name=entry.name, path=str(fd_path)))
-    return folder
-
-
 def get_files(
         fd_path: str | Path,
         recursive: bool = True,
@@ -253,8 +250,7 @@ def get_files(
             files.extend(_get_fd_and_sub_files(sfd))
         return files
 
-    folder = build_folder(fd_path, recursive)
-    return _get_fd_and_sub_files(folder)
+    return _get_fd_and_sub_files(Folder.from_path(fd_path, recursive))
 
 
 def get_requirements(file_path :str = 'requirements.txt') -> list[str]:

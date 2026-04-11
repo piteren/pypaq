@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from pypaq.lipytools.files import (
+    Folder,
     r_text, w_text,
     r_pickle, w_pickle,
     r_json, w_json,
@@ -11,7 +12,7 @@ from pypaq.lipytools.files import (
     r_csv, w_csv,
     r_yaml,
     extract_folder_path, extract_folder_name,
-    prep_folder, build_folder, get_files,
+    prep_folder, get_files,
 )
 from pypaq.exception import PyPaqException
 
@@ -179,14 +180,14 @@ def test_prep_folder_from_file_path():
     assert os.path.isdir(f'{TMP_DIR}/sub/deep')
 
 
-def test_build_folder():
+def test_folder_from_path():
     fd = f'{TMP_DIR}/build_folder'
     prep_folder(fd)
     w_text('a', f'{fd}/a.txt')
     w_text('b', f'{fd}/b.txt')
     prep_folder(f'{fd}/subdir')
 
-    folder = build_folder(fd)
+    folder = Folder.from_path(fd)
 
     assert folder.name == 'build_folder'
     assert folder.subfolders[0].name == 'subdir'
