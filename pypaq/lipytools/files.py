@@ -21,24 +21,25 @@ class Folder:
     def name(self) -> str:
         return self.full_path.name
 
-    def _build_tree(self, lines: list[str], prefix: str) -> None:
+    def _build_tree(self, prefix: str = '') -> list[str]:
         entries: list[tuple[Folder | str, bool]] = (
             [(sf, True) for sf in sorted(self.subfolders, key=lambda f: f.name)] +
             [(fn, False) for fn in sorted(self.files)]
         )
+        lines = []
         for i, (entry, is_folder) in enumerate(entries):
             is_last = i == len(entries) - 1
             connector = '└─ ' if is_last else '├─ '
             if is_folder:
                 lines.append(f'{prefix}{connector}D {entry.name}/')
-                entry._build_tree(lines, prefix + ('   ' if is_last else '│  '))
+                lines.extend(entry._build_tree(prefix + ('   ' if is_last else '│  ')))
             else:
                 lines.append(f'{prefix}{connector}f {entry}')
+        return lines
 
     def __str__(self) -> str:
-        lines = [f'D {self.name}/']
-        self._build_tree(lines, '')
-        return '\n'.join(lines)
+        subtree_lines = self._build_tree()
+        return '\n'.join([f'D {self.name}/'] + subtree_lines)
 
     @classmethod
     def from_path(cls, fd_path: str | Path, recursive: bool = True) -> "Folder":
@@ -260,3 +261,6 @@ def get_requirements(file_path :str = 'requirements.txt') -> list[str]:
     file_text = r_text(file_path, raise_exception=True)
     file_lines = file_text.split('\n')
     return [l.strip() for l in file_lines]
+
+
+print(Folder.from_path("pypaq"))
