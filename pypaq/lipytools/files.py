@@ -1,18 +1,29 @@
 import csv
+from dataclasses import dataclass, field
 import gzip
 import json
 import os
+from pathlib import Path
 import pickle
 import shutil
-import yaml
-from pathlib import Path
 import sys
-from typing import Union, Dict, List, Optional
+import yaml
 
 from pypaq.exception import PyPaqException
 
 
-def r_text(file_path:str, raise_exception=False) -> Optional[str]:
+@dataclass
+class Folder:
+    name: str # folder name, NOT a full path
+    path: str # folder path (folder full_path = path/name)
+    subfolders: list["Folder"] = field(default_factory=list) # subfolders names, NOT full paths
+    files: list[str] = field(default_factory=list) # files names, NOT full paths
+
+
+def r_text(
+        file_path: str | Path,
+        raise_exception: bool = False,
+) -> str | None:
     if not os.path.isfile(file_path):
         if raise_exception:
             raise FileNotFoundError(f'file {file_path} not exists!')
@@ -21,12 +32,19 @@ def r_text(file_path:str, raise_exception=False) -> Optional[str]:
         return file.read()
 
 
-def w_text(text:str, file_path:str):
+def w_text(
+        text: str,
+        file_path: str | Path,
+):
     with open(file_path, 'w') as file:
         return file.write(text)
 
 
-def r_pickle(file_path, obj_type=None, raise_exception=False):
+def r_pickle(
+        file_path: str | Path,
+        obj_type = None,
+        raise_exception: bool=False,
+):
     """ reads pickle
     if obj_type is given checks for compatibility with given type """
     if not os.path.isfile(file_path):
@@ -49,13 +67,20 @@ def r_pickle(file_path, obj_type=None, raise_exception=False):
     return obj
 
 
-def w_pickle(obj, file_path, compressed=False):
+def w_pickle(
+        obj,
+        file_path: str | Path,
+        compressed: bool=False,
+):
     op_fn = gzip.open if compressed else open
     with op_fn(file_path, 'wb') as file:
         pickle.dump(obj, file)
 
 
-def r_json(file_path, raise_exception=False) -> Optional[Union[Dict,List]]:
+def r_json(
+        file_path: str | Path,
+        raise_exception: bool = False,
+) -> dict | list | None:
     if not os.path.isfile(file_path):
         if raise_exception:
             raise FileNotFoundError(f'file {file_path} not exists!')
@@ -64,12 +89,18 @@ def r_json(file_path, raise_exception=False) -> Optional[Union[Dict,List]]:
         return json.load(file)
 
 
-def w_json(data:Union[Dict,List], file_path):
+def w_json(
+        data: dict | list,
+        file_path: str | Path,
+):
     with open(file_path, 'w', encoding='utf-8') as file:
         json.dump(data, file, indent=4, ensure_ascii=False)
 
 
-def r_jsonl(file_path, raise_exception=False) -> Optional[List]:
+def r_jsonl(
+        file_path: str | Path,
+        raise_exception: bool = False,
+) -> list | None:
     if not os.path.isfile(file_path):
         if raise_exception:
             raise FileNotFoundError(f'file {file_path} not exists!')
@@ -78,14 +109,20 @@ def r_jsonl(file_path, raise_exception=False) -> Optional[List]:
         return [json.loads(line) for line in file]
 
 
-def w_jsonl(data:List, file_path):
+def w_jsonl(
+        data: list,
+        file_path: str | Path,
+):
     with open(file_path, 'w', encoding='utf-8') as file:
         for d in data:
             json.dump(d, file, ensure_ascii=False)
             file.write('\n')
 
 
-def r_jsonl_gz(file_path: str, raise_exception=False) -> Optional[List]:
+def r_jsonl_gz(
+        file_path: str | Path,
+        raise_exception: bool = False,
+) -> list | None:
     if not os.path.isfile(file_path):
         if raise_exception:
             raise FileNotFoundError(f'file {file_path} not exists!')
@@ -94,14 +131,20 @@ def r_jsonl_gz(file_path: str, raise_exception=False) -> Optional[List]:
         return [json.loads(line) for line in file]
 
 
-def w_jsonl_gz(data: List, file_path: str):
+def w_jsonl_gz(
+        data: list,
+        file_path: str | Path,
+):
     with gzip.open(file_path, 'wt', encoding='utf-8') as file:
         for d in data:
             json.dump(d, file, ensure_ascii=False)
             file.write('\n')
 
 
-def r_csv(file_path, raise_exception=False) -> Optional[List]:
+def r_csv(
+        file_path: str | Path,
+        raise_exception: bool = False,
+) -> list | None:
     if not os.path.isfile(file_path):
         if raise_exception:
             raise FileNotFoundError(f'file {file_path} not exists!')
@@ -112,13 +155,19 @@ def r_csv(file_path, raise_exception=False) -> Optional[List]:
         return [row for row in reader]
 
 
-def w_csv(data:List[List], file_path):
+def w_csv(
+        data: list[list],
+        file_path: str | Path,
+):
     with open(file_path, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerows(data)
 
 
-def r_yaml(file_path, raise_exception=False):
+def r_yaml(
+        file_path: str | Path,
+        raise_exception: bool = False,
+):
     if not os.path.isfile(file_path):
         if raise_exception:
             raise FileNotFoundError(f'file {file_path} not exists!')
@@ -127,45 +176,71 @@ def r_yaml(file_path, raise_exception=False):
         return yaml.load(file, yaml.Loader)
 
 
-def get_dir(path: Union[str, Path]):
-    path = str(path)
-    path_split = path.split('/')
-    if path_split[-1].find('.') != -1: path_split = path_split[:-1]
-    return '/'.join(path_split)
+def extract_folder_path(path: str | Path) -> str:
+    """extracts folder full path from a given path"""
+    if os.path.isdir(path):
+        return path
+    path_split = str(path).split('/')
+    return '/'.join(path_split[:-1])
 
 
-def prep_folder(path:Union[str,Path], flush_non_empty=False):
+def extract_folder_name(path: str | Path) -> str:
+    """extracts folder name from a given path"""
+    n = -1 if os.path.isdir(path) else -2
+    return str(path).split('/')[n]
+
+
+def prep_folder(
+        path: str | Path,
+        flush_non_empty: bool = False,
+):
     """ prepares folder
     path may be a file path -> folder path is extracted """
-    folder_path = get_dir(path)
+    folder_path = extract_folder_path(path)
     if folder_path: # in case folder_path == ''
         if flush_non_empty and os.path.isdir(folder_path):
             shutil.rmtree(folder_path)
         os.makedirs(folder_path, exist_ok=True)
 
 
-def list_dir(fd_path: Union[str, Path]) -> Dict[str,List]:
+def list_folder(
+        fd_path: str | Path,
+        recursive: bool = True,
+) -> Folder:
+    """lists folder subfolders and files"""
     ls = os.listdir(fd_path)
-    lsD = {'files':[], 'dirs':[]}
+    fd_name = extract_folder_name(fd_path)
+    folder = Folder(name=fd_name, path=fd_path.split(fd_name)[-1])
     for e in ls:
-        lsD['files' if os.path.isfile(f'{fd_path}/{e}') else 'dirs'].append(e)
-    return lsD
+        _full_path = os.path.join(fd_path, e)
+        if os.path.isfile(_full_path):
+            folder.files.append(e)
+        else:
+            if recursive:
+                folder.subfolders.append(list_folder(_full_path, recursive))
+            else:
+                folder.subfolders.append(Folder(name=e, path=fd_path))
+    return folder
 
 
-def get_files(fd_path: Union[str, Path], recursive:bool=True) -> List[str]:
+def get_files(
+        fd_path: str | Path,
+        recursive: bool = True,
+) -> list[str]:
     """returns full paths to files form given folder
     recursive: parses also subfolders"""
-    files = []
-    dirD = list_dir(fd_path)
-    files.extend([f"{fd_path}/{fn}" for fn in dirD['files']])
-    if recursive:
-        for sfd_name in dirD['dirs']:
-            files.extend(get_files(f"{fd_path}/{sfd_name}", recursive=True))
-    return files
+
+    def _get_fd_and_sub_files(fd: Folder) -> list[str]:
+        files = [f"{fd.path}/{fd.name}/{fn}" for fn in fd.files]
+        for sfd in fd.subfolders:
+            files.extend(_get_fd_and_sub_files(sfd))
+        return files
+
+    folder = list_folder(fd_path, recursive)
+    return _get_fd_and_sub_files(folder)
 
 
-def get_requirements(file_path:str='requirements.txt') -> List[str]:
+def get_requirements(file_path :str = 'requirements.txt') -> list[str]:
     file_text = r_text(file_path, raise_exception=True)
     file_lines = file_text.split('\n')
     return [l.strip() for l in file_lines]
-

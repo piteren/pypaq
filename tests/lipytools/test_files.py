@@ -1,8 +1,5 @@
 import os
-
 import pytest
-
-from tests.envy import flush_tmp_dir
 
 from pypaq.lipytools.files import (
     r_text, w_text,
@@ -12,11 +9,12 @@ from pypaq.lipytools.files import (
     r_jsonl_gz, w_jsonl_gz,
     r_csv, w_csv,
     r_yaml,
-    get_dir, prep_folder, list_dir, get_files,
+    extract_folder_path, extract_folder_name,
+    prep_folder, list_folder, get_files,
 )
 from pypaq.exception import PyPaqException
 
-TMP_DIR = f'{flush_tmp_dir()}/files_test'
+TMP_DIR =
 
 
 def setup_function():
@@ -145,10 +143,16 @@ def test_yaml_missing():
         r_yaml(f'{TMP_DIR}/nonexistent.yaml', raise_exception=True)
 
 
-def test_get_dir():
-    assert get_dir('/home/user/file.txt') == '/home/user'
-    assert get_dir('/home/user/folder') == '/home/user/folder'
-    assert get_dir('/home/user/folder/') == '/home/user/folder/'
+def test_extract_folder_path():
+    assert extract_folder_path('/home/user/file.txt') == '/home/user'
+    assert extract_folder_path('/home/user/folder') == '/home/user/folder'
+    assert extract_folder_path('/home/user/folder/') == '/home/user/folder/'
+
+
+def test_extract_folder_name():
+    extract_folder_name("")
+    # TODO
+    pass
 
 
 def test_prep_folder():
@@ -172,14 +176,14 @@ def test_prep_folder_from_file_path():
     assert os.path.isdir(f'{TMP_DIR}/sub/deep')
 
 
-def test_list_dir():
+def test_list_folder():
     fd = f'{TMP_DIR}/list_test'
     prep_folder(fd)
     w_text('a', f'{fd}/a.txt')
     w_text('b', f'{fd}/b.txt')
     prep_folder(f'{fd}/subdir')
 
-    result = list_dir(fd)
+    result = list_folder(fd)
     assert sorted(result['files']) == ['a.txt', 'b.txt']
     assert result['dirs'] == ['subdir']
 
