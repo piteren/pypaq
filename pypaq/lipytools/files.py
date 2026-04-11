@@ -24,7 +24,7 @@ def r_text(
         file_path: str | Path,
         raise_exception: bool = False,
 ) -> str | None:
-    if not os.path.isfile(file_path):
+    if not Path(file_path).is_file():
         if raise_exception:
             raise FileNotFoundError(f'file {file_path} not exists!')
         return None
@@ -47,7 +47,7 @@ def r_pickle(
 ):
     """ reads pickle
     if obj_type is given checks for compatibility with given type """
-    if not os.path.isfile(file_path):
+    if not Path(file_path).is_file():
         if raise_exception:
             raise FileNotFoundError(f'file {file_path} not exists!')
         return None
@@ -81,7 +81,7 @@ def r_json(
         file_path: str | Path,
         raise_exception: bool = False,
 ) -> dict | list | None:
-    if not os.path.isfile(file_path):
+    if not Path(file_path).is_file():
         if raise_exception:
             raise FileNotFoundError(f'file {file_path} not exists!')
         return None
@@ -101,7 +101,7 @@ def r_jsonl(
         file_path: str | Path,
         raise_exception: bool = False,
 ) -> list | None:
-    if not os.path.isfile(file_path):
+    if not Path(file_path).is_file():
         if raise_exception:
             raise FileNotFoundError(f'file {file_path} not exists!')
         return None
@@ -123,7 +123,7 @@ def r_jsonl_gz(
         file_path: str | Path,
         raise_exception: bool = False,
 ) -> list | None:
-    if not os.path.isfile(file_path):
+    if not Path(file_path).is_file():
         if raise_exception:
             raise FileNotFoundError(f'file {file_path} not exists!')
         return None
@@ -145,7 +145,7 @@ def r_csv(
         file_path: str | Path,
         raise_exception: bool = False,
 ) -> list | None:
-    if not os.path.isfile(file_path):
+    if not Path(file_path).is_file():
         if raise_exception:
             raise FileNotFoundError(f'file {file_path} not exists!')
         return None
@@ -168,7 +168,7 @@ def r_yaml(
         file_path: str | Path,
         raise_exception: bool = False,
 ):
-    if not os.path.isfile(file_path):
+    if not Path(file_path).is_file():
         if raise_exception:
             raise FileNotFoundError(f'file {file_path} not exists!')
         return None
