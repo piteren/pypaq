@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import pytest
 
 from pypaq.lipytools.files import (
@@ -14,10 +15,11 @@ from pypaq.lipytools.files import (
 )
 from pypaq.exception import PyPaqException
 
-TMP_DIR =
+TMP_DIR = Path(__file__).parent / '_tmp' / 'files_test'
 
 
-def setup_function():
+@pytest.fixture(autouse=True, scope='module')
+def tmp_dir():
     prep_folder(TMP_DIR, flush_non_empty=True)
 
 
