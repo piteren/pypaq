@@ -31,18 +31,15 @@ def histogram(
         warnings.warn(msg)
         return msg
 
-    val_set = list(set(val_list))
-
-    small_int_case = False
-    if len(val_set) < 50:
-        val_set = [v.item() for v in val_set]
-        if all([type(v) is int for v in val_set]):
-            val_set = sorted(val_set)
-            if val_set[-1]-val_set[0] < 60:
-                small_int_case = True
-
     if type(val_list) is not np.ndarray:
         val_list = np.asarray(val_list)
+
+    val_set = np.asarray(sorted(set(val_list)))
+    small_int_case = (
+        len(val_set) < 50
+        and np.issubdtype(val_set.dtype, np.integer)
+        and val_set[-1] - val_set[0] < 60
+    )
 
     s = []
     if msmx_stats:

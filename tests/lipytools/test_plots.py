@@ -1,15 +1,16 @@
+from pathlib import Path
 import numpy as np
 import pandas as pd
+import pytest
 
 from pypaq.lipytools.files import prep_folder
 from pypaq.lipytools.plots import histogram, two_dim, three_dim, two_dim_multi, week_density_plot
 
-from tests.envy import flush_tmp_dir
-
-PLOTS_FD = f'{flush_tmp_dir()}/hpmser'
+PLOTS_FD = Path(__file__).parent / '_tmp_plots'
 
 
-def setup_function():
+@pytest.fixture(autouse=True, scope='module')
+def tmp_dir():
     prep_folder(PLOTS_FD, flush_non_empty=True)
 
 

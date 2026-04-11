@@ -1,14 +1,15 @@
 import time
-
-from tests.envy import flush_tmp_dir
+from pathlib import Path
+import pytest
 
 from pypaq.lipytools.files import prep_folder
 from pypaq.pms.config_manager import ConfigManager
 
-CONFIG_DIR = f'{flush_tmp_dir()}/config_manager'
+CONFIG_DIR = Path(__file__).parent / '_tmp_config_manager'
 
 
-def setup_function():
+@pytest.fixture(autouse=True, scope='module')
+def tmp_dir():
     prep_folder(CONFIG_DIR, flush_non_empty=True)
 
 

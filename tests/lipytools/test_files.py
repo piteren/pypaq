@@ -15,7 +15,7 @@ from pypaq.lipytools.files import (
 )
 from pypaq.exception import PyPaqException
 
-TMP_DIR = Path(__file__).parent / '_tmp'
+TMP_DIR = Path(__file__).parent / '_tmp_files'
 
 
 @pytest.fixture(autouse=True, scope='module')

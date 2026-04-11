@@ -1,11 +1,10 @@
+from pathlib import Path
 import pytest
-
-from tests.envy import flush_tmp_dir
 
 from pypaq.lipytools.files import prep_folder
 from pypaq.pms.parasave import ParaSave, ParaSaveException
 
-PARASAVE_TOPDIR = f'{flush_tmp_dir()}/parasave'
+PARASAVE_TOPDIR = Path(__file__).parent / '_tmp_parasave'
 ParaSave.SAVE_TOPDIR = PARASAVE_TOPDIR
 
 
@@ -13,8 +12,8 @@ _POINT = {'name':'pio', 'a':1, 'b':2, 'c':'nap'}
 _PSDD = {'a':[0, 100], 'b':[0.0, 10]}
 
 
-def setup_function():
-    print(f'setting up folder for tests: {PARASAVE_TOPDIR}')
+@pytest.fixture(autouse=True, scope='module')
+def tmp_dir():
     prep_folder(PARASAVE_TOPDIR, flush_non_empty=True)
 
 

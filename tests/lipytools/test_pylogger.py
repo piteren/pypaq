@@ -1,12 +1,14 @@
+from pathlib import Path
+import pytest
+
 from pypaq.lipytools.files import prep_folder
 from pypaq.lipytools.pylogger import PyLogger, get_pylogger, get_child
 
-from tests.envy import flush_tmp_dir
-
-TEMP_FD = f'{flush_tmp_dir()}/hpmser'
+TEMP_FD = Path(__file__).parent / '_tmp_pylogger'
 
 
-def setup_function():
+@pytest.fixture(autouse=True, scope='module')
+def tmp_dir():
     prep_folder(TEMP_FD, flush_non_empty=True)
 
 
