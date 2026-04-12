@@ -11,6 +11,40 @@ LINE_UP = '\033[1A'
 LINE_CLEAR = '\x1b[2K'
 
 
+class SLines:
+
+    def __init__(self, lines: list[str] | None = None):
+        self._lines: list[str] = []
+        if lines:
+            for line in lines:
+                self.append(line)
+
+    def __str__(self):
+        return "\n".join(self._lines)
+
+    def __add__(self, other: "SLines") -> "SLines":
+        sl = SLines()
+        sl._ext(other._lines)
+        return sl
+
+    def _ext(self, lines: list[str]) -> None:
+        """extends self._lines with list of (clear, no \n) lines"""
+        self._lines.extend(lines)
+
+    def append(self, line:str):
+        self._ext(line.split('\n'))
+
+    def extend(self, other: "SLines") -> None:
+        self._ext(other._lines)
+
+    def add_empty(self):
+        self._lines.append("")
+
+    @property
+    def lines(self) -> list[str]:
+        return [] + self._lines
+
+
 def nice_scin(num:NUM, precision:int=1, replace_zero:bool=True, add_plus:bool=False) -> str:
     """short (compressed) scientific notation for numbers
 

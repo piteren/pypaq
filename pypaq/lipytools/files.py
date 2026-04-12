@@ -31,14 +31,15 @@ class Folder:
             is_last = i == len(entries) - 1
             connector = '└─ ' if is_last else '├─ '
             if is_folder:
-                lines.append(f'{prefix}{connector}D {entry.name}/')
+                lines.append(f'{prefix}{connector}D {entry.name}/ [{len(entry.subfolders)}/{len(entry.files)}]')
                 lines.extend(entry._build_tree(prefix + ('   ' if is_last else '│  ')))
             else:
                 lines.append(f'{prefix}{connector}f {entry}')
         return lines
 
     def __str__(self) -> str:
-        return '\n'.join([f'D {self.name}/'] + self._build_tree())
+        sl  = f'D {self.name}/ [{len(self.subfolders)}/{len(self.files)}]'
+        return '\n'.join([sl] + self._build_tree())
 
     @classmethod
     def from_path(cls, fd_path: str | Path, recursive: bool = True) -> "Folder":
@@ -244,14 +245,14 @@ def get_files(
         fd_path: str | Path,
         recursive: bool = True,
 ) -> list[str]:
-    """returns full paths to files form given folder
+    """returns full paths (sorted) to files form a given folder
     recursive: parses also subfolders"""
 
     def _get_fd_and_sub_files(fd: Folder) -> list[str]:
         files = [str(fd.full_path / fn) for fn in fd.files]
         for sfd in fd.subfolders:
             files.extend(_get_fd_and_sub_files(sfd))
-        return files
+        return sorted(files)
 
     return _get_fd_and_sub_files(Folder.from_path(fd_path, recursive))
 
@@ -260,6 +261,3 @@ def get_requirements(file_path :str = 'requirements.txt') -> list[str]:
     file_text = r_text(file_path, raise_exception=True)
     file_lines = file_text.split('\n')
     return [l.strip() for l in file_lines]
-
-
-print(Folder.from_path("pypaq"))
