@@ -1,32 +1,30 @@
 from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.mpython.mptools import sys_res_nfo
 from pypaq.exception import PyPaqException
-from typing import Union, List
 
-DevicesPypaq: Union[None, float, str, List[Union[None,float,str]]] = 1.0
+DevicesPypaq = None | float | str | list[None | float | str]
 
 
 def get_devices(
-        devices: DevicesPypaq=  1.0,
-        logger=                 None,
-        loglevel=               20,
-) -> List[None]:
-    """ resolves representation given with devices (DevicesTorchness) """
+        devices: DevicesPypaq = 1.0,
+        logger = None,
+        loglevel = 20,
+) -> list[None]:
+    """ resolves representation given with devices """
 
     if not logger:
         logger = get_pylogger(name='get_devices', level=loglevel)
 
-    if type(devices) is not list:
-        devices = [devices]
+    devices_list = devices if isinstance(devices, list) else [devices]
 
-    if not devices:
+    if not devices_list:
         raise PyPaqException('no devices given')
 
     cpu_count = sys_res_nfo()['cpu_count']
     logger.debug(f'got {cpu_count} CPU devices in a system')
 
     devices_base = []
-    for d in devices:
+    for d in devices_list:
 
         known_device = False
 
