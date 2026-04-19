@@ -1,5 +1,7 @@
 import numpy as np
-from typing import Union, Sequence
+from typing import Sequence
 
-NUM = Union[int, float, np.ndarray]     # just one number, in case of np.ndarray it has shape ()
-NPL = Union[Sequence[NUM], np.ndarray]  # array of numbers
+ARR = np.ndarray            # numpy array
+NUM = int | float | ARR     # just one number, in case of np.ndarray it has shape ()
+NPL = Sequence[NUM] | ARR   # numbers
+DARR = dict[str, ARR]
