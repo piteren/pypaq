@@ -1,5 +1,4 @@
 import csv
-from dataclasses import dataclass, field
 import gzip
 import json
 from pathlib import Path
@@ -9,13 +8,20 @@ import sys
 import yaml
 
 from pypaq.exception import PyPaqException
+from pypaq.lipytools.printout import ProgBar
 
 
-@dataclass
 class Folder:
-    full_path: Path
-    subfolders: list["Folder"] = field(default_factory=list)
-    files: list[str] = field(default_factory=list) # file names only, NOT full paths
+
+    def __init__(
+            self,
+            full_path: Path | str,
+            subfolders: list["Folder"] | None = None,
+            files: list[str] | None = None,  # file names only, NOT full paths
+    ):
+        self.full_path = Path(full_path)
+        self.subfolders = subfolders or []
+        self.files = files or []
 
     @property
     def name(self) -> str:
@@ -36,6 +42,28 @@ class Folder:
             else:
                 lines.append(f'{prefix}{connector}f {entry}')
         return lines
+
+    def processing_func(
+            self,
+            file_source_path: Path | str,
+            file_target_path: Path | str,
+    ):
+        raise NotImplementedError("not implemented Folder.processing_func()!")
+
+    def process_files(self, path_processed:Path|str):
+        """processes all files in tree with processing_func(), which needs to be implemented"""
+        path_processed = Path(path_processed)
+        prep_folder(path_processed)
+        if len(self.files):
+            prog = ProgBar(len(self.files))
+            for fn in self.files:
+                self.processing_func(
+                    file_source_path=self.full_path / fn,
+                    file_target_path=path_processed / fn)
+                prog.inc(prefix=f"processed {fn} from {self.name}")
+        for sfd in self.subfolders:
+            sfd.processing_func = self.processing_func
+            sfd.process_files(path_processed / sfd.name)
 
     def __str__(self) -> str:
         sl  = f'D {self.name}/ [{len(self.subfolders)}/{len(self.files)}]'
@@ -111,7 +139,7 @@ def w_pickle(
 ):
     op_fn = gzip.open if compressed else open
     with op_fn(file_path, 'wb') as file:
-        pickle.dump(obj, file)
+        pickle.dump(obj, file)  #type: ignore
 
 
 def r_json(
