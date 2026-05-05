@@ -1,81 +1,68 @@
 import logging
-from typing import Optional, Union, Tuple
+from typing import Optional
 
-from pypaq.lipytools.printout import stamp
 from pypaq.lipytools.files import prep_folder
 
-
-class PyLogger(logging.Logger):
-    pass
-
-logging.setLoggerClass(PyLogger)
+DEFAULT_FMT = '%(asctime)s {%(filename)20s:%(lineno)4d} p%(process)s %(levelname)s: %(message)s'
 
 
-def get_pylogger(
-        name: Optional[str]=                None,
-        add_stamp=                          True,
-        folder: Optional[str]=              None,
-        level=                              logging.INFO,
-        flat_child: bool=                   False,
-        format: Union[Tuple[str,str],str]=  '%(asctime)s {%(filename)20s:%(lineno)4d} p%(process)s %(levelname)s: %(message)s',
-        to_stdout=                          True,
-) -> logging.Logger:
-    """ returns formatted logging.Logger
-    - add_stamp:    prevents merging loggers of same name
-    - folder:       writes logfile to folder if given
-    - flat_child:   forces child of this logger created with get_child() to be same level
-    - format:       may be given as a str or Tuple[str,str] (fmt,datefmt) """
+def setup_logging(
+        level: int = logging.INFO,
+        folder: Optional[str] = None,
+        log_file_name: Optional[str] = None,
+        to_stdout: bool = True,
+        fmt: str = DEFAULT_FMT,
+) -> None:
+    """Configure the root logger handlers.
+    Call once at app startup."""
 
-    if not name:
-        name = 'pylogger'
-    if add_stamp:
-        name += '_' + stamp()
-
-    if type(format) is not tuple:
-        format = (format,)
-
-    formatter = logging.Formatter(*format)
-
-    logger = logging.getLogger(name)
+    logger = logging.getLogger()
     logger.setLevel(level)
-    logger.propagate = False
 
-    ### manage handlers
+    formatter = logging.Formatter(fmt)
 
-    # if logger has handlers new handlers of existing type won't be added
-    for h in logger.handlers:
-        if type(h) is logging.FileHandler:
-            folder = None
-        if type(h) is logging.StreamHandler:
-            to_stdout = False
-
-    if folder:
-        prep_folder(folder)
-        fh = logging.FileHandler(f'{folder}/{name}.log')
-        fh.setFormatter(formatter)
-        logger.addHandler(fh)
-
-    if to_stdout:
+    has_stream = any(type(h) is logging.StreamHandler for h in logger.handlers)
+    if to_stdout and not has_stream:
         sh = logging.StreamHandler()
         sh.setFormatter(formatter)
         logger.addHandler(sh)
 
-    logger.flat_child = flat_child
+    if folder:
+        prep_folder(folder)
+        fh = logging.FileHandler(f'{folder}/{log_file_name or logger.name}.log')
+        fh.setFormatter(formatter)
+        logger.addHandler(fh)
 
-    return logger
 
+class Logged:
+    """Manages class/object logger.
+    For classes with nuanced logging levels or folder logging."""
 
-def get_child(logger, name:Optional[str]=None, change_level:int=0) -> logging.Logger:
-    """ returns child with optionally changed level """
+    def get_logger(
+            self,
+            level: Optional[int] = None,
+            folder: Optional[str] = None,
+            fmt: str = DEFAULT_FMT,
+    ) -> logging.Logger:
+        """Call in class init just after setting self.name,
+        if setting self.name is not set, logger becomes class (not object) logger."""
 
-    if not name:
-        name = f'{logger.name}_child'
-    clogger = logger.getChild(name)
-    clogger.flat_child = logger.flat_child
+        logger_name = f'{self.__class__.__module__}.{self.__class__.__qualname__}'
+        obj_name = getattr(self, 'name', None)
+        if obj_name:
+            logger_name += f'.{obj_name}'
+        logger = logging.getLogger(logger_name)
 
-    if change_level != 0 and not logger.flat_child:
-        lvl = clogger.getEffectiveLevel()
-        lvl_child = min(lvl + change_level, logging.WARNING)
-        clogger.setLevel(lvl_child)
+        if level is not None:
+            logger.setLevel(level)
 
-    return clogger
+        # prevents duplicated FileHandlers
+        has_file = any(isinstance(h, logging.FileHandler) for h in logger.handlers)
+        if folder and not has_file:
+            prep_folder(folder)
+            formatter = logging.Formatter(fmt)
+            fh = logging.FileHandler(f'{folder}/{obj_name or self.__class__.__qualname__}.log')
+            fh.setFormatter(formatter)
+            logger.addHandler(fh)
+
+        return logger
