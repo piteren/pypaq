@@ -38,7 +38,6 @@ def get_subs(psdd):
 def test_base():
     paspa = PaSpa(SAMPLE_PSDD)
     print(paspa)
-    print(paspa.logger)
 
 
 def test_point_normalized():

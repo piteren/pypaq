@@ -69,7 +69,7 @@ def test_Que():
 def test_ExProcess_lifecycle():
 
     que = Que()
-    exs = ExS(oque=que, loglevel=10)
+    exs = ExS(oque=que)
     print(f'before spawned: {exs}')
     exs.start()
     print(f'spawned (started): {exs}')
@@ -84,7 +84,7 @@ def test_ExProcess_lifecycle():
 def test_ExProcess_kill():
 
     que = Que()
-    exs = ExS(oque=que, loglevel=10)
+    exs = ExS(oque=que)
     exs.start()
     time.sleep(1)
     exs.kill_and_close()
@@ -159,7 +159,7 @@ def test_QMessage():
 
 def test_ExProcess_mem_usage():
     que = Que()
-    exs = ExS(oque=que, loglevel=10)
+    exs = ExS(oque=que)
     exs.start()
     time.sleep(1)
     mem = exs.mem_usage
@@ -173,7 +173,7 @@ def test_ExProcess_mem_usage():
 
 def test_ExProcess_alive():
     que = Que()
-    exs = ExS(oque=que, loglevel=10)
+    exs = ExS(oque=que)
     assert not exs.alive  # not started yet
     exs.start()
     assert exs.alive

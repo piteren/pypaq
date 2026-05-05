@@ -73,7 +73,6 @@ def test_PointCloud_single_vpoint():
 
 def test_points_nice_table():
     psdd = {'a': [0.0, 1.0], 'b': [0.0, 1.0]}
-    paspa = PaSpa(psdd)
     vpoints = [
         VPoint(point={'a': 0.1, 'b': 0.2}, name='p1', value=0.5),
         VPoint(point={'a': 0.9, 'b': 0.8}, name='p2', value=0.9),

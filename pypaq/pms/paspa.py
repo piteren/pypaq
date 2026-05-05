@@ -1,15 +1,17 @@
 from copy import deepcopy
+import logging
 import math
 import random
 
 from pypaq.pms.base import P_VAL, POINT, PSDD, PMSException
-from pypaq.lipytools.pylogger import Logged
+
+logger = logging.getLogger(__name__)
 
 NO_REF = '<<< NO-REF >>>' # axis value when no reference value given
 
 
 
-class PaSpa(Logged):
+class PaSpa:
     """ PaSpa - Parameters Space
 
     PaSpa is build from PSDD (Params Space Definition Dictionary),
@@ -30,8 +32,6 @@ class PaSpa(Logged):
             seed: int | None = None,
             loglevel: int = 30,
     ):
-        self.logger = self.get_logger(level=loglevel)
-
         self._psdd = psdd
         self.axes = sorted(list(self._psdd.keys()))
 
@@ -47,7 +47,7 @@ class PaSpa(Logged):
             if 'list_float' in self._axT[axis]: width = 7
             self._str_width[axis] = width
 
-        self.logger.info(f'*** PaSpa *** initialized, dim: {self.dim},rdim: {self.rdim:.1f}')
+        logger.info(f'*** PaSpa *** initialized, dim: {self.dim},rdim: {self.rdim:.1f}')
 
     ### *************************************************************************** axes / value_on_axis related methods
 
@@ -449,7 +449,7 @@ class PaSpa(Logged):
                 else:
                     ranges = psdd_merged[ax] + psdd_b[ax]
                     psdd_merged[ax] = [min(ranges), max(ranges)]
-        return PaSpa(psdd=psdd_merged, loglevel=self.logger.level)
+        return PaSpa(psdd=psdd_merged)
 
     def __str__(self):
         info = f'*** PaSpa *** (dim: {self.dim}, rdim: {self.rdim:.1f}) parameters space:\n'

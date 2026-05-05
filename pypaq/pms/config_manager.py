@@ -1,9 +1,11 @@
+import logging
 from pypaq.lipytools.files import prep_folder, r_json, w_json
-from pypaq.lipytools.pylogger import Logged
 from pypaq.pms.base import POINT
 
+logger = logging.getLogger(__name__)
 
-class ConfigManager(Logged):
+
+class ConfigManager:
     """Configuration Manager
     Configuration is a dictionary {key: value}
     - keeps configuration in self attributes
@@ -16,21 +18,19 @@ class ConfigManager(Logged):
             override_with_saved: bool = True,           # file (if exists) will override given initial config
             loglevel: int = 20,
     ):
-        self._logger = self.get_logger(level=loglevel)
-
         self._file_path = file_path
         prep_folder(self._file_path)
-        self._logger.info(f'*** ConfigManager *** initializes, config file: {self._file_path}')
+        logger.info(f'*** ConfigManager *** initializes, config file: {self._file_path}')
 
         _conf = {}
 
         if config_init is not None:
-            self._logger.info(f'> got initial config: {config_init}')
+            logger.info(f'> got initial config: {config_init}')
             _conf.update(config_init)
 
         file_config = r_json(self._file_path)
         if file_config:
-            self._logger.info(f'> got file config:    {file_config}')
+            logger.info(f'> got file config:    {file_config}')
             if override_with_saved:
                 _conf.update(file_config)
 
@@ -51,8 +51,10 @@ class ConfigManager(Logged):
             new_value = not new_attribute and self.__config[key] != value
             if new_attribute or new_value:
                 self.__config[key] = value
-                if new_attribute:   self._logger.info(f'set new attribute: {key}: {value}')
-                if new_value:       self._logger.info(f'set new value:     {key}: {value}')
+                if new_attribute:
+                    logger.info(f'set new attribute: {key}: {value}')
+                if new_value:
+                    logger.info(f'set new value:     {key}: {value}')
 
             w_json(self.__config, self._file_path)
 
@@ -84,7 +86,7 @@ class ConfigManager(Logged):
 
         if dct:
             self.__config.update(dct)
-            self._logger.info(f'updated configuration with: {dct}')
+            logger.info(f'updated configuration with: {dct}')
 
         w_json(self.__config, self._file_path)
 

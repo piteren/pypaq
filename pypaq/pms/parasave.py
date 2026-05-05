@@ -1,19 +1,21 @@
+import logging
 import os
 import shutil
 
 from pypaq.exception import PyPaqException
 from pypaq.lipytools.printout import stamp
 from pypaq.lipytools.files import r_pickle, w_pickle, prep_folder
-from pypaq.lipytools.pylogger import Logged
 from pypaq.pms.base import POINT
 from pypaq.pms.para import ParaGX
+
+logger = logging.getLogger(__name__)
 
 
 class ParaSaveException(PyPaqException):
     pass
 
 
-class ParaSave(ParaGX, Logged):
+class ParaSave(ParaGX):
     """ Parameters Save
     saves/loads POINT (self params) from save_topdir
     implements GX for saved
@@ -48,7 +50,6 @@ class ParaSave(ParaGX, Logged):
             save_fn_pfx: str | None = None,     # ParaSave POINT file prefix
             assert_saved: bool = False,         # for True asserts that ParaSave has been already saved in save_topdir
             lock_managed_params: bool = False,  # locks _managed_params to only those known while init
-            loglevel: int = 20,
             **kwargs,
     ):
         """ name, save_topdir, save_fn_pfx -> if given -> always override saved values """
@@ -60,20 +61,16 @@ class ParaSave(ParaGX, Logged):
         self.save_topdir = save_topdir or self.SAVE_TOPDIR
         self.save_fn_pfx = save_fn_pfx or self.SAVE_FN_PFX
 
-        self.logger = self.get_logger(
-            level=  loglevel,
-            folder= ParaSave._full_dir(name=self.name, save_topdir=self.save_topdir) if self.save_topdir else None)
-
-        self.logger.info(f'*** ParaSave : {self.name} *** initializes ..')
-        self.logger.debug(f'> save_topdir: {self.save_topdir}')
-        self.logger.debug(f'> save_fn_pfx: {self.save_fn_pfx}')
+        logger.info(f'*** ParaSave : {self.name} *** initializes ..')
+        logger.debug(f'> save_topdir: {self.save_topdir}')
+        logger.debug(f'> save_fn_pfx: {self.save_fn_pfx}')
 
         if assert_saved and not self.is_saved(
                 name=           self.name,
                 save_topdir=    self.save_topdir,
                 save_fn_pfx=    self.save_fn_pfx):
             ex_msg = f'ParaSave {self.name} does not exist, but should!'
-            self.logger.error(ex_msg)
+            logger.error(ex_msg)
             raise ParaSaveException(ex_msg)
 
         point_saved = self.load_point(
@@ -88,17 +85,17 @@ class ParaSave(ParaGX, Logged):
         _self_point.update(self.get_point()) # params added up to now to self
         _self_point.update(kwargs)
 
-        self.logger.debug(f'ParaSave POINT sources:')
-        self.logger.debug(f'> PARASAVE_DEFAULTS:     {self.PARASAVE_DEFAULTS}')
-        self.logger.debug(f'> POINT saved:           {point_saved}')
-        self.logger.debug(f'> given kwargs:          {kwargs}')
-        self.logger.debug(f'ParaSave complete POINT: {_self_point}')
+        logger.debug(f'ParaSave POINT sources:')
+        logger.debug(f'> PARASAVE_DEFAULTS:     {self.PARASAVE_DEFAULTS}')
+        logger.debug(f'> POINT saved:           {point_saved}')
+        logger.debug(f'> given kwargs:          {kwargs}')
+        logger.debug(f'ParaSave complete POINT: {_self_point}')
 
         super().__init__(**_self_point)
 
         if lock_managed_params:
             self._managed_params = self.get_managed_params()
-            self.logger.debug(f'locked managed params: {self._managed_params}')
+            logger.debug(f'locked managed params: {self._managed_params}')
 
     def exclude_from_params(self) -> list[str]:
         return super().exclude_from_params() + ['logger']
@@ -111,7 +108,7 @@ class ParaSave(ParaGX, Logged):
     def __setitem__(self, key, value):
         if self._managed_params is not None:
             msg = f'ParaSave (managed_params locked) asked to self set with: >{key}:{value}< self will be updated, but managed_params not!'
-            self.logger.warning(msg)
+            logger.warning(msg)
         setattr(self, key, value)
 
     # ************************************************************************************************ folder management
@@ -181,7 +178,7 @@ class ParaSave(ParaGX, Logged):
 
         if not self.save_topdir:
             msg = f'cannot save {self.__class__.__name__}, if save directory was not given, aborting'
-            self.logger.error(msg)
+            logger.error(msg)
             raise ParaSaveException(msg)
 
         obj_FN = self._obj_fn(
@@ -207,7 +204,7 @@ class ParaSave(ParaGX, Logged):
             s += self.dict_2str(point)
             file.write(s)
 
-        self.logger.debug(f'{self.__class__.__name__} {self.name} saved to {self.save_topdir}')
+        logger.debug(f'{self.__class__.__name__} {self.name} saved to {self.save_topdir}')
 
     @classmethod
     def oversave_point(
@@ -222,7 +219,7 @@ class ParaSave(ParaGX, Logged):
             name=           name,
             save_topdir=    save_topdir,
             save_fn_pfx=    save_fn_pfx,
-            loglevel=       30)
+        )
         psc.update(kwargs)
         psc.save_point()
 
@@ -234,7 +231,6 @@ class ParaSave(ParaGX, Logged):
             save_topdir_src: str | None = None,
             save_topdir_trg: str | None = None,
             save_fn_pfx: str | None = None,
-            loglevel: int = 20,
             **kwags,
     ) -> None:
         """ copies saved ParaSave POINT from one folder to another """
@@ -247,7 +243,6 @@ class ParaSave(ParaGX, Logged):
             save_topdir=    save_topdir_src,
             save_fn_pfx=    save_fn_pfx,
             assert_saved=   True,
-            loglevel=       loglevel,
             **kwags)
 
         ps_src.name = name_trg
@@ -282,7 +277,6 @@ class ParaSave(ParaGX, Logged):
             save_topdir_parentB: str | None = None, # ParaSave top directory of parent B
             save_topdir_child: str | None = None,   # ParaSave top directory of child
             save_fn_pfx: str | None = None,         # ParaSave POINT file prefix
-            loglevel: int = 20,
     ) -> None:
         """ performs GX on saved ParaSave POINT """
 
@@ -296,14 +290,14 @@ class ParaSave(ParaGX, Logged):
             save_topdir=    save_topdir_parentA,
             save_fn_pfx=    save_fn_pfx,
             assert_saved=   True,
-            loglevel=       loglevel)
+        )
 
         parentB = cls(
             name=           name_parentB,
             save_topdir=    save_topdir_parentB,
             save_fn_pfx=    save_fn_pfx,
             assert_saved=   True,
-            loglevel=       loglevel) if name_parentB else None
+        ) if name_parentB else None
 
         if not cls._gxable_check(parentA, parentB):
             raise ParaSaveException('not gxable parents, cannot GX!')

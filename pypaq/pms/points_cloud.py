@@ -1,12 +1,14 @@
+import logging
 import math
 from collections.abc import Sized
 
-from pypaq.lipytools.pylogger import Logged
 from pypaq.lipytools.stats import mam
 from pypaq.lipytools.plots import three_dim
 from pypaq.lipytools.printout import nice_float_pad
 from pypaq.pms.base import POINT, point_str
 from pypaq.pms.paspa import PaSpa
+
+logger = logging.getLogger(__name__)
 
 
 class VPoint:
@@ -101,7 +103,7 @@ def points_nice_table(
     return table
 
 
-class PointsCloud(Logged, Sized):
+class PointsCloud(Sized):
     """ Points Cloud - cloud of Valued Points """
 
     def __init__(
@@ -109,8 +111,7 @@ class PointsCloud(Logged, Sized):
             paspa: PaSpa,
             loglevel = 20,
     ):
-        self.logger = self.get_logger(level=loglevel)
-        self.logger.info('*** PointsCloud *** initializing ..')
+        logger.info('*** PointsCloud *** initializing ..')
 
         self.paspa = paspa
 
@@ -169,7 +170,7 @@ class PointsCloud(Logged, Sized):
         columns = sorted(list(self._vpointsD[0].point.keys()))[:3] if not axes else [] + axes
 
         if len(columns) < 2:
-            self.logger.warning('Cannot prepare 3D plot for less than two axes')
+            logger.warning('Cannot prepare 3D plot for less than two axes')
 
         else:
 

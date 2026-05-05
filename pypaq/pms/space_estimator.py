@@ -1,21 +1,17 @@
 from abc import ABC, abstractmethod
+import logging
 import numpy as np
 from sklearn.svm import SVR
 
 from pypaq.pytypes import NPL, NUM
-from pypaq.lipytools.pylogger import Logged
 from pypaq.pms.base import PMSException
 from pypaq.pms.paspa import PaSpa
 from pypaq.pms.points_cloud import VPoint
 
+logger = logging.getLogger(__name__)
 
-class SpaceEstimator(ABC, Logged):
 
-    def __init__(
-            self,
-            loglevel: int = 20,
-    ):
-        self.logger = self.get_logger(level=loglevel)
+class SpaceEstimator(ABC):
 
     # extracts X & y from vpoints & space
     @staticmethod
@@ -167,7 +163,7 @@ class RBFRegressor(SpaceEstimator):
     def update(self, X_new: NPL, y_new: NPL) -> dict[str, NUM]:
         """ concatenates data, tries to update model params, fits & returns some info """
 
-        self.logger.debug(f'preparing for update with {self._num_tests}X cross-validation')
+        logger.debug(f'preparing for update with {self._num_tests}X cross-validation')
 
         loss_on_new = 0
         if self.fitted:
@@ -197,7 +193,7 @@ class RBFRegressor(SpaceEstimator):
         not_valid = list(set(not_valid))
         for k in not_valid:
             m_configs.pop(k)
-        self.logger.debug(f'valid alternative models configs for update: {m_configs}')
+        logger.debug(f'valid alternative models configs for update: {m_configs}')
 
         models = {config: self._build_model(**m_configs[config]) for config in m_configs}
 
@@ -231,7 +227,7 @@ class RBFRegressor(SpaceEstimator):
 
         for k in acc_loss:
             acc_loss[k] /= self._num_tests
-        self.logger.debug(f'loss achieved with each config: {acc_loss}')
+        logger.debug(f'loss achieved with each config: {acc_loss}')
 
         acc_loss_current = acc_loss.pop('current')
 
@@ -242,7 +238,7 @@ class RBFRegressor(SpaceEstimator):
             if e[1] < acc_loss_current:
                 update_k = e[0]
                 break
-        self.logger.debug(f'RBFRegressor is updating: {update_k}')
+        logger.debug(f'RBFRegressor is updating: {update_k}')
 
         if update_k is not None:
             self._indexes[update_k[0]] += 1 if update_k[1] == 'H' else -1
@@ -250,7 +246,7 @@ class RBFRegressor(SpaceEstimator):
         else:
             self._model = models['current']
 
-        self.logger.debug(f' > current config of indexes: {self._indexes}')
+        logger.debug(f' > current config of indexes: {self._indexes}')
 
         # finally fit with all data
         loss_all_data_weighted = RBFRegressor._fit(
@@ -270,7 +266,7 @@ class RBFRegressor(SpaceEstimator):
     def predict(self, x: NPL) -> np.ndarray:
         if not self.fitted:
             msg = 'RBFRegressor needs to be fitted before predict'
-            self.logger.error(msg)
+            logger.error(msg)
             raise Exception(msg)
         return self._model.predict(X=x)
 
