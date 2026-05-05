@@ -1,16 +1,15 @@
 from copy import deepcopy
 import math
 import random
-from typing import Optional, Dict, Tuple, Union
 
 from pypaq.pms.base import P_VAL, POINT, PSDD, PMSException
-from pypaq.lipytools.pylogger import get_pylogger, get_child
+from pypaq.lipytools.pylogger import Logged
 
 NO_REF = '<<< NO-REF >>>' # axis value when no reference value given
 
 
 
-class PaSpa:
+class PaSpa(Logged):
     """ PaSpa - Parameters Space
 
     PaSpa is build from PSDD (Params Space Definition Dictionary),
@@ -28,14 +27,10 @@ class PaSpa:
     def __init__(
             self,
             psdd: PSDD,
-            seed: Optional[int]=    None,
-            logger=                 None,
-            loglevel=               30,
+            seed: int | None = None,
+            loglevel: int = 30,
     ):
-
-        if not logger:
-            logger = get_pylogger(name=self.__class__.__name__, level=loglevel)
-        self.logger = logger
+        self.logger = self.get_logger(level=loglevel)
 
         self._psdd = psdd
         self.axes = sorted(list(self._psdd.keys()))
@@ -56,7 +51,7 @@ class PaSpa:
 
     ### *************************************************************************** axes / value_on_axis related methods
 
-    def __axes_type_width(self) -> Tuple[Dict,Dict]:
+    def __axes_type_width(self) -> tuple[dict, dict]:
         """ prepares axes type and width + some safety checks
         possible axes types:
         - list_float
@@ -65,8 +60,8 @@ class PaSpa:
         - tuple_int
         - tuple_diff """
 
-        axT: Dict[str, str] = {}   # axis type
-        axW: Dict[str, float] = {} # axis width, range (min <-> max), for diff_tuple - number of elements
+        axT: dict[str, str] = {}   # axis type
+        axW: dict[str, float] = {} # axis width, range (min <-> max), for diff_tuple - number of elements
 
         for axis in self.axes:
 
@@ -101,9 +96,9 @@ class PaSpa:
 
     def __closest(
             self,
-            ref_val: Union[float, int],      # for diff_tuple it is index of value in self.__psdd[axis]
+            ref_val: float | int,   # for diff_tuple it is index of value in self.__psdd[axis]
             axis: str,
-    ) -> Union[float, int]:
+    ) -> float | int:
         """ selects value from axis closest to given val """
 
         val = ref_val  # for list_float type
@@ -131,10 +126,10 @@ class PaSpa:
 
     @staticmethod
     def __apply_noise(
-            ref_val: Union[float, int], # reference value (in range og L & R)
-            noise_scale: float,         # <0.0;1.0> distance from ref_val as a factor of range where new val will be sampled
-            rngL: Union[float, int],    # range Left value
-            rngR: Union[float, int],    # range Right value
+            ref_val: float | int,   # reference value (in range og L & R)
+            noise_scale: float,     # <0.0;1.0> distance from ref_val as a factor of range where new val will be sampled
+            rngL: float | int,      # range Left value
+            rngR: float | int,      # range Right value
     ) -> float:
         """ applies noise to given ref_val
         (samples new value from sub-range defined by noise scale) """
@@ -153,7 +148,7 @@ class PaSpa:
 
         return random.uniform(ref_val, rng)
 
-    def __random_value_noref(self, axis:str) -> P_VAL:
+    def __random_value_noref(self, axis: str) -> P_VAL:
         """ samples random value from whole axis """
 
         axT = self._axT[axis]
@@ -175,7 +170,7 @@ class PaSpa:
             prob_noise: float,      # probability of shifting value with noise (for list or tuple_with_num)
             noise_scale: float,     # max noise scale (axis width, for list or tuple_with_num)
             prob_axis: float,       # probability of value replacement by one sampled from whole axis (for list or num_tuple)
-            prob_diff_axis:float    # probability of value replacement by one sampled from whole axis (for diff_tuple)
+            prob_diff_axis: float,  # probability of value replacement by one sampled from whole axis (for diff_tuple)
     ) -> P_VAL:
         """ gets random value for axis
         (algorithm ensures equal probability for both sides of ref_val) """
@@ -224,7 +219,7 @@ class PaSpa:
         return val
 
 
-    def __value_in_axis(self, value:P_VAL, axis:str) -> bool:
+    def __value_in_axis(self, value: P_VAL, axis: str) -> bool:
         """ checks if given value belongs to an axis of this space """
         if axis not in self._axT:                                      return False # axis not in a space
         if 'list' in self._axT[axis]:
@@ -238,11 +233,11 @@ class PaSpa:
 
     def sample_point(
             self,
-            ref_point: Optional[POINT]= None,   # reference point
-            prob_noise=                 0.3,    # probability of shifting value with noise (for list or num_tuple)
-            noise_scale=                0.1,    # max noise scale (axis width)
-            prob_axis=                  0.1,    # probability of value replacement by one sampled from whole axis (for list or num_tuple)
-            prob_diff_axis=             0.3     # probability of value replacement by one sampled from whole axis (for diff_tuple)
+            ref_point: POINT | None = None, # reference point
+            prob_noise: float = 0.3,        # probability of shifting value with noise (for list or num_tuple)
+            noise_scale: float = 0.1,       # max noise scale (axis width)
+            prob_axis: float = 0.1,         # probability of value replacement by one sampled from whole axis (for list or num_tuple)
+            prob_diff_axis: float = 0.3,    # probability of value replacement by one sampled from whole axis (for diff_tuple)
     ) -> POINT:
         """ samples (random) point from whole space or from the surroundings of ref_point """
         if ref_point is None:
@@ -257,13 +252,13 @@ class PaSpa:
 
     def sample_point_GX(
             self,
-            pointA: Optional[POINT]=    None,   # parent A, when not given > samples from the whole space
-            pointB: Optional[POINT]=    None,   # parent B, when not given > samples from the surroundings of pointA
-            prob_mix=                   0.5,    # probability of mixing two values (for list or num_tuple - but only when both parents are given)
-            prob_noise=                 0.3,    # probability of shifting value with noise (for list or num_tuple)
-            noise_scale=                0.2,    # max noise scale (axis width)
-            prob_axis=                  0.1,    # probability of value replacement by one sampled from whole axis (for list or num_tuple)
-            prob_diff_axis=             0.3     # probability of value replacement by one sampled from whole axis (for diff_tuple)
+            pointA: POINT | None = None,    # parent A, when not given > samples from the whole space
+            pointB: POINT | None = None,    # parent B, when not given > samples from the surroundings of pointA
+            prob_mix: float = 0.5,          # probability of mixing two values (for list or num_tuple - but only when both parents are given)
+            prob_noise: float = 0.3,        # probability of shifting value with noise (for list or num_tuple)
+            noise_scale: float = 0.2,       # max noise scale (axis width)
+            prob_axis: float = 0.1,         # probability of value replacement by one sampled from whole axis (for list or num_tuple)
+            prob_diff_axis: float = 0.3,    # probability of value replacement by one sampled from whole axis (for diff_tuple)
     ) -> POINT:
         """ samples GX point from given None, one or two """
 
@@ -298,7 +293,7 @@ class PaSpa:
                             ps_ix = self._psdd[axis].index(pointB[axis])
                             val_ix = pm_ix * ratio + ps_ix * (1-ratio)
                             val = self.__closest(val_ix, axis)
-                    
+
                     # select
                     else: val = pointA[axis] if random.random() < ratio else pointB[axis]
 
@@ -312,7 +307,7 @@ class PaSpa:
             prob_axis=      prob_axis,
             prob_diff_axis= prob_diff_axis)
 
-    def sample_corners(self) -> Tuple[POINT, POINT]:
+    def sample_corners(self) -> tuple[POINT, POINT]:
         """ samples 2 corner points with max distance (1 in normalized space) """
         pa = {}
         pb = {}
@@ -328,7 +323,7 @@ class PaSpa:
                 pb[ax] = vl
         return pa, pb
 
-    def is_from_space(self, point:POINT) -> bool:
+    def is_from_space(self, point: POINT) -> bool:
         """ checks if given point comes from this space """
         if set(point.keys()) != set(self.axes): return False
         for axis in point:
@@ -336,7 +331,7 @@ class PaSpa:
                 return False
         return True
 
-    def distance(self, pa:POINT, pb:POINT) -> float:
+    def distance(self, pa: POINT, pb: POINT) -> float:
         """ L2 distance between two points of this space (normalized) """
         dist_pow_sum = 0
         for axis in pa:
@@ -347,11 +342,11 @@ class PaSpa:
                 dist_pow_sum += (dist / self._axW[axis]) ** 2
         return  math.sqrt(dist_pow_sum) / math.sqrt(self.dim)
 
-    def point_normalized(self, p:POINT) -> POINT:
+    def point_normalized(self, p: POINT) -> POINT:
         """ prepares normalized point of p
         value of each axis is represented by a float <0.0;1.0> """
 
-        pn: Dict[str,float] = {}
+        pn: dict[str, float] = {}
 
         for axis in p:
 
@@ -408,7 +403,7 @@ class PaSpa:
         return math.log10(mul)
 
     @property
-    def n_points(self) -> Optional[int]:
+    def n_points(self) -> int | None:
         """ returns number of points in PaSpa
         if PaSpa has infinite number of points -> returns None """
         n = 1
@@ -430,7 +425,7 @@ class PaSpa:
                 return False
         return True
 
-    def __add__(self, other:"PaSpa") -> "PaSpa":
+    def __add__(self, other: "PaSpa") -> "PaSpa":
         psdd_a = self.psdd
         psdd_b = other.psdd
         psdd_merged = {}
@@ -454,11 +449,7 @@ class PaSpa:
                 else:
                     ranges = psdd_merged[ax] + psdd_b[ax]
                     psdd_merged[ax] = [min(ranges), max(ranges)]
-        return PaSpa(
-            psdd=   psdd_merged,
-            logger= get_child(
-                logger= self.logger,
-                name=   f'{self.logger.name}_child'))
+        return PaSpa(psdd=psdd_merged, loglevel=self.logger.level)
 
     def __str__(self):
         info = f'*** PaSpa *** (dim: {self.dim}, rdim: {self.rdim:.1f}) parameters space:\n'

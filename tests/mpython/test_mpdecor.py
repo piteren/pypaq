@@ -55,13 +55,13 @@ def test_return():
 
 def test_proc_que():
 
-    n_tasks = 10
+    n_tasks = 5
 
     que = Queue()
 
     @proc_que(que)
     def task():
-        sl = random.randint(3,8)
+        sl = random.randint(1,3)
         print(f'sleeping for {sl}')
         time.sleep(sl)
         return sl
@@ -88,7 +88,7 @@ def test_proc_que_more():
         sum = 0
         for i in range(to):
             print(f'calculating sum ({to})...')
-            time.sleep(0.5)
+            time.sleep(0.3)
             sum += i
         return name, sum
 

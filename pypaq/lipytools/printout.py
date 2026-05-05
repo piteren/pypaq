@@ -1,7 +1,6 @@
 import random
 import string
 import time
-from typing import List, Any, Optional
 
 from pypaq.exception import PyPaqException
 from pypaq.pytypes import NUM
@@ -31,7 +30,7 @@ class SLines:
         """extends self._lines with list of (clear, no \n) lines"""
         self._lines.extend(lines)
 
-    def append(self, line:str):
+    def append(self, line: str):
         self._ext(line.split('\n'))
 
     def extend(self, other: "SLines") -> None:
@@ -45,7 +44,7 @@ class SLines:
         return [] + self._lines
 
 
-def nice_scin(num:NUM, precision:int=1, replace_zero:bool=True, add_plus:bool=False) -> str:
+def nice_scin(num: NUM, precision: int = 1, replace_zero: bool = True, add_plus: bool = False) -> str:
     """short (compressed) scientific notation for numbers
 
     examples:
@@ -90,9 +89,9 @@ def nice_scin(num:NUM, precision:int=1, replace_zero:bool=True, add_plus:bool=Fa
 
 def nice_float_pad(
         num: float,
-        width: int=     7,
-        add_plus: bool= False,
-        fill: bool=     True,
+        width: int = 7,
+        add_plus: bool = False,
+        fill: bool = True,
 ) -> str:
     """returns nice string from float, always of a given width, padded with spaces
     width should be >= 5
@@ -143,8 +142,8 @@ def nice_float_pad(
 
 def nice_float_width(
         num: float,
-        width: int=     4,
-        add_plus: bool= False,
+        width: int = 4,
+        add_plus: bool = False,
 ) -> str:
     """returns nice string from float from range (-(10**(width-1));10**width)
 
@@ -183,13 +182,13 @@ def nice_float_width(
 
 
 def stamp(
-        year: bool=             False,
-        month: bool=            True,
-        day: bool=              True,
-        hour: bool=             True,
-        minutes: bool=          True,
-        letters: Optional[int]= 3,
-        separator: str=         '_',
+        year: bool = False,
+        month: bool = True,
+        day: bool = True,
+        hour: bool = True,
+        minutes: bool = True,
+        letters: int | None = 3,
+        separator: str = '_',
 ) -> str:
     """ prepares timestamp string """
 
@@ -214,7 +213,7 @@ def stamp(
     return stp
 
 
-def list_str(ls: List[Any], limit:Optional[int]=200) -> str:
+def list_str(ls: list, limit: int | None = 200) -> str:
     """ nice string of given list """
     lstr = [str(e) for e in ls]
     lstr = '; '.join(lstr)
@@ -224,39 +223,29 @@ def list_str(ls: List[Any], limit:Optional[int]=200) -> str:
 
 def print_nested_dict(
         d: dict,
-        ind_scale: int=     2,
-        line_limit: int=    150,
+        ind_scale: int = 2,
+        line_limit: int = 150,
 ) -> None:
     """ prints nice string of nested dict """
 
-    types = {
-        int:        'int',
-        float:      'float',
-        bool:       'bool',
-        type(None): 'NoneType',
-        dict:       'dict',
-        list:       'list',
-        tuple:      'tuple',
-        str:        'str'}
-
+    types = {'int', 'float', 'bool', 'NoneType', 'dict', 'list', 'tuple', 'str'}
     types_len = ['dict','list','tuple','str']
 
-    def __prn_root(root:dict, ind:int):
+    def __prn_root(root: dict, ind: int):
 
         spacer = ' ' * ind * ind_scale
 
         for key in sorted(list(root.keys())):
 
             value = root[key]
-            tp = types.get(type(value),None)
+            name = type(value).__name__
+            tp = name if name in types else None
             value_len_str = str(len(value)) if tp in types_len else ''
 
             if tp == 'list':
-                sub_tp = list(set([type(e) for e in value]))
-                if len(sub_tp) == 1:
-                    sub_tp = types.get(sub_tp[0],None)
-                    if sub_tp:
-                        tp = f'{tp}[{sub_tp}]'
+                sub_tps = list(dict.fromkeys(type(e).__name__ for e in value))
+                if len(sub_tps) == 1 and sub_tps[0] in types:
+                    tp = f'{tp}[{sub_tps[0]}]'
 
             val_line = ''
             if tp != 'dict':
@@ -275,7 +264,7 @@ def print_nested_dict(
     __prn_root(root=d, ind=0)
 
 
-def printover(sth, clear:int=10) -> None:
+def printover(sth, clear: int = 10) -> None:
     """ prints line over line """
     cls = '' + ' ' * clear
     print(f'\r{sth}{cls}', end='', flush=True)
@@ -293,16 +282,16 @@ class ProgBar:
     def __init__(
             self,
             total: NUM,
-            name: Optional[str]=            None,
-            length: int=                    20,
-            fill: str=                      '█',
-            show_fract: bool=               True,
-            show_speed_avg: bool=           True,
-            show_speed_cur: bool=           True,
-            show_eta: bool=                 True,
-            guess_speed: float=             10.0,
-            refresh_delay: Optional[float]= 1,
-            logger=                         None,
+            name: str | None = None,
+            length: int = 20,
+            fill: str = '█',
+            show_fract: bool = True,
+            show_speed_avg: bool = True,
+            show_speed_cur: bool = True,
+            show_eta: bool = True,
+            guess_speed: float = 10.0,
+            refresh_delay: float | None = 1,
+            logger = None,
     ):
         """ speed_avg is an average speed smoothened with moving average,
         speed_cur is a current speed smoothened with moving average,
@@ -350,7 +339,7 @@ class ProgBar:
             if t > 100: return f'{t / 60:.1f}m'
             else:       return f'{t:.1f}s'
 
-    def __call__(self, n:NUM, prefix:str='', suffix:str=''):
+    def __call__(self, n: NUM, prefix: str = '', suffix: str = ''):
 
         if n < self.n_prev:
             raise PyPaqException('ProgBar cannot step back with progress (n < prev)')
@@ -419,7 +408,7 @@ class ProgBar:
                 self.n_prev = n
                 self.inc_cached = 0
 
-    def inc(self, prefix:str='', suffix:str='', by:int=1):
+    def inc(self, prefix: str = '', suffix: str = '', by: int = 1):
         """ increase by """
         self.inc_cached += by
         self(n=self.n_prev + self.inc_cached, prefix=prefix, suffix=suffix)

@@ -1,27 +1,23 @@
-from pypaq.lipytools.pylogger import get_pylogger
-from pypaq.mpython.mptools import sys_res_nfo
+import logging
+
+from multiprocessing import cpu_count
 from pypaq.exception import PyPaqException
 
 DevicesPypaq = None | float | str | list[None | float | str]
 
+logger = logging.getLogger(__name__)
 
-def get_devices(
-        devices: DevicesPypaq = 1.0,
-        logger = None,
-        loglevel = 20,
-) -> list[None]:
+
+def get_devices(devices: DevicesPypaq = 1.0) -> list[None]:
     """ resolves representation given with devices """
-
-    if not logger:
-        logger = get_pylogger(name='get_devices', level=loglevel)
 
     devices_list = devices if isinstance(devices, list) else [devices]
 
     if not devices_list:
         raise PyPaqException('no devices given')
 
-    cpu_count = sys_res_nfo()['cpu_count']
-    logger.debug(f'got {cpu_count} CPU devices in a system')
+    n_cpus = cpu_count()
+    logger.debug(f'got {n_cpus} CPU devices in a system')
 
     devices_base = []
     for d in devices_list:
@@ -36,14 +32,14 @@ def get_devices(
             known_device = True
             if d < 0.0: d = 0.0
             if d > 1.0: d = 1.0
-            cpu_count_f = round(cpu_count * d)
-            if cpu_count_f < 1: cpu_count_f = 1
-            devices_base += [None] * cpu_count_f
+            n_cpus_f = round(n_cpus * d)
+            if n_cpus_f < 1: n_cpus_f = 1
+            devices_base += [None] * n_cpus_f
 
         if type(d) is str:
             if d == 'all':
                 known_device = True
-                devices_base += [None] * cpu_count
+                devices_base += [None] * n_cpus
             if 'cpu' in d:
                 known_device = True
                 devices_base.append(None)

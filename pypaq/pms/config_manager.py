@@ -1,11 +1,9 @@
-from typing import Optional
-
-from pypaq.lipytools.pylogger import get_pylogger
 from pypaq.lipytools.files import prep_folder, r_json, w_json
+from pypaq.lipytools.pylogger import Logged
 from pypaq.pms.base import POINT
 
 
-class ConfigManager:
+class ConfigManager(Logged):
     """Configuration Manager
     Configuration is a dictionary {key: value}
     - keeps configuration in self attributes
@@ -13,15 +11,12 @@ class ConfigManager:
 
     def __init__(
             self,
-            file_path: str,                           # full path to config file
-            config_init: Optional[POINT]=   None,
-            override_with_saved: bool=      True,   # file (if exists) will override given initial config
-            logger=                         None,
-            loglevel=                       20):
-
-        if not logger:
-            logger = get_pylogger(name='ConfigManager', level=loglevel)
-        self._logger = logger
+            file_path: str,                             # full path to config file
+            config_init: POINT | None = None,
+            override_with_saved: bool = True,           # file (if exists) will override given initial config
+            loglevel: int = 20,
+    ):
+        self._logger = self.get_logger(level=loglevel)
 
         self._file_path = file_path
         prep_folder(self._file_path)
@@ -63,7 +58,7 @@ class ConfigManager:
 
     def __getattribute__(self, name):
         """returns attribute value"""
-        if name.startswith('_') or name in ['update_config','get_config']:
+        if name.startswith('_') or name in ['update_config', 'get_config', 'get_logger']:
             return super().__getattribute__(name)
         else:
 
@@ -80,7 +75,7 @@ class ConfigManager:
 
             return self.__config[name]
 
-    def update_config(self, dct:POINT) -> None:
+    def update_config(self, dct: POINT) -> None:
         """update with a given dictionary"""
 
         # first update from file

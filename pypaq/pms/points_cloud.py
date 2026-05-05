@@ -1,7 +1,7 @@
 import math
-from typing import Sized, List, Tuple, Optional, Dict, Union
+from collections.abc import Sized
 
-from pypaq.lipytools.pylogger import get_pylogger
+from pypaq.lipytools.pylogger import Logged
 from pypaq.lipytools.stats import mam
 from pypaq.lipytools.plots import three_dim
 from pypaq.lipytools.printout import nice_float_pad
@@ -16,9 +16,9 @@ class VPoint:
     def __init__(
             self,
             point: POINT,
-            name: Optional[str]=    None,
-            id: Optional[int]=      None,
-            value: Optional[float]= None,
+            name: str | None = None,
+            id: int | None = None,
+            value: float | None = None,
     ):
         self.point = point
         self.name = name
@@ -34,10 +34,10 @@ class VPoint:
 
 
 def points_nice_table(
-        vpoints: List[VPoint],
-        do_name: bool=  True,
-        do_val: bool=   True,
-) -> List[str]:
+        vpoints: list[VPoint],
+        do_name: bool = True,
+        do_val: bool = True,
+) -> list[str]:
     """ prepares list of str with nice formatted VPoints params and values
     points may come from different spaces, their given order is kept in returned list """
 
@@ -101,38 +101,33 @@ def points_nice_table(
     return table
 
 
-class PointsCloud(Sized):
+class PointsCloud(Logged, Sized):
     """ Points Cloud - cloud of Valued Points """
 
     def __init__(
             self,
-            paspa: PaSpa,   # space of this PointsCloud
-            logger=     None,
-            loglevel=   20):
-
-        if not logger:
-            logger = get_pylogger(name=self.__class__.__name__, level=loglevel)
-        self.logger = logger
+            paspa: PaSpa,
+            loglevel = 20,
+    ):
+        self.logger = self.get_logger(level=loglevel)
         self.logger.info('*** PointsCloud *** initializing ..')
 
         self.paspa = paspa
 
         # values below are updated with each call to update_cloud()
-        self._vpointsD: Dict[int, VPoint] = {}          # {id: VPoint}
-        self._nearest: Dict[int, Tuple[int,float]] = {} # {id: (id,dist)}
+        self._vpointsD: dict[int, VPoint] = {}          # {id: VPoint}
+        self._nearest: dict[int, tuple[int,float]] = {} # {id: (id,dist)}
         self.min_nearest = math.sqrt(self.paspa.dim)
         self.avg_nearest = math.sqrt(self.paspa.dim)
         self.max_nearest = math.sqrt(self.paspa.dim)
 
         self.prec = 8 # print precision, will be updated while adding new vpoints
 
-
     def distance(self, vpa:VPoint, vpb:VPoint) -> float:
         """ returns distance between two VPoints """
         return self.paspa.distance(vpa.point, vpb.point)
 
-
-    def update_cloud(self, vpoints:Union[VPoint,List[VPoint]]):
+    def update_cloud(self, vpoints: VPoint | list[VPoint]):
         """ updates Cloud (self) with given VPoint / list
         (adds new to _vpoints & updates _nearest) """
 
@@ -163,12 +158,11 @@ class PointsCloud(Sized):
 
         self.min_nearest, self.avg_nearest, self.max_nearest = mam([v[1] for v in self._nearest.values()])
 
-
     def plot(
             self,
-            name: str=                  'PointsCloud',
-            axes: Optional[List[str]]=  None,   # list with axes names, 2-3, like ['drop_a','drop_b','loss']
-            folder: Optional[str]=      None,
+            name: str = 'PointsCloud',
+            axes: list[str] | None = None,   # list with axes names, 2-3, like ['drop_a','drop_b','loss']
+            folder: str | None = None,
     ):
         """ prepares 3D plot of the Cloud VPoints """
 
@@ -195,7 +189,7 @@ class PointsCloud(Sized):
                 save_FD=    folder)
 
     @property
-    def vpoints(self) -> List[VPoint]:
+    def vpoints(self) -> list[VPoint]:
         return list(self._vpointsD.values())
 
     def __len__(self):

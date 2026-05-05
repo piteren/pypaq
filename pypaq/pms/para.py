@@ -1,12 +1,11 @@
 from copy import deepcopy
-from typing import List, Optional, Union, Dict, Set, Tuple
 
 from pypaq.textools.text_metrics import lev_dist
 from pypaq.pms.base import POINT, PSDD, PMSException
 from pypaq.pms.paspa import PaSpa
 
 
-def dict_diff(da:Dict, db:Dict) -> str:
+def dict_diff(da: dict, db: dict) -> str:
     """returns nice str with dict differences: db against da"""
 
     nfo = ''
@@ -60,19 +59,19 @@ class Para:
     # ********************************************************************************************************** getters
 
     # noinspection PyMethodMayBeStatic
-    def exclude_from_params(self) -> List[str]:
+    def exclude_from_params(self) -> list[str]:
         """allows to specify additional names of self variables (beyond protected),
         which will not be included in managed params"""
         return []
 
-    def get_all_params(self, protected=False) -> List[str]:
+    def get_all_params(self, protected: bool = False) -> list[str]:
         """ returns list of all self parameters """
         fields = [pn for pn in vars(self) if not pn.startswith('_Para__')]
         if not protected:
             fields = [pn for pn in fields if not pn.startswith('_')]
         return fields
 
-    def get_managed_params(self) -> List[str]:
+    def get_managed_params(self) -> list[str]:
         """prepares list of parameters managed by Para
         excludes:
         - private and protected
@@ -87,16 +86,16 @@ class Para:
 
     # *************************************************************************************************** update & check
 
-    def update(self, d:dict) -> None:
+    def update(self, d: dict) -> None:
         """ update in dict-like style """
         for key in d:
             self.__setitem__(key, d[key])
 
     def check_params_sim(
             self,
-            params: Optional[Union[Dict,List]]= None,
-            lev_dist_diff: int=                 1,
-    ) -> Optional[Set[Tuple[str,str]]]:
+            params: dict | list | None = None,
+            lev_dist_diff: int = 1,
+    ) -> set[tuple[str, str]] | None:
         """ checks self.params + params for similarity against given
         returns True if already got similar """
 
@@ -109,7 +108,6 @@ class Para:
 
         all_params = sorted(list(set([p.lower() for p in self_paramsL + diff_paramsL])))
 
-        #found_any = False
         found = set()
         for pa in all_params:
             for pb in all_params:
@@ -144,11 +142,11 @@ class ParaGX(Para):
 
     def __init__(
             self,
-            name: Optional[str]=    None,
-            family: Optional[str]=  '__gx-fam__', # family of GXable, here default, for GX functionality family needs to be given
-            psdd: Optional[PSDD]=   None, # PSDD of GXable
+            name: str | None = None,
+            family: str | None = '__gx-fam__',  # family of GXable, here default, for GX functionality family needs to be given
+            psdd: PSDD | None = None,            # PSDD of GXable
             **kwargs):
-        
+
         super().__init__()
 
         if not name:
@@ -174,7 +172,7 @@ class ParaGX(Para):
     @staticmethod
     def families_compatible(
             parentA: "ParaGX",
-            parentB: Optional["ParaGX"]= None
+            parentB: "ParaGX | None" = None,
     ) -> bool:
         """ checks for compatibility of families
         returns True when families match and are not None """
@@ -196,13 +194,13 @@ class ParaGX(Para):
     @staticmethod
     def gx_point(
             parentA: "ParaGX",
-            parentB: Optional["ParaGX"]=    None,
-            name_child: Optional[str]=      None,
-            prob_mix=                       0.5,
-            prob_noise=                     0.3,
-            noise_scale=                    0.1,
-            prob_axis=                      0.1,
-            prob_diff_axis=                 0.3
+            parentB: "ParaGX | None" = None,
+            name_child: str | None = None,
+            prob_mix = 0.5,
+            prob_noise = 0.3,
+            noise_scale = 0.1,
+            prob_axis = 0.1,
+            prob_diff_axis = 0.3,
     ) -> POINT:
         """ GX on ParaGX POINTs """
 

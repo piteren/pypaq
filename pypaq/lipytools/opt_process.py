@@ -1,4 +1,4 @@
-from typing import Sized, Iterable
+from collections.abc import Sized, Iterable
 
 
 def chunked(iterable:Sized, size) -> Iterable:

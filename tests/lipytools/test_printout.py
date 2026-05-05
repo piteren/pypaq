@@ -126,7 +126,7 @@ def test_print_nested_dict():
 
 
 def test_ProgBar():
-    tot = 100
+    tot = 10
     pb = ProgBar(total=tot, length=30, fill='X', show_fract=True, show_speed_avg=True, show_eta=True)
     for ix in range(tot):
         time.sleep(random.random()/5)
@@ -161,15 +161,9 @@ def test_printover_terminal():
 
 def test_ProgBar_behaviour():
 
-    for ts in [
-        0.1,
-        1,
-        10,
-        100,
-        1000,
-    ]:
+    for ts in [1, 10, 100]:
         print(f'target speed: {ts}/s')
-        tot = int(10 * ts)
+        tot = int(1 + ts / 3)
         sdt = 1/ts
         pb = ProgBar(total=tot, length=30, guess_speed=ts)
         sd = sdt

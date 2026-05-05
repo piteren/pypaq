@@ -1,20 +1,21 @@
 import math
 import numpy as np
+from collections.abc import Iterable
 from scipy import stats
-from typing import Tuple, Union, Iterable
+from typing import Union
 
 
 class ValuesArray:
     """ValuesArray is a np.ndarray
     which behaves similar to python List
     only some interfaces are implemented.
-    It is optimized for constant grow and large sizes. 
+    It is optimized for constant grow and large sizes.
     Additionally, supports mean and h95 calculation"""
 
     def __init__(
             self,
-            init_size: int= 100000,
-            dtype: type=    np.float32,
+            init_size: int = 100000,
+            dtype: type = np.float32,
     ):
         self.dtype = dtype
         self._val = np.zeros(shape=init_size, dtype=self.dtype)
@@ -31,7 +32,7 @@ class ValuesArray:
     def __len__(self) -> int:
         return self.size
 
-    def __iadd__(self, other:Union[Iterable,"ValuesArray"]):
+    def __iadd__(self, other: Union[Iterable, "ValuesArray"]):
 
         if isinstance(other, ValuesArray):
             other = other.get_array()
@@ -58,7 +59,7 @@ class ValuesArray:
     def get_array(self) -> np.ndarray:
         return self._val[:self.size]
 
-    def mean_h95(self) -> Tuple[float,float]:
+    def mean_h95(self) -> tuple[float, float]:
         mean = float(self._val[:self.size].mean())
         std = self._val[:self.size].std()
         sem = std / math.sqrt(self.size)

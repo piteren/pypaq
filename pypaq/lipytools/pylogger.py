@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from pypaq.lipytools.files import prep_folder
 
@@ -8,8 +7,8 @@ DEFAULT_FMT = '%(asctime)s {%(filename)20s:%(lineno)4d} p%(process)s %(levelname
 
 def setup_logging(
         level: int = logging.INFO,
-        folder: Optional[str] = None,
-        log_file_name: Optional[str] = None,
+        folder: str | None = None,
+        log_file_name: str | None = None,
         to_stdout: bool = True,
         fmt: str = DEFAULT_FMT,
 ) -> None:
@@ -40,8 +39,8 @@ class Logged:
 
     def get_logger(
             self,
-            level: Optional[int] = None,
-            folder: Optional[str] = None,
+            level: int | None = None,
+            folder: str | None = None,
             fmt: str = DEFAULT_FMT,
     ) -> logging.Logger:
         """Call in class init just after setting self.name,

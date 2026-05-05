@@ -1,28 +1,25 @@
 from abc import ABC, abstractmethod
 import numpy as np
 from sklearn.svm import SVR
-from typing import List, Optional, Tuple, Dict
 
 from pypaq.pytypes import NPL, NUM
-from pypaq.lipytools.pylogger import get_pylogger
+from pypaq.lipytools.pylogger import Logged
 from pypaq.pms.base import PMSException
 from pypaq.pms.paspa import PaSpa
 from pypaq.pms.points_cloud import VPoint
 
 
-class SpaceEstimator(ABC):
+class SpaceEstimator(ABC, Logged):
 
     def __init__(
             self,
-            logger=         None,
-            loglevel=       20):
-        if not logger:
-            logger = get_pylogger(level=loglevel)
-        self.logger = logger
+            loglevel: int = 20,
+    ):
+        self.logger = self.get_logger(level=loglevel)
 
     # extracts X & y from vpoints & space
     @staticmethod
-    def _extract_Xy(vpoints:List[VPoint], space:PaSpa) -> Tuple[np.ndarray, np.ndarray]:
+    def _extract_Xy(vpoints: list[VPoint], space: PaSpa) -> tuple[np.ndarray, np.ndarray]:
 
         points = [vp.point for vp in vpoints]
         points_normalized = [space.point_normalized(p) for p in points]
@@ -35,20 +32,20 @@ class SpaceEstimator(ABC):
 
     # updates model with given data, returns dict with update info
     @abstractmethod
-    def update(self, X_new:NPL, y_new:NPL) -> Dict[str,NUM]:
+    def update(self, X_new: NPL, y_new: NPL) -> dict[str, NUM]:
         pass
 
     # updates model with given VPoints, returns dict with update info
-    def update_vpoints(self, vpoints:List[VPoint], space:PaSpa) -> Dict[str,NUM]:
+    def update_vpoints(self, vpoints: list[VPoint], space: PaSpa) -> dict[str, NUM]:
         X, y = SpaceEstimator._extract_Xy(vpoints, space)
         return self.update(X, y)
 
     # predicts
     @abstractmethod
-    def predict(self, X:NPL) -> np.ndarray:
+    def predict(self, X: NPL) -> np.ndarray:
         pass
 
-    def predict_vpoints(self, vpoints:List[VPoint], space:PaSpa) -> np.ndarray:
+    def predict_vpoints(self, vpoints: list[VPoint], space: PaSpa) -> np.ndarray:
         X, y = SpaceEstimator._extract_Xy(vpoints, space)
         return self.predict(X)
 
@@ -57,9 +54,9 @@ class SpaceEstimator(ABC):
     def loss(
             model,
             y_test: NPL,
-            X_test: Optional[NPL]=  None,
-            preds: Optional[NPL]=   None,
-            weights: Optional[NPL]= None,
+            X_test: NPL | None = None,
+            preds: NPL | None = None,
+            weights: NPL | None = None,
     ) -> float:
 
         if X_test is None and preds is None:
@@ -89,12 +86,12 @@ class SpaceEstimator(ABC):
 
     # Estimator state
     @property
-    def state(self) -> Dict:
+    def state(self) -> dict:
         return {}
 
     @classmethod
     @abstractmethod
-    def from_state(cls, state:Dict, logger):
+    def from_state(cls, state: dict, loglevel: int = 20):
         pass
 
     def __str__(self):
@@ -111,11 +108,11 @@ class RBFRegressor(SpaceEstimator):
 
     def __init__(
             self,
-            epsilon: float=     0.01,
-            num_tests: int=     9,      # number of cross-validation tests while updating
-            test_size: float=   0.25,   # size of test data (factor of all)
-            y_cut_off: float=   0.1,    # value of y with lower loss (for sparse y)
-            seed=               123,
+            epsilon: float = 0.01,
+            num_tests: int = 9,         # number of cross-validation tests while updating
+            test_size: float = 0.25,    # size of test data (factor of all)
+            y_cut_off: float = 0.1,     # value of y with lower loss (for sparse y)
+            seed: int = 123,
             **kwargs,
     ):
 
@@ -126,8 +123,8 @@ class RBFRegressor(SpaceEstimator):
 
         self._model = None
 
-        self.data_X: Optional[NPL] = None
-        self.data_y: Optional[NPL] = None
+        self.data_X: NPL | None = None
+        self.data_y: NPL | None = None
 
         self._num_tests = num_tests
         self._test_size = test_size
@@ -136,7 +133,7 @@ class RBFRegressor(SpaceEstimator):
         np.random.seed(seed)
 
     # builds SVR RBF model from given indexes of parameters
-    def _build_model(self, cix:Optional[int]=None, gix:Optional[int]=None) -> SVR:
+    def _build_model(self, cix: int | None = None, gix: int | None = None) -> SVR:
         if cix is None: cix = self._indexes['c']
         if gix is None: gix = self._indexes['g']
         return SVR(
@@ -153,13 +150,13 @@ class RBFRegressor(SpaceEstimator):
             y_train: NPL,
             X_test: NPL,
             y_test: NPL,
-            weights: Optional[NPL]= None,
+            weights: NPL | None = None,
     ) -> float:
         model.fit(X=X_train, y=y_train)
         return RBFRegressor.loss(model=model, X_test=X_test, y_test=y_test, weights=weights)
 
     # prepares weights for y
-    def _weights(self, y:NPL) -> np.ndarray:
+    def _weights(self, y: NPL) -> np.ndarray:
         y_min = np.min(y)
         y_max = np.max(y)
         y_cut = y_min + (y_max - y_min) * self._y_cut_off
@@ -167,7 +164,7 @@ class RBFRegressor(SpaceEstimator):
         factor = max(0.1, factor)
         return np.where(y > y_cut, 1, factor)
 
-    def update(self, X_new:NPL, y_new:NPL) -> Dict[str,NUM]:
+    def update(self, X_new: NPL, y_new: NPL) -> dict[str, NUM]:
         """ concatenates data, tries to update model params, fits & returns some info """
 
         self.logger.debug(f'preparing for update with {self._num_tests}X cross-validation')
@@ -270,7 +267,7 @@ class RBFRegressor(SpaceEstimator):
             'c_ix':                     self._indexes['c'],
             'g_ix':                     self._indexes['g']}
 
-    def predict(self, x:NPL) -> np.ndarray:
+    def predict(self, x: NPL) -> np.ndarray:
         if not self.fitted:
             msg = 'RBFRegressor needs to be fitted before predict'
             self.logger.error(msg)
@@ -283,7 +280,7 @@ class RBFRegressor(SpaceEstimator):
 
     # returns object state
     @property
-    def state(self) -> Dict:
+    def state(self) -> dict:
         return {
             'indexes':      self._indexes,
             'epsilon':      self._epsilon,
@@ -293,15 +290,15 @@ class RBFRegressor(SpaceEstimator):
 
     # builds object from a state
     @classmethod
-    def from_state(cls, state:Dict, logger):
+    def from_state(cls, state: dict, loglevel: int = 20):
         reg = cls(
             epsilon=    state['epsilon'],
             num_tests=  state['num_tests'],
             test_size=  state['test_size'],
             y_cut_off=  state['y_cut_off'],
-            logger=     logger)
+            loglevel=   loglevel)
         reg._indexes = state['indexes']
-        logger.info(f'RBFRegressor build from state: {state}')
+        reg.logger.info(f'RBFRegressor build from state: {state}')
         return reg
 
     def __str__(self):

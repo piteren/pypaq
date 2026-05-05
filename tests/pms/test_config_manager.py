@@ -13,28 +13,6 @@ def tmp_dir():
     prep_folder(CONFIG_DIR, flush_non_empty=True)
 
 
-# you should go to {TEMP_DIR}/config.file and edit>save it while running this test
-def test_base():
-
-    n_loops = 6
-
-    config = {
-        'param_aaa':    15,
-        'beta':         20.45,
-        'do_it':        False,
-        'dont_do':      None}
-
-    cm = ConfigManager(f'{CONFIG_DIR}/config.file', config_init=config)
-    print(cm.get_config())
-
-    for _ in range(n_loops):
-        time.sleep(5)
-        print(cm.get_config())
-
-    cm = ConfigManager(file_path=f'{CONFIG_DIR}/config.file')
-    print(cm.get_config())
-
-
 def test_base_set():
 
     # saves sample config file

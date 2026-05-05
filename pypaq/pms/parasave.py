@@ -1,11 +1,10 @@
 import os
 import shutil
-from typing import Optional, List
 
 from pypaq.exception import PyPaqException
 from pypaq.lipytools.printout import stamp
 from pypaq.lipytools.files import r_pickle, w_pickle, prep_folder
-from pypaq.lipytools.pylogger import get_pylogger
+from pypaq.lipytools.pylogger import Logged
 from pypaq.pms.base import POINT
 from pypaq.pms.para import ParaGX
 
@@ -14,7 +13,7 @@ class ParaSaveException(PyPaqException):
     pass
 
 
-class ParaSave(ParaGX):
+class ParaSave(ParaGX, Logged):
     """ Parameters Save
     saves/loads POINT (self params) from save_topdir
     implements GX for saved
@@ -45,28 +44,25 @@ class ParaSave(ParaGX):
     def __init__(
             self,
             name: str,
-            save_topdir: Optional[str]= None,   # ParaSave top directory
-            save_fn_pfx: Optional[str]= None,   # ParaSave POINT file prefix
-            assert_saved=               False,  # for True asserts that ParaSave has been already saved in save_topdir
-            lock_managed_params=        False,  # locks _managed_params to only those known while init
-            logger=                     None,
-            loglevel=                   20,
+            save_topdir: str | None = None,     # ParaSave top directory
+            save_fn_pfx: str | None = None,     # ParaSave POINT file prefix
+            assert_saved: bool = False,         # for True asserts that ParaSave has been already saved in save_topdir
+            lock_managed_params: bool = False,  # locks _managed_params to only those known while init
+            loglevel: int = 20,
             **kwargs,
     ):
         """ name, save_topdir, save_fn_pfx -> if given -> always override saved values """
 
         # _managed_params allows to lock ParaSave managed params only to those resolved here (while __init__)
-        self._managed_params: Optional[List[str]] = None
+        self._managed_params: list[str] | None = None
 
         self.name = name
         self.save_topdir = save_topdir or self.SAVE_TOPDIR
         self.save_fn_pfx = save_fn_pfx or self.SAVE_FN_PFX
 
-        self.logger = logger or get_pylogger(
-                name=       self.name,
-                add_stamp=  False,
-                folder=     ParaSave._full_dir(name=self.name, save_topdir=self.save_topdir) if self.save_topdir else None,
-                level=      loglevel)
+        self.logger = self.get_logger(
+            level=  loglevel,
+            folder= ParaSave._full_dir(name=self.name, save_topdir=self.save_topdir) if self.save_topdir else None)
 
         self.logger.info(f'*** ParaSave : {self.name} *** initializes ..')
         self.logger.debug(f'> save_topdir: {self.save_topdir}')
@@ -104,10 +100,10 @@ class ParaSave(ParaGX):
             self._managed_params = self.get_managed_params()
             self.logger.debug(f'locked managed params: {self._managed_params}')
 
-    def exclude_from_params(self) -> List[str]:
+    def exclude_from_params(self) -> list[str]:
         return super().exclude_from_params() + ['logger']
 
-    def get_managed_params(self) -> List[str]:
+    def get_managed_params(self) -> list[str]:
         if self._managed_params is not None:
             return self._managed_params
         return ParaGX.get_managed_params(self)
@@ -124,7 +120,7 @@ class ParaSave(ParaGX):
     def _full_dir(
             cls,
             name: str,
-            save_topdir: Optional[str]= None,
+            save_topdir: str | None = None,
     ):
         if not save_topdir: save_topdir = cls.SAVE_TOPDIR
         return f'{save_topdir}/{name}'
@@ -133,8 +129,8 @@ class ParaSave(ParaGX):
     def _obj_fn(
             cls,
             name: str,
-            save_topdir: Optional[str]= None,
-            save_fn_pfx: Optional[str]= None,
+            save_topdir: str | None = None,
+            save_fn_pfx: str | None = None,
     ):
         if not save_topdir: save_topdir = cls.SAVE_TOPDIR
         if not save_fn_pfx: save_fn_pfx = cls.SAVE_FN_PFX
@@ -144,8 +140,8 @@ class ParaSave(ParaGX):
     def _txt_fn(
             cls,
             name: str,
-            save_topdir: Optional[str]= None,
-            save_fn_pfx: Optional[str]= None,
+            save_topdir: str | None = None,
+            save_fn_pfx: str | None = None,
     ):
         if not save_topdir: save_topdir = cls.SAVE_TOPDIR
         if not save_fn_pfx: save_fn_pfx = cls.SAVE_FN_PFX
@@ -155,8 +151,8 @@ class ParaSave(ParaGX):
     def is_saved(
             cls,
             name: str,
-            save_topdir: Optional[str]= None,
-            save_fn_pfx: Optional[str]= None,
+            save_topdir: str | None = None,
+            save_fn_pfx: str | None = None,
     ) -> bool:
         """ checks if given ParaSave name is already saved (..has been created before) """
         if not save_topdir: save_topdir = cls.SAVE_TOPDIR
@@ -167,8 +163,8 @@ class ParaSave(ParaGX):
     def load_point(
             cls,
             name: str,
-            save_topdir: Optional[str]= None,
-            save_fn_pfx: Optional[str]= None,
+            save_topdir: str | None = None,
+            save_fn_pfx: str | None = None,
     ) -> POINT:
         """ loads POINT from folder """
         obj_FN = cls._obj_fn(
@@ -217,8 +213,8 @@ class ParaSave(ParaGX):
     def oversave_point(
             cls,
             name: str,
-            save_topdir: Optional[str]= None,
-            save_fn_pfx: Optional[str]= None,
+            save_topdir: str | None = None,
+            save_fn_pfx: str | None = None,
             **kwargs,
     ):
         """ loads, next overrides parameters from given kwargs and saves POINT """
@@ -235,11 +231,10 @@ class ParaSave(ParaGX):
             cls,
             name_src: str,
             name_trg: str,
-            save_topdir_src: Optional[str]= None,
-            save_topdir_trg: Optional[str]= None,
-            save_fn_pfx: Optional[str]=     None,
-            logger=                         None,
-            loglevel=                       20,
+            save_topdir_src: str | None = None,
+            save_topdir_trg: str | None = None,
+            save_fn_pfx: str | None = None,
+            loglevel: int = 20,
             **kwags,
     ) -> None:
         """ copies saved ParaSave POINT from one folder to another """
@@ -252,7 +247,6 @@ class ParaSave(ParaGX):
             save_topdir=    save_topdir_src,
             save_fn_pfx=    save_fn_pfx,
             assert_saved=   True,
-            logger=         logger,
             loglevel=       loglevel,
             **kwags)
 
@@ -265,7 +259,7 @@ class ParaSave(ParaGX):
     @staticmethod
     def _gxable_check(
             parentA: "ParaSave",
-            parentB: Optional["ParaSave"],
+            parentB: "ParaSave | None",
     ) -> bool:
 
         not_gxable_parents = []
@@ -282,14 +276,13 @@ class ParaSave(ParaGX):
     def gx_saved_point(
             cls,
             name_parentA: str,
-            name_parentB: Optional[str],                # if not given makes GX only with parent A
+            name_parentB: str | None,               # if not given makes GX only with parent A
             name_child: str,
-            save_topdir_parentA: Optional[str]= None,   # ParaSave top directory of parent A
-            save_topdir_parentB: Optional[str]= None,   # ParaSave top directory of parent B
-            save_topdir_child: Optional[str]=   None,   # ParaSave top directory of child
-            save_fn_pfx: Optional[str]=         None,   # ParaSave POINT file prefix
-            logger=                             None,
-            loglevel=                           20,
+            save_topdir_parentA: str | None = None, # ParaSave top directory of parent A
+            save_topdir_parentB: str | None = None, # ParaSave top directory of parent B
+            save_topdir_child: str | None = None,   # ParaSave top directory of child
+            save_fn_pfx: str | None = None,         # ParaSave POINT file prefix
+            loglevel: int = 20,
     ) -> None:
         """ performs GX on saved ParaSave POINT """
 
@@ -303,7 +296,6 @@ class ParaSave(ParaGX):
             save_topdir=    save_topdir_parentA,
             save_fn_pfx=    save_fn_pfx,
             assert_saved=   True,
-            logger=         logger,
             loglevel=       loglevel)
 
         parentB = cls(
@@ -311,7 +303,6 @@ class ParaSave(ParaGX):
             save_topdir=    save_topdir_parentB,
             save_fn_pfx=    save_fn_pfx,
             assert_saved=   True,
-            logger=         logger,
             loglevel=       loglevel) if name_parentB else None
 
         if not cls._gxable_check(parentA, parentB):
@@ -330,13 +321,13 @@ class ParaSave(ParaGX):
     @staticmethod
     def gx_point(
             parentA: "ParaSave",
-            parentB: Optional["ParaSave"]=  None,
-            name_child: Optional[str]=      None,
-            prob_mix=                       0.5,
-            prob_noise=                     0.3,
-            noise_scale=                    0.1,
-            prob_axis=                      0.1,
-            prob_diff_axis=                 0.3,
+            parentB: "ParaSave | None" = None,
+            name_child: str | None = None,
+            prob_mix: float = 0.5,
+            prob_noise: float = 0.3,
+            noise_scale: float = 0.1,
+            prob_axis: float = 0.1,
+            prob_diff_axis: float = 0.3,
     ) -> POINT:
         """ adds gxable check """
 
@@ -360,7 +351,7 @@ class ParaSave(ParaGX):
         return child_point
 
     @staticmethod
-    def dict_2str(d:dict) -> str:
+    def dict_2str(d: dict) -> str:
         """ returns nice string of given dict (mostly for .txt preview save) """
         if d:
             s = ''

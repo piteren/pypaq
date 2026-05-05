@@ -1,15 +1,16 @@
 import inspect
-from typing import Any, Dict, List, Tuple, Callable, Optional, Union, Type
+from collections.abc import Callable
+from typing import Any
 
 from pypaq.exception import PyPaqException
 from pypaq.lipytools.printout import nice_float_pad
 
 AXIS =  str                     # axis type (parameter name)
-P_VAL = Union[float, int, Any]  # point value (parameter value)
-POINT = Dict[AXIS, P_VAL]       # POINT is a dict {parameter: value}
+P_VAL = float | int | Any       # point value (parameter value)
+POINT = dict[AXIS, P_VAL]       # POINT is a dict {parameter: value}
 
 
-""" 
+"""
     PSDD - Parameters Space Definition Dict {axis(parameter name): list or tuple or value}
     dictionary that defines space, where POINTs can exist,
     for each axis possible POINT values are described with: list, tuple or any.
@@ -27,15 +28,15 @@ POINT = Dict[AXIS, P_VAL]       # POINT is a dict {parameter: value}
         'g':    's'}                    # single value
 """
 
-RANGE = List[P_VAL] or Tuple[P_VAL] or P_VAL    # axis range type (range of parameter)
-PSDD  = Dict[AXIS, RANGE]                       # Parameters Space Definition Dict {parameter: range}}
+RANGE = list[P_VAL] | tuple[P_VAL] | P_VAL  # axis range type (range of parameter)
+PSDD  = dict[AXIS, RANGE]                    # Parameters Space Definition Dict {parameter: range}
 
 
 class PMSException(PyPaqException):
     pass
 
 
-def point_str(p:POINT) -> str:
+def point_str(p: POINT) -> str:
     """ prepares POINT's nice string """
 
     avL = []
@@ -56,7 +57,7 @@ def point_str(p:POINT) -> str:
     return '{' + ' '.join(avL) + '}'
 
 
-def get_params(function:Callable) -> Dict:
+def get_params(function: Callable) -> dict:
     """ prepares function parameters dictionary """
 
     params_dict = {
@@ -66,7 +67,6 @@ def get_params(function:Callable) -> Dict:
     if function:
 
         specs = inspect.getfullargspec(function)
-        #print(specs)
 
         params = specs.args + specs.kwonlyargs
 
@@ -84,13 +84,13 @@ def get_params(function:Callable) -> Dict:
     return params_dict
 
 
-def get_class_init_params(cl:Type) -> Dict:
+def get_class_init_params(cl: type) -> dict:
     """ prepares class.__init__ parameters dictionary,
     recurrently goes down to base classes """
 
     def _update_params_dict(
-            without_defaults: List,
-            with_defaults: Dict):
+            without_defaults: list,
+            with_defaults: dict):
         """ in-place updates current params_dict """
 
         # cross-remove
@@ -129,9 +129,9 @@ def get_class_init_params(cl:Type) -> Dict:
 
 
 def point_trim(
-        fc: Optional[Union[Callable,Type]],
+        fc: Callable | type | None,
         point: POINT,
-        remove_self = True,  # removes self in case of class methods
+        remove_self: bool = True,   # removes self in case of class methods
 ) -> POINT:
     """ prepares sub-POINT trimmed to function params - given wider POINT """
 

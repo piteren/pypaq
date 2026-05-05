@@ -5,7 +5,7 @@ import os
 import pandas as pd
 import plotly.express as px
 import scipy
-from typing import List, Optional, Union, Sequence
+from collections.abc import Sequence
 import warnings
 
 from pypaq.pytypes import NPL
@@ -16,14 +16,14 @@ from pypaq.lipytools.stats import msmx
 
 def histogram(
         val_list: NPL,
-        name=                       'values',
-        rem_tails: Optional[float]= 0.01,   # removes 100X% from tails
-        rem_only_right: bool=       True,   # removes only right side
-        msmx_stats=                 True,   # prints minimal stats
-        density=                    True,
-        bins: Optional[int]=        None,   # automatic for None
-        add_density_curve: bool=    True,
-        save_FD :str=               None,
+        name: str = 'values',
+        rem_tails: float | None = 0.01,     # removes 100X% from tails
+        rem_only_right: bool = True,         # removes only right side
+        msmx_stats: bool = True,             # prints minimal stats
+        density: bool = True,
+        bins: int | None = None,             # automatic for None
+        add_density_curve: bool = True,
+        save_FD: str = None,
 ) -> str:
 
     if not len(val_list):
@@ -104,15 +104,15 @@ def histogram(
 
 
 def two_dim(
-        y: Union[List,np.ndarray],                  # two(yx) or one(y) dim list or np.array
-        x: Optional[Union[List,np.ndarray]]=    None,
-        name=                                   'values',
-        plot_type: str=                         'plot', # pot, bar, scatter
-        save_FD: str =                          None,
-        xlogscale=                              False,
-        ylogscale=                              False,
-        legend_loc=                             'upper left',
-        **plot_f_kwargs): # like for scatter: alpha=0.5, s=10
+        y: list | np.ndarray,                       # two(yx) or one(y) dim list or np.array
+        x: list | np.ndarray | None = None,
+        name: str = 'values',
+        plot_type: str = 'plot',                    # plot, bar, scatter
+        save_FD: str = None,
+        xlogscale: bool = False,
+        ylogscale: bool = False,
+        legend_loc: str = 'upper left',
+        **plot_f_kwargs):                            # like for scatter: alpha=0.5, s=10
 
     _plot_type_function = {
         'plot':     plt.plot,
@@ -142,13 +142,13 @@ def two_dim(
 
 
 def two_dim_multi(
-        ys: List[Union[List,np.ndarray]],
-        names: Optional[List[str]]= None,
-        name: Optional[str]=        None,
-        save_FD: str=               None,
-        xlogscale=                  False,
-        ylogscale=                  False,
-        legend_loc=                 'upper left'):
+        ys: list[list | np.ndarray],
+        names: list[str] | None = None,
+        name: str | None = None,
+        save_FD: str = None,
+        xlogscale: bool = False,
+        ylogscale: bool = False,
+        legend_loc: str = 'upper left'):
 
     if names is None:
         names = [f'values_{ix}' for ix in range(len(ys))]
@@ -175,16 +175,16 @@ def two_dim_multi(
 
 
 def three_dim(
-    xyz: list|np.ndarray, # sequence of (x,y,val) or (x,y,z,val)
-    name=               'values',
-    x_name=             'x',
-    y_name=             'y',
-    z_name=             'z',
-    val_name=           'val',
-    opacity=            0.7,
-    width=              700,
-    height=             700,
-    save_FD: str =      None,
+    xyz: list | np.ndarray,     # sequence of (x,y,val) or (x,y,z,val)
+    name: str = 'values',
+    x_name: str = 'x',
+    y_name: str = 'y',
+    z_name: str = 'z',
+    val_name: str = 'val',
+    opacity: float = 0.7,
+    width: int = 700,
+    height: int = 700,
+    save_FD: str = None,
 ):
 
     if type(xyz) is not np.ndarray:
@@ -225,9 +225,9 @@ def three_dim(
 
 def week_density_plot(
         df: pd.DataFrame,
-        bounds: Sequence[float]=    (0,1,3,6,10,20),
-        name: Optional[str]=        'density',
-        save_FD: Optional[str]=     None,
+        bounds: Sequence[float] = (0,1,3,6,10,20),
+        name: str | None = 'density',
+        save_FD: str | None = None,
 ):
     """plots github-style density calendar
     df: dataframe with 'date' and 'density' columns

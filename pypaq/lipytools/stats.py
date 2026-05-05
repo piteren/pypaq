@@ -2,19 +2,18 @@ import math
 import numpy as np
 import pandas as pd
 from scipy import stats
-from typing import Dict, Tuple
 
 from pypaq.pytypes import NPL
 from pypaq.lipytools.printout import nice_scin
 
 
 # min, avg, max
-def mam(vals:NPL) -> Tuple[float,float,float]:
+def mam(vals: NPL) -> tuple[float, float, float]:
     if len(vals): return min(vals), sum(vals) / len(vals), max(vals)
     else:         return 0.0, 0.0, 0.0
 
 # mean, median, std, SEM, h95, min, max, L2norm
-def msmx(vals:NPL, use_scin:bool=True) -> Dict:
+def msmx(vals: NPL, use_scin: bool = True) -> dict:
     arr = np.asarray(vals) if type(vals) is list else vals
     _mean, _median, _std, _min, _max = float(np.mean(arr)), float(np.median(arr)), float(np.std(arr)), float(np.min(arr)), float(np.max(arr))
     _sem = _std / math.sqrt(len(vals))
@@ -41,7 +40,7 @@ def msmx(vals:NPL, use_scin:bool=True) -> Dict:
 
 # some stats with pandas
 def stats_pd(
-        val_list :NPL,
-        n_percentiles=  10) -> str:
+        val_list: NPL,
+        n_percentiles: int = 10) -> str:
     s = f'{pd.Series(val_list).describe(percentiles=[0.1*n for n in range(1,n_percentiles)])}'
     return s[:s.rfind('\n')]

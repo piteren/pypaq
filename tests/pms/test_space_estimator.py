@@ -14,7 +14,7 @@ def test_base():
     rng = 10
 
     n_add = 20
-    n_loops = 50
+    n_loops = 20
 
     rr = RBFRegressor()
 

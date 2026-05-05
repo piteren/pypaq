@@ -1,7 +1,6 @@
 import numpy as np
 from pypaq.exception import PyPaqException
 from pypaq.pytypes import NUM
-from typing import Optional
 
 
 class MovAvg:
@@ -11,12 +10,12 @@ class MovAvg:
 
     def __init__(
             self,
-            factor: NUM=                0.1,    # (0.0;1.0>
-            first_avg: bool=            True,   # to average first 1/factor values
-            init_value: Optional[NUM]=  None,   # set starting value
-            init_weight: int=           10,     # set weight (count) for starting value
+            factor: NUM = 0.1,          # (0.0;1.0>
+            first_avg: bool = True,     # to average first 1/factor values
+            init_value: NUM | None = None,  # set starting value
+            init_weight: int = 10,      # set weight (count) for starting value
     ):
-        self.value: Optional[NUM] = init_value
+        self.value: NUM | None = init_value
 
         if not 0 < factor <= 1:
             raise PyPaqException('factor should: 0 < factor <= 1')
@@ -29,7 +28,7 @@ class MovAvg:
         self.first_np = np.zeros(self.n_first)      # cache first here
         self.first_np[:self.upd_ix] = self.value
 
-    def upd(self, val:NUM):
+    def upd(self, val: NUM):
 
         if self.first_avg and self.upd_ix < self.n_first:
             self.first_np[self.upd_ix] = val

@@ -17,11 +17,11 @@ def test_base():
             sub_tr = TimeRep()
             for sph in range(random.randint(1,4)):
                 print(f'sph:{sph}')
-                stime = random.random()
+                stime = random.random() / 3
                 time.sleep(stime)
                 sub_tr.log(f'sub-phase {ph}_{sph}')
         else:
-            stime = random.random()*3
+            stime = random.random()
             time.sleep(stime)
 
         tr.log(f'phase {ph}', interval_tr=sub_tr)

@@ -1,10 +1,10 @@
 from multiprocessing import cpu_count, Process, Queue, Value
 import psutil
 from queue import Empty
-from typing import Any, Optional, Union
+from typing import Any
 
 from pypaq.exception import PyPaqException
-from pypaq.lipytools.pylogger import get_pylogger
+from pypaq.lipytools.pylogger import Logged
 
 
 class MPythonException(PyPaqException):
@@ -13,7 +13,7 @@ class MPythonException(PyPaqException):
 
 class QMessage:
     """ QMessage is a type of object (message) sent between processes with Ques """
-    def __init__(self, type:str, data:Optional[Any]=None):
+    def __init__(self, type: str, data: Any = None):
         self.type = type
         self.data = data
 
@@ -26,10 +26,10 @@ class SharedCounter:
     Uses lock for atomic updates, so all processes see consistent value.
     Used by Que to track queue size reliably across processes and platforms """
 
-    def __init__(self, n:int=0):
+    def __init__(self, n: int = 0):
         self.count = Value('i', n)
 
-    def increment(self, n:int=1):
+    def increment(self, n: int = 1):
         with self.count.get_lock():
             self.count.value += n
 
@@ -47,13 +47,13 @@ class Que:
         self._q = Queue()
         self._size = SharedCounter(0)
 
-    def put(self, msg:QMessage, **kwargs):
+    def put(self, msg: QMessage, **kwargs):
         if not isinstance(msg, QMessage):
             raise MPythonException(f'\'msg\' should be type of QMessage, but is {type(msg)}')
         self._size.increment(1)
         self._q.put(msg, **kwargs)
 
-    def get(self, block:bool=True, timeout:Optional[float]=None) -> Optional[QMessage]:
+    def get(self, block: bool = True, timeout: float | None = None) -> QMessage | None:
         try:
             msg = self._q.get(block=block, timeout=timeout)
             self._size.increment(-1)
@@ -70,20 +70,19 @@ class Que:
         return self._size.value
 
 
-class ExProcess(Process):
+class ExProcess(Process, Logged):
     """ Exception Managed Process
     implements basic exceptions management.
     Similar to Process, it should be started with start() """
 
     def __init__(
             self,
-            ique: Optional[Que]=            None,
-            oque: Optional[Que]=            None,
-            name: Optional[Union[str,int]]= None,
-            raise_KeyboardInterrupt=        False,
-            raise_Exception=                False,
-            logger=                         None,
-            loglevel=                       30,
+            ique: Que | None = None,
+            oque: Que | None = None,
+            name: str | int | None = None,
+            raise_KeyboardInterrupt: bool = False,
+            raise_Exception: bool = False,
+            loglevel: int = 30,
     ):
         """
         ique:
@@ -104,12 +103,7 @@ class ExProcess(Process):
         if name is not None:
             self.name = str(name)
 
-        if not logger:
-            logger = get_pylogger(
-                name=       self.name,
-                folder=     None,
-                level=      loglevel)
-        self.logger = logger
+        self.logger = self.get_logger(level=loglevel)
 
         self.ique = ique
         self.oque = oque
@@ -147,7 +141,7 @@ class ExProcess(Process):
         this method is run inside try / except statement to hande ExProcess exceptions """
         raise NotImplementedError
 
-    def __exception_handle(self, e_name:str):
+    def __exception_handle(self, e_name: str):
         """ when exception occurs, message with exception data is put on the output que """
         if self.oque is not None:
             # returns self.name as data to allow process identification

@@ -1,14 +1,13 @@
 import numpy as np
-from typing import Optional
 
 from pypaq.lipytools.plots import histogram
 
 
 def sample_to_flatten(
         vals: np.ndarray,
-        n_new: Optional[int] = None,
+        n_new: int | None = None,
         bins: int = 40,
-        rng: Optional[np.random.Generator] = None,
+        rng: np.random.Generator | None = None,
         seed: int = 123,
 ):
 
