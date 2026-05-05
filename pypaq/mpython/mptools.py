@@ -1,10 +1,12 @@
+import logging
 from multiprocessing import cpu_count, Process, Queue, Value
 import psutil
 from queue import Empty
 from typing import Any
 
 from pypaq.exception import PyPaqException
-from pypaq.lipytools.pylogger import Logged
+
+logger = logging.getLogger(__name__)
 
 
 class MPythonException(PyPaqException):
@@ -70,7 +72,7 @@ class Que:
         return self._size.value
 
 
-class ExProcess(Process, Logged):
+class ExProcess(Process):
     """ Exception Managed Process
     implements basic exceptions management.
     Similar to Process, it should be started with start() """
@@ -82,7 +84,6 @@ class ExProcess(Process, Logged):
             name: str | int | None = None,
             raise_KeyboardInterrupt: bool = False,
             raise_Exception: bool = False,
-            loglevel: int = 30,
     ):
         """
         ique:
@@ -97,27 +98,20 @@ class ExProcess(Process, Logged):
             without running post exception handler
         raise_Exception:
             raises Exception, for debug """
-
         super().__init__(target=self.__run)
-
         if name is not None:
             self.name = str(name)
-
-        self.logger = self.get_logger(level=loglevel)
-
         self.ique = ique
         self.oque = oque
         self.raise_KeyboardInterrupt = raise_KeyboardInterrupt
         self.raise_Exception = raise_Exception
 
-        self.logger.info(f'*** {self.name} (ExProcess) *** initialized')
-
     def __run(self):
         """ process target method """
         try:
-            self.logger.debug(f'> ExProcess ({self.name}, pid:{self.pid}) - started exprocess_method()')
+            logger.info(f'{self.name} (ExProcess) started')
             self.exprocess_method()
-            self.logger.debug(f'> ExProcess ({self.name}, pid:{self.pid}) - finished exprocess_method()')
+            logger.info(f'{self.name} (ExProcess) finished')
 
         except KeyboardInterrupt:
 
@@ -148,7 +142,7 @@ class ExProcess(Process, Logged):
             self.oque.put(QMessage(
                 type=   f'Exception:{e_name}, ExProcess {self.name} (pid:{self.pid})',
                 data=   self.name))
-        self.logger.warning(f'> ExProcess ({self.name}) halted by Exception:{e_name}')
+        logger.warning(f'> ExProcess ({self.name}) halted by Exception:{e_name}')
         self.after_exception_handle_run()
 
     def after_exception_handle_run(self):
