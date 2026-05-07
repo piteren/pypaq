@@ -324,6 +324,8 @@ class ProgBar:
         self.inc_cached = 0
         self.start_time = time.time()
         self.time_prev = self.start_time
+        self.done = False
+        self.warned_overflow = False
 
     @staticmethod
     def _speed_to_str(s) -> str:
@@ -341,8 +343,14 @@ class ProgBar:
 
     def __call__(self, n: NUM, prefix: str = '', suffix: str = ''):
 
-        if n < self.n_prev:
-            raise PyPaqException('ProgBar cannot step back with progress (n < prev)')
+        if self.done:
+            if not self.warned_overflow:
+                wrn = "ProgBar called with n > total, further progress won't be logged"
+                print(wrn)
+                if self.logger:
+                    self.logger.warning(wrn)
+                self.warned_overflow = True
+            return
 
         if n > self.n_prev:
 
@@ -404,6 +412,7 @@ class ProgBar:
                     print()
                     if self.logger:
                         self.logger.info(f'ProgBar: {nfo}')
+                    self.done = True
 
                 self.n_prev = n
                 self.inc_cached = 0
