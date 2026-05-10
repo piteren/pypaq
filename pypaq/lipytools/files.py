@@ -85,14 +85,7 @@ class Folder:
         return folder
 
 
-def r_text(
-        file_path: str | Path,
-        raise_exception: bool = False,
-) -> str | None:
-    if not Path(file_path).is_file():
-        if raise_exception:
-            raise FileNotFoundError(f'file {file_path} not exists!')
-        return None
+def r_text(file_path: str | Path) -> str:
     with open(file_path, 'r', encoding='utf-8') as file:
         return file.read()
 
@@ -108,15 +101,9 @@ def w_text(
 def r_pickle(
         file_path: str | Path,
         obj_type = None,
-        raise_exception: bool=False,
 ):
     """ reads pickle
     if obj_type is given checks for compatibility with given type """
-    if not Path(file_path).is_file():
-        if raise_exception:
-            raise FileNotFoundError(f'file {file_path} not exists!')
-        return None
-
     compressed = False
     with open(file_path, 'rb') as f:
         if f.read(2) == b'\x1f\x8b': # gzip magic number
@@ -142,14 +129,7 @@ def w_pickle(
         pickle.dump(obj, file)  #type: ignore
 
 
-def r_json(
-        file_path: str | Path,
-        raise_exception: bool = False,
-) -> dict | list | None:
-    if not Path(file_path).is_file():
-        if raise_exception:
-            raise FileNotFoundError(f'file {file_path} not exists!')
-        return None
+def r_json(file_path: str | Path) -> dict | list:
     with open(file_path, 'r', encoding='utf-8') as file:
         return json.load(file)
 
@@ -162,14 +142,7 @@ def w_json(
         json.dump(data, file, indent=4, ensure_ascii=False)
 
 
-def r_jsonl(
-        file_path: str | Path,
-        raise_exception: bool = False,
-) -> list | None:
-    if not Path(file_path).is_file():
-        if raise_exception:
-            raise FileNotFoundError(f'file {file_path} not exists!')
-        return None
+def r_jsonl(file_path: str | Path) -> list:
     with open(file_path, 'r', encoding='utf-8') as file:
         return [json.loads(line) for line in file]
 
@@ -184,14 +157,7 @@ def w_jsonl(
             file.write('\n')
 
 
-def r_jsonl_gz(
-        file_path: str | Path,
-        raise_exception: bool = False,
-) -> list | None:
-    if not Path(file_path).is_file():
-        if raise_exception:
-            raise FileNotFoundError(f'file {file_path} not exists!')
-        return None
+def r_jsonl_gz(file_path: str | Path) -> list:
     with gzip.open(file_path, 'rt', encoding='utf-8') as file:
         return [json.loads(line) for line in file]
 
@@ -206,14 +172,7 @@ def w_jsonl_gz(
             file.write('\n')
 
 
-def r_csv(
-        file_path: str | Path,
-        raise_exception: bool = False,
-) -> list | None:
-    if not Path(file_path).is_file():
-        if raise_exception:
-            raise FileNotFoundError(f'file {file_path} not exists!')
-        return None
+def r_csv(file_path: str | Path) -> list:
     csv.field_size_limit(sys.maxsize)
     with open(file_path, newline='') as f:
         reader = csv.reader(f)
@@ -229,14 +188,7 @@ def w_csv(
         writer.writerows(data)
 
 
-def r_yaml(
-        file_path: str | Path,
-        raise_exception: bool = False,
-):
-    if not Path(file_path).is_file():
-        if raise_exception:
-            raise FileNotFoundError(f'file {file_path} not exists!')
-        return None
+def r_yaml(file_path: str | Path):
     with open(file_path) as file:
         return yaml.load(file, yaml.Loader)
 
@@ -286,6 +238,6 @@ def get_files(
 
 
 def get_requirements(file_path :str = 'requirements.txt') -> list[str]:
-    file_text = r_text(file_path, raise_exception=True)
+    file_text = r_text(file_path)
     file_lines = file_text.split('\n')
     return [l.strip() for l in file_lines]
