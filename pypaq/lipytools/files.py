@@ -74,7 +74,7 @@ class Folder:
         """builds a Folder tree from the given directory path"""
         fd_path = Path(fd_path)
         folder = cls(full_path=fd_path)
-        for entry in fd_path.iterdir():
+        for entry in sorted(fd_path.iterdir()):
             if entry.is_file():
                 folder.files.append(entry.name)
             elif entry.is_dir():
