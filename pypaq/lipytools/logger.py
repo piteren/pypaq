@@ -38,6 +38,9 @@ def logger_mod(
 
     if folder:
         prep_folder(folder)
-        fh = logging.FileHandler(f'{folder}/{log_file_name or logger.name}.log')
+        log_file_name = log_file_name or logger.name
+        if not log_file_name.endswith(".log"):
+            log_file_name += ".log"
+        fh = logging.FileHandler(f'{folder}/{log_file_name}')
         fh.setFormatter(formatter)
         logger.addHandler(fh)
