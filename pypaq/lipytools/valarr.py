@@ -14,7 +14,7 @@ class ValuesArray:
 
     def __init__(
             self,
-            init_size: int = 100000,
+            init_size: int = 4096,
             dtype: type = np.float32,
     ):
         self.dtype = dtype
