@@ -136,7 +136,7 @@ class ExProcess(Process):
         raise NotImplementedError
 
     def __exception_handle(self, e_name: str):
-        """ when exception occurs, message with exception data is put on the output que """
+        """ when exception occurs, a message with exception data is put on the output que """
         if self.oque is not None:
             # returns self.name as data to allow process identification
             self.oque.put(QMessage(
@@ -147,7 +147,7 @@ class ExProcess(Process):
 
     def after_exception_handle_run(self):
         """ this method may be implemented and will be run
-        after exception occurred inside exception handler """
+        after an exception occurred inside the exception handler """
         pass
 
     def kill_and_close(self):
@@ -174,11 +174,12 @@ class ExProcess(Process):
         return mem
 
 
-def sys_res_nfo():
+def sys_res_nfo(interval=None):
+    """returns dict with system resources info
+    if you need accurate info for a single call (not a loop), use an interval of about 0.1-1"""
     vm = psutil.virtual_memory()
-    gb = 1024 ** 3
     return {
         'cpu_count':    cpu_count(),
-        'cpu_used_%':   psutil.cpu_percent(interval=5), # over last 5 sec
-        'mem_total_GB': vm.total / gb,
+        'cpu_used_%':   psutil.cpu_percent(interval=interval),
+        'mem_total_GB': vm.total / (1024 ** 3),
         'mem_used_%':   vm.percent}

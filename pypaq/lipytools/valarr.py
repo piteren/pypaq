@@ -7,10 +7,10 @@ from typing import Union
 
 class ValuesArray:
     """ValuesArray is a np.ndarray
-    which behaves similar to python List
+    that behaves similar to python list
     only some interfaces are implemented.
     It is optimized for constant grow and large sizes.
-    Additionally, supports mean and h95 calculation"""
+    Additionally, supports mean and h95 calculation."""
 
     def __init__(
             self,
@@ -21,28 +21,31 @@ class ValuesArray:
         self._val = np.zeros(shape=init_size, dtype=self.dtype)
         self.size = 0
 
-    def _grow(self):
-        cs = self._val.shape[0]
-        _wr = self._val
-        self._val = np.zeros(shape=cs*2, dtype=self.dtype)
-        self._val[:cs] = _wr
+    def _grow(self, to: int | None = None):
+        _val_len = len(self._val)
+        if not to:
+            to = 2 * _val_len
+        grown = np.zeros(shape=to, dtype=self.dtype)
+        grown[:_val_len] = self._val
+        self._val = grown
 
-    # *** List interface ***************************************************************************
+    # *** list interface ***************************************************************************
 
     def __len__(self) -> int:
         return self.size
 
     def __iadd__(self, other: Union[Iterable, "ValuesArray"]):
 
-        if isinstance(other, ValuesArray):
-            other = other.get_array()
-        _other_arr = np.asarray(other, dtype=self.dtype)
+        _other_arr = other.get_array().astype(self.dtype) \
+            if isinstance(other, ValuesArray) \
+            else np.asarray(other, dtype=self.dtype)
+        _len_other_arr = len(_other_arr)
 
-        while len(self._val) - self.size < len(_other_arr):
-            self._grow()
+        if len(self._val) - self.size < _len_other_arr:
+            self._grow(to = max(2 * _len_other_arr, 2 * len(self._val)))
 
-        self._val[self.size:self.size+len(_other_arr)] = _other_arr
-        self.size += len(_other_arr)
+        self._val[self.size : self.size + _len_other_arr] = _other_arr
+        self.size += _len_other_arr
         return self
 
     def __str__(self):
@@ -51,10 +54,10 @@ class ValuesArray:
     def append(self, v):
         self._val[self.size] = v
         self.size += 1
-        if self.size == self._val.shape[0]:
+        if self.size == len(self._val):
             self._grow()
 
-    # *** additional interface *********************************************************************
+    # *** additional interfaces *********************************************************************
 
     def get_array(self) -> np.ndarray:
         return self._val[:self.size]
