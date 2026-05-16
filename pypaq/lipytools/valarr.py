@@ -4,6 +4,8 @@ from collections.abc import Iterable
 from scipy import stats
 from typing import Union
 
+_NORMAL_975 = 1.959963984540054
+
 
 class ValuesArray:
     """ValuesArray is a np.ndarray
@@ -63,8 +65,18 @@ class ValuesArray:
         return self._val[:self.size]
 
     def mean_h95(self) -> tuple[float, float]:
-        mean = float(self._val[:self.size].mean())
-        std = self._val[:self.size].std()
-        sem = std / math.sqrt(self.size)
-        h95 = float(sem * stats.t.ppf(0.975, self.size - 1))
+
+        n = self.size
+        arr = self._val[:n]
+        mean = float(arr.mean())
+
+        if n <= 1:
+            return mean, float("nan")
+
+        std = arr.std(ddof=1)
+        sem = std / math.sqrt(n)
+
+        t = _NORMAL_975 if n >= 200 else stats.t.ppf(0.975, n - 1)
+        h95 = float(sem * t)
+
         return mean, h95
