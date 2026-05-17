@@ -47,6 +47,7 @@ class Folder:
             self,
             file_source_path: Path | str,
             file_target_path: Path | str,
+            **kwargs,
     ):
         raise NotImplementedError("not implemented Folder.processing_func()!")
 
