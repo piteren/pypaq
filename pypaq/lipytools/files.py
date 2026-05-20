@@ -1,14 +1,18 @@
 import csv
 import gzip
 import json
+import logging
 from pathlib import Path
 import pickle
 import shutil
 import sys
+from typing import Iterable
 import yaml
 
 from pypaq.exception import PyPaqException
 from pypaq.lipytools.printout import ProgBar
+
+logger = logging.getLogger(__name__)
 
 
 class Folder:
@@ -16,12 +20,17 @@ class Folder:
     def __init__(
             self,
             full_path: Path | str,
-            subfolders: list["Folder"] | None = None,
-            files: list[str] | None = None,  # file names only, NOT full paths
+            recursive: bool = True,
     ):
         self.full_path = Path(full_path)
-        self.subfolders = subfolders or []
-        self.files = files or []
+        self.files: list[str] = []
+        self.subfolders :list[Folder] = []
+
+        for entry in sorted(self.full_path.iterdir()):
+            if entry.is_file():
+                self.files.append(entry.name)
+            elif entry.is_dir() and recursive:
+                self.subfolders.append(Folder(entry, recursive=recursive))
 
     @property
     def name(self) -> str:
@@ -51,39 +60,60 @@ class Folder:
     ):
         raise NotImplementedError("not implemented Folder.processing_func()!")
 
-    def process_files(self, path_processed:Path|str):
-        """processes all files in tree with processing_func(), which needs to be implemented"""
+    def process_files(
+            self,
+            path_processed: Path | str,
+            add_ext: str | None = None,
+            exclude: Iterable[str] | None = None,
+    ):
+        """processes all files in the Folder
+        with subfolders if Folder is recursive
+        using processing_func() <- that needs to be implemented
+
+        add_ext - adds additional extension to every processed file
+        exclude - excludes files which got in path any from given patterns"""
+
         path_processed = Path(path_processed)
         prep_folder(path_processed)
+
+        logger.info(f"processing {len(self.files)} files")
+        logger.info(f"> from {self.name}")
+        logger.info(f"> to {path_processed}")
+        if add_ext:
+            logger.info(f"> adding ext: {add_ext}")
+        logger.info(f"> with {self.processing_func}")
+        logger.info(f"> excluding {exclude}")
+
+        skipped = 0
         if len(self.files):
-            prog = ProgBar(len(self.files))
+
+            prog = ProgBar(len(self.files), logger=logger)
             for fn in self.files:
+
+                if exclude and any(e in fn for e in exclude):
+                    skipped += 1
+                    prog.inc(prefix=f"skipped {fn} from {self.name}")
+                    continue
+
+                file_target_path = path_processed / fn
+                if add_ext:
+                    file_target_path = file_target_path.with_name(file_target_path.name + add_ext)
+
                 self.processing_func(
                     file_source_path=self.full_path / fn,
-                    file_target_path=path_processed / fn)
+                    file_target_path=file_target_path)
                 prog.inc(prefix=f"processed {fn} from {self.name}")
+
+        if skipped:
+            logger.info(f">> skipped {skipped} files")
+
         for sfd in self.subfolders:
             sfd.processing_func = self.processing_func
-            sfd.process_files(path_processed / sfd.name)
+            sfd.process_files(path_processed / sfd.name, exclude=exclude)
 
     def __str__(self) -> str:
         sl  = f'D {self.name}/ [{len(self.subfolders)}/{len(self.files)}]'
         return '\n'.join([sl] + self._build_tree())
-
-    @classmethod
-    def from_path(cls, fd_path: str | Path, recursive: bool = True) -> "Folder":
-        """builds a Folder tree from the given directory path"""
-        fd_path = Path(fd_path)
-        folder = cls(full_path=fd_path)
-        for entry in sorted(fd_path.iterdir()):
-            if entry.is_file():
-                folder.files.append(entry.name)
-            elif entry.is_dir():
-                if recursive:
-                    folder.subfolders.append(cls.from_path(entry, recursive))
-                else:
-                    folder.subfolders.append(cls(full_path=entry))
-        return folder
 
 
 def r_text(file_path: str | Path) -> str:
