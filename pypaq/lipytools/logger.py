@@ -1,3 +1,4 @@
+import functools
 import logging
 
 from pypaq.lipytools.files import prep_folder
@@ -44,3 +45,17 @@ def logger_mod(
         fh = logging.FileHandler(f'{folder}/{log_file_name}')
         fh.setFormatter(formatter)
         logger.addHandler(fh)
+
+
+def shift_log_level(logger, delta):
+    def decorator(fn):
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            old = logger.getEffectiveLevel()
+            logger.setLevel(old + delta)
+            try:
+                return fn(*args, **kwargs)
+            finally:
+                logger.setLevel(old)
+        return wrapper
+    return decorator
