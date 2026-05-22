@@ -30,8 +30,8 @@ def get_devices(devices: DevicesPypaq = 1.0) -> list[None]:
 
         if type(d) is float:
             known_device = True
-            if d < 0.0: d = 0.0
-            if d > 1.0: d = 1.0
+            if d < 0.0:
+                d = 0.0
             n_cpus_f = round(n_cpus * d)
             if n_cpus_f < 1: n_cpus_f = 1
             devices_base += [None] * n_cpus_f
