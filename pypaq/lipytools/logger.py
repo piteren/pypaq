@@ -12,13 +12,18 @@ def logger_mod(
         folder: str | None = None,
         log_file_name: str | None = None,
         to_stdout: bool = True,
+        replace_stream: bool = False,
             # format
         fmt: str = DEFAULT_FMT,
         file_width: int = 20,
         enable_process: bool = True,
 ) -> None:
     """modify the root logger level, handlers and format
-    call once at app startup"""
+    call once at app startup
+
+    replace_stream: if True, removes any existing console StreamHandler(s)
+        first, so this call's StreamHandler replaces them (instead of being
+        skipped by the has_stream guard)"""
 
     logger = logging.getLogger()
 
@@ -31,11 +36,17 @@ def logger_mod(
         fmt = fmt.replace("p%(process)s ", "")
     formatter = logging.Formatter(fmt)
 
-    has_stream = any(type(h) is logging.StreamHandler for h in logger.handlers)
-    if to_stdout and not has_stream:
-        sh = logging.StreamHandler()
-        sh.setFormatter(formatter)
-        logger.addHandler(sh)
+    if to_stdout:
+
+        if replace_stream:
+            for h in [h for h in logger.handlers if type(h) is logging.StreamHandler]:
+                logger.removeHandler(h)
+
+        has_stream = any(type(h) is logging.StreamHandler for h in logger.handlers)
+        if not has_stream:
+            sh = logging.StreamHandler()
+            sh.setFormatter(formatter)
+            logger.addHandler(sh)
 
     if folder:
         prep_folder(folder)
