@@ -8,6 +8,7 @@ import shutil
 import sys
 from typing import Iterable
 import yaml
+from zipfile import ZipFile, ZIP_DEFLATED
 
 from pypaq.exception import PyPaqException
 from pypaq.lipytools.printout import ProgBar
@@ -160,16 +161,25 @@ class Folder:
 
 
 def r_text(file_path: str | Path) -> str:
-    with open(file_path, 'r', encoding='utf-8') as file:
-        return file.read()
+    file_path = Path(file_path)
+    if file_path.suffix.lower() == ".zip":
+        with ZipFile(file_path) as archive:
+            return archive.read(archive.namelist()[0]).decode("utf-8")
+    return file_path.read_text(encoding="utf-8")
 
 
 def w_text(
         text: str,
         file_path: str | Path,
+        zipped: bool = False,
 ):
-    with open(file_path, 'w', encoding='utf-8') as file:
-        return file.write(text)
+    file_path = Path(file_path)
+    if zipped:
+        zip_path = file_path.with_suffix(".zip")
+        with ZipFile(zip_path, "w", compression=ZIP_DEFLATED) as archive:
+            archive.writestr(file_path.name, text)
+    else:
+        file_path.write_text(text, encoding="utf-8")
 
 
 def r_pickle(
