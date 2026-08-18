@@ -18,10 +18,10 @@ def histogram(
         val_list: NPL,
         name: str = 'values',
         rem_tails: float | None = 0.01,     # removes 100X% from tails
-        rem_only_right: bool = True,         # removes only right side
-        msmx_stats: bool = True,             # prints minimal stats
+        rem_only_right: bool = False,       # removes only right side
+        msmx_stats: bool = True,            # prints minimal stats
         density: bool = True,
-        bins: int | None = None,             # automatic for None
+        bins: int | None = None,            # automatic for None
         add_density_curve: bool = True,
         save_FD: str = None,
 ) -> str:
@@ -75,7 +75,7 @@ def histogram(
             if len(val_set) < 200:
                 bins = len(val_set)
             else:
-                bins = np.sqrt(len(val_list))
+                bins = int(np.sqrt(len(val_list)))
                 if bins > 100:
                     bins = 100
 
