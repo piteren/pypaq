@@ -119,9 +119,11 @@ def two_dim(
         'bar':      plt.bar,
         'scatter':  plt.scatter}
 
-    if type(y) is list: y = np.asarray(y)
+    if type(y) is list:
+        y = np.asarray(y)
     if x is None:
-        if len(y.shape) < 2: x = np.arange(len(y))
+        if len(y.shape) < 2:
+            x = np.arange(len(y))
         else:
             x = y[:, 1]
             y = y[:, 0]
@@ -143,6 +145,7 @@ def two_dim(
 
 def two_dim_multi(
         ys: list[list | np.ndarray],
+        x: list | np.ndarray | None = None,
         names: list[str] | None = None,
         name: str | None = None,
         save_FD: str = None,
@@ -153,7 +156,8 @@ def two_dim_multi(
     if names is None:
         names = [f'values_{ix}' for ix in range(len(ys))]
 
-    x = np.arange(len(ys[0]))
+    if x is None:
+        x = np.arange(len(ys[0]))
 
     plt.figure()
     for y,name in zip(ys,names):
